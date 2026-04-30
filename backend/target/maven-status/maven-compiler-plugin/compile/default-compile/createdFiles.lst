@@ -1,0 +1,16 @@
+com\vouch\dto\RegisterRequest.class
+com\vouch\VouchApplication.class
+com\vouch\security\JwtAuthenticationFilter.class
+com\vouch\security\JwtUtil.class
+com\vouch\controller\AuthController.class
+com\vouch\entity\User$UserBuilder.class
+com\vouch\service\CustomUserDetailsService.class
+com\vouch\service\AuthService.class
+com\vouch\entity\User.class
+com\vouch\dto\AuthResponse$AuthResponseBuilder.class
+com\vouch\dto\AuthResponse.class
+com\vouch\config\SecurityConfig.class
+com\vouch\controller\HealthController.class
+com\vouch\dto\LoginRequest.class
+com\vouch\entity\User$Role.class
+com\vouch\repository\UserRepository.class
