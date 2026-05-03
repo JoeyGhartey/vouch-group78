@@ -1,0 +1,27 @@
+# Compiled class files
+*.class
+
+# Maven
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.iws
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+*.env
+
+# Node modules (for frontend later)
+frontend/node_modules/
+frontend/.expo/

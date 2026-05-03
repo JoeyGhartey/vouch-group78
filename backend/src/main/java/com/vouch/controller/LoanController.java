@@ -51,9 +51,19 @@ public class LoanController {
         return ResponseEntity.ok(loanService.defaultLoan(auth.getName(), loanId));
     }
 
+    @PostMapping("/{loanId}/cancel")
+    public ResponseEntity<LoanResponse> cancelLoan(Authentication auth, @PathVariable Long loanId) {
+        return ResponseEntity.ok(loanService.cancelLoan(auth.getName(), loanId));
+    }
+
     @GetMapping("/circle/{circleId}")
     public ResponseEntity<List<LoanResponse>> getCircleLoans(Authentication auth, @PathVariable Long circleId) {
         return ResponseEntity.ok(loanService.getCircleLoans(auth.getName(), circleId));
+    }
+
+    @GetMapping("/circle/{circleId}/requests")
+    public ResponseEntity<List<LoanResponse>> getCircleLoanRequests(Authentication auth, @PathVariable Long circleId) {
+        return ResponseEntity.ok(loanService.getCircleLoanRequests(auth.getName(), circleId));
     }
 
     @GetMapping("/borrowed")

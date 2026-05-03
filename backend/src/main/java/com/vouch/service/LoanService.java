@@ -33,6 +33,7 @@ public class LoanService {
 
         circleService.validateMembership(circle, borrower);
 
+        // Validate borrower status
         if (borrower.getPermanentBan()) {
             throw new RuntimeException("You are permanently banned from borrowing");
         }
@@ -43,8 +44,22 @@ public class LoanService {
         if (borrower.getTrustScore() < 20) {
             throw new RuntimeException("Your trust score is too low to borrow. Repay outstanding loans to recover.");
         }
+
+        // Validate amount
+        if (request.getAmount() <= 0) {
+            throw new RuntimeException("Loan amount must be greater than zero");
+        }
         if (request.getAmount() > circle.getMaxLoanAmount()) {
             throw new RuntimeException("Amount exceeds circle's maximum loan amount of " + circle.getMaxLoanAmount());
+        }
+
+        // Check for existing active loans from same borrower in same circle
+        List<Loan> existingActiveLoans = loanRepository.findByBorrowerAndStatus(borrower, Loan.LoanStatus.ACTIVE);
+        long activeInCircle = existingActiveLoans.stream()
+                .filter(l -> l.getCircle().getId().equals(circle.getId()))
+                .count();
+        if (activeInCircle >= 3) {
+            throw new RuntimeException("You already have 3 active loans in this circle. Repay existing loans first.");
         }
 
         Loan.RepaymentType repaymentType = Loan.RepaymentType.FIXED;
@@ -52,9 +67,18 @@ public class LoanService {
             repaymentType = Loan.RepaymentType.FLEXIBLE;
         }
 
+        // Validate repayment period
+        int repaymentPeriod = request.getRepaymentPeriodMonths() != null ? request.getRepaymentPeriodMonths() : 1;
+        if (repaymentPeriod < 1 || repaymentPeriod > 12) {
+            throw new RuntimeException("Repayment period must be between 1 and 12 months");
+        }
+
         LocalDateTime dueDate = null;
         if (request.getDueDate() != null) {
             dueDate = LocalDateTime.parse(request.getDueDate(), DateTimeFormatter.ISO_DATE_TIME);
+            if (dueDate.isBefore(LocalDateTime.now())) {
+                throw new RuntimeException("Due date cannot be in the past");
+            }
         }
 
         Loan loan = Loan.builder()
@@ -63,7 +87,7 @@ public class LoanService {
                 .amount(request.getAmount())
                 .reason(request.getReason())
                 .repaymentType(repaymentType)
-                .repaymentPeriodMonths(request.getRepaymentPeriodMonths() != null ? request.getRepaymentPeriodMonths() : 1)
+                .repaymentPeriodMonths(repaymentPeriod)
                 .dueDate(dueDate)
                 .status(Loan.LoanStatus.REQUESTED)
                 .isGroupFunded(request.getAmount() >= circle.getGroupFundingThreshold())
@@ -89,11 +113,19 @@ public class LoanService {
             throw new RuntimeException("You cannot fund your own loan");
         }
 
+        // Validate interest rate
+        if (request.getInterestRate() < 0) {
+            throw new RuntimeException("Interest rate cannot be negative");
+        }
+        if (request.getInterestRate() > 50) {
+            throw new RuntimeException("Interest rate cannot exceed 50% to prevent predatory lending");
+        }
+
         loan.setLender(lender);
         loan.setInterestRate(request.getInterestRate());
 
         double totalRepayment = loan.getAmount() * (1 + request.getInterestRate() / 100);
-        loan.setTotalRepaymentAmount(totalRepayment);
+        loan.setTotalRepaymentAmount(Math.round(totalRepayment * 100.0) / 100.0);
 
         loan.setStatus(Loan.LoanStatus.AGREEMENT_PENDING);
         loan = loanRepository.save(loan);
@@ -109,13 +141,23 @@ public class LoanService {
         Loan loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
+        if (loan.getStatus() != Loan.LoanStatus.AGREEMENT_PENDING) {
+            throw new RuntimeException("This loan is not in agreement signing stage");
+        }
+
         LoanAgreement agreement = loanAgreementRepository.findByLoan(loan)
                 .orElseThrow(() -> new RuntimeException("Agreement not found"));
 
         if (signer.getId().equals(loan.getBorrower().getId())) {
+            if (agreement.getBorrowerSigned()) {
+                throw new RuntimeException("You have already signed this agreement");
+            }
             agreement.setBorrowerSigned(true);
             agreement.setBorrowerSignedAt(LocalDateTime.now());
         } else if (loan.getLender() != null && signer.getId().equals(loan.getLender().getId())) {
+            if (agreement.getLenderSigned()) {
+                throw new RuntimeException("You have already signed this agreement");
+            }
             agreement.setLenderSigned(true);
             agreement.setLenderSignedAt(LocalDateTime.now());
         } else {
@@ -160,6 +202,7 @@ public class LoanService {
 
         loan.setStatus(Loan.LoanStatus.ACTIVE);
 
+        // Update circle member stats
         CircleMember borrowerMember = circleMemberRepository.findByCircleAndUser(loan.getCircle(), loan.getBorrower())
                 .orElse(null);
         if (borrowerMember != null) {
@@ -174,6 +217,7 @@ public class LoanService {
             circleMemberRepository.save(lenderMember);
         }
 
+        // Update user stats
         User borrower = loan.getBorrower();
         borrower.setTotalLoansReceived(borrower.getTotalLoansReceived() + 1);
         userRepository.save(borrower);
@@ -205,7 +249,15 @@ public class LoanService {
         double totalOwed = loan.getTotalRepaymentAmount() + loan.getOverdueInterestAccrued() - loan.getAmountRepaid();
         double repayAmount = amount != null ? amount : totalOwed;
 
-        loan.setAmountRepaid(loan.getAmountRepaid() + repayAmount);
+        // Validate repayment amount
+        if (repayAmount <= 0) {
+            throw new RuntimeException("Repayment amount must be greater than zero");
+        }
+        if (repayAmount > totalOwed) {
+            throw new RuntimeException("Repayment amount exceeds total owed. You owe " + String.format("%.2f", totalOwed));
+        }
+
+        loan.setAmountRepaid(Math.round((loan.getAmountRepaid() + repayAmount) * 100.0) / 100.0);
 
         if (loan.getAmountRepaid() >= loan.getTotalRepaymentAmount() + loan.getOverdueInterestAccrued()) {
             loan.setStatus(Loan.LoanStatus.REPAID);
@@ -214,6 +266,7 @@ public class LoanService {
             boolean onTime = loan.getGracePeriodStart() == null;
             trustScoreService.updateScoreOnRepayment(loan.getBorrower(), loan, onTime);
 
+            // Update circle stats
             CircleMember borrowerMember = circleMemberRepository.findByCircleAndUser(loan.getCircle(), loan.getBorrower())
                     .orElse(null);
             if (borrowerMember != null) {
@@ -229,7 +282,8 @@ public class LoanService {
         }
 
         loan = loanRepository.save(loan);
-        return mapToLoanResponse(loan, "Partial repayment recorded. Remaining: " + (totalOwed - repayAmount));
+        double remaining = totalOwed - repayAmount;
+        return mapToLoanResponse(loan, "Partial repayment recorded. Remaining: " + String.format("%.2f", remaining));
     }
 
     @Transactional
@@ -243,14 +297,21 @@ public class LoanService {
         }
 
         if (loan.getStatus() != Loan.LoanStatus.GRACE_PERIOD) {
-            throw new RuntimeException("Loan can only be defaulted after the grace period");
+            throw new RuntimeException("Loan can only be defaulted after entering the grace period");
+        }
+
+        // Check if grace period has actually expired
+        if (loan.getGracePeriodEnd() != null && loan.getGracePeriodEnd().isAfter(LocalDateTime.now())) {
+            throw new RuntimeException("Grace period has not expired yet. Expires at " + loan.getGracePeriodEnd());
         }
 
         loan.setStatus(Loan.LoanStatus.DEFAULTED);
         loan.setDefaultedAt(LocalDateTime.now());
 
+        // Update trust score
         trustScoreService.updateScoreOnDefault(loan.getBorrower(), loan);
 
+        // Apply escalating consequences
         User borrower = loan.getBorrower();
         borrower.setDefaults(borrower.getDefaults() + 1);
 
@@ -263,6 +324,7 @@ public class LoanService {
 
         userRepository.save(borrower);
 
+        // Update circle stats
         CircleMember borrowerMember = circleMemberRepository.findByCircleAndUser(loan.getCircle(), loan.getBorrower())
                 .orElse(null);
         if (borrowerMember != null) {
@@ -274,6 +336,25 @@ public class LoanService {
         return mapToLoanResponse(loan, "Loan marked as defaulted. Borrower's trust score has been impacted.");
     }
 
+    @Transactional
+    public LoanResponse cancelLoan(String phone, Long loanId) {
+        User user = getUserByPhone(phone);
+        Loan loan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        if (!user.getId().equals(loan.getBorrower().getId())) {
+            throw new RuntimeException("Only the borrower can cancel a loan request");
+        }
+
+        if (loan.getStatus() != Loan.LoanStatus.REQUESTED) {
+            throw new RuntimeException("Only pending loan requests can be cancelled");
+        }
+
+        loan.setStatus(Loan.LoanStatus.CANCELLED);
+        loan = loanRepository.save(loan);
+        return mapToLoanResponse(loan, "Loan request cancelled.");
+    }
+
     public List<LoanResponse> getCircleLoans(String phone, Long circleId) {
         User user = getUserByPhone(phone);
         Circle circle = circleRepository.findById(circleId)
@@ -282,6 +363,18 @@ public class LoanService {
         circleService.validateMembership(circle, user);
 
         return loanRepository.findByCircle(circle).stream()
+                .map(l -> mapToLoanResponse(l, null))
+                .collect(Collectors.toList());
+    }
+
+    public List<LoanResponse> getCircleLoanRequests(String phone, Long circleId) {
+        User user = getUserByPhone(phone);
+        Circle circle = circleRepository.findById(circleId)
+                .orElseThrow(() -> new RuntimeException("Circle not found"));
+
+        circleService.validateMembership(circle, user);
+
+        return loanRepository.findByCircleAndStatus(circle, Loan.LoanStatus.REQUESTED).stream()
                 .map(l -> mapToLoanResponse(l, null))
                 .collect(Collectors.toList());
     }
@@ -316,6 +409,9 @@ public class LoanService {
                 "% per day will accrue during a 7-day grace period. " +
                 "Failure to repay by the end of the grace period may result in the loan being marked as defaulted, " +
                 "which will significantly impact the borrower's trust score. " +
+                "First default: score drop and circle-wide notification. " +
+                "Second default: 30-day borrowing suspension. " +
+                "Third default: permanent borrowing ban across all circles. " +
                 "This agreement serves as documented evidence of the transaction terms and may be used as " +
                 "supporting evidence in any external dispute resolution or legal process. " +
                 "Repayment is only recognized when processed through the Vouch platform.";

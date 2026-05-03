@@ -31,30 +31,38 @@ public class User {
 
     private String momoNumber;
 
+    @Builder.Default
     @Column(nullable = false)
     private Double trustScore = 50.0;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer totalLoansGiven = 0;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer totalLoansReceived = 0;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer loansRepaidOnTime = 0;
 
+    @Builder.Default
     @Column(nullable = false)
     private Integer defaults = 0;
 
+    @Builder.Default
     @Column(nullable = false)
     private Boolean borrowingSuspended = false;
 
     private LocalDateTime borrowingSuspendedUntil;
 
+    @Builder.Default
     @Column(nullable = false)
     private Boolean permanentBan = false;
 
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(nullable = false)
     private Role role = Role.USER;
 

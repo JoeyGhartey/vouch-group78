@@ -18,6 +18,7 @@ com\vouch\entity\Circle.class
 com\vouch\dto\CircleResponse.class
 com\vouch\controller\AuthController.class
 com\vouch\dto\CreateCircleRequest.class
+com\vouch\service\LoanSchedulerService.class
 com\vouch\entity\CircleMember$CircleMemberBuilder.class
 com\vouch\repository\CircleRepository.class
 com\vouch\controller\LoanController.class
@@ -29,6 +30,7 @@ com\vouch\dto\AuthResponse$AuthResponseBuilder.class
 com\vouch\service\SharedExpenseService.class
 com\vouch\dto\CircleMemberResponse.class
 com\vouch\dto\CircleMemberResponse$CircleMemberResponseBuilder.class
+com\vouch\config\GlobalExceptionHandler.class
 com\vouch\repository\UserRepository.class
 com\vouch\repository\LoanAgreementRepository.class
 com\vouch\dto\RegisterRequest.class
