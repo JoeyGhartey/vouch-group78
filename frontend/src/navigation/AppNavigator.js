@@ -9,14 +9,10 @@ import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import HomeScreen from '../screens/HomeScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import CirclesScreen from '../screens/CirclesScreen';
+import CircleDetailScreen from '../screens/CircleDetailScreen';
 
-// Placeholder screens - we'll build these next
-const CirclesScreen = () => (
-  <View style={{ flex: 1, backgroundColor: '#1a1a2e', justifyContent: 'center', alignItems: 'center' }}>
-    <Text style={{ color: '#fff', fontSize: 18 }}>Circles - Coming Soon</Text>
-  </View>
-);
-
+// Placeholder screens
 const LoansScreen = () => (
   <View style={{ flex: 1, backgroundColor: '#1a1a2e', justifyContent: 'center', alignItems: 'center' }}>
     <Text style={{ color: '#fff', fontSize: 18 }}>Loans - Coming Soon</Text>
@@ -121,6 +117,7 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="CircleDetail" component={CircleDetailScreen} />
           </>
         ) : (
           <>
