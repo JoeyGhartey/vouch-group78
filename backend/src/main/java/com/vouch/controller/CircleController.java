@@ -2,6 +2,7 @@ package com.vouch.controller;
 
 import com.vouch.dto.CircleResponse;
 import com.vouch.dto.CreateCircleRequest;
+import com.vouch.dto.UpdateCircleRequest;
 import com.vouch.service.CircleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,21 +35,28 @@ public class CircleController {
         return ResponseEntity.ok(circleService.getCircle(auth.getName(), circleId));
     }
 
+    @PutMapping("/{circleId}")
+    public ResponseEntity<CircleResponse> updateCircle(Authentication auth, @PathVariable Long circleId, @RequestBody UpdateCircleRequest request) {
+        return ResponseEntity.ok(circleService.updateCircle(auth.getName(), circleId, request));
+    }
+
     @PostMapping("/{circleId}/invite")
     public ResponseEntity<Map<String, String>> inviteMember(Authentication auth, @PathVariable Long circleId, @RequestBody Map<String, String> body) {
-        String result = circleService.inviteMember(auth.getName(), circleId, body.get("phone"));
-        return ResponseEntity.ok(Map.of("message", result));
+        return ResponseEntity.ok(Map.of("message", circleService.inviteMember(auth.getName(), circleId, body.get("phone"))));
     }
 
     @PostMapping("/{circleId}/approve/{memberId}")
     public ResponseEntity<Map<String, String>> approveMember(Authentication auth, @PathVariable Long circleId, @PathVariable Long memberId) {
-        String result = circleService.approveMember(auth.getName(), circleId, memberId);
-        return ResponseEntity.ok(Map.of("message", result));
+        return ResponseEntity.ok(Map.of("message", circleService.approveMember(auth.getName(), circleId, memberId)));
     }
 
     @PostMapping("/{circleId}/remove/{userId}")
     public ResponseEntity<Map<String, String>> removeMember(Authentication auth, @PathVariable Long circleId, @PathVariable Long userId) {
-        String result = circleService.removeMember(auth.getName(), circleId, userId);
-        return ResponseEntity.ok(Map.of("message", result));
+        return ResponseEntity.ok(Map.of("message", circleService.removeMember(auth.getName(), circleId, userId)));
+    }
+
+    @PostMapping("/{circleId}/leave")
+    public ResponseEntity<Map<String, String>> leaveCircle(Authentication auth, @PathVariable Long circleId) {
+        return ResponseEntity.ok(Map.of("message", circleService.leaveCircle(auth.getName(), circleId)));
     }
 }

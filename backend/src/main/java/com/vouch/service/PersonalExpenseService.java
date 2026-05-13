@@ -1,10 +1,9 @@
 package com.vouch.service;
 
 import com.vouch.dto.PersonalExpenseRequest;
-import com.vouch.entity.PersonalExpense;
-import com.vouch.entity.User;
-import com.vouch.repository.PersonalExpenseRepository;
-import com.vouch.repository.UserRepository;
+import com.vouch.dto.SpendingLimitRequest;
+import com.vouch.entity.*;
+import com.vouch.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,98 +17,95 @@ import java.util.stream.Collectors;
 public class PersonalExpenseService {
 
     private final PersonalExpenseRepository personalExpenseRepository;
+    private final SpendingLimitRepository spendingLimitRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public Map<String, Object> addExpense(String phone, PersonalExpenseRequest request) {
         User user = getUserByPhone(phone);
+        PersonalExpense.TransactionType type = (request.getType() != null && request.getType().equalsIgnoreCase("INCOME")) ? PersonalExpense.TransactionType.INCOME : PersonalExpense.TransactionType.EXPENSE;
+        LocalDateTime txDate = request.getTransactionDate() != null ? LocalDateTime.parse(request.getTransactionDate(), DateTimeFormatter.ISO_DATE_TIME) : LocalDateTime.now();
 
-        PersonalExpense.TransactionType type = PersonalExpense.TransactionType.EXPENSE;
-        if (request.getType() != null && request.getType().equalsIgnoreCase("INCOME")) {
-            type = PersonalExpense.TransactionType.INCOME;
-        }
-
-        LocalDateTime transactionDate = LocalDateTime.now();
-        if (request.getTransactionDate() != null) {
-            transactionDate = LocalDateTime.parse(request.getTransactionDate(), DateTimeFormatter.ISO_DATE_TIME);
-        }
-
-        PersonalExpense expense = PersonalExpense.builder()
-                .user(user)
-                .amount(request.getAmount())
-                .description(request.getDescription())
-                .category(request.getCategory())
-                .type(type)
-                .transactionDate(transactionDate)
-                .build();
-
+        PersonalExpense expense = PersonalExpense.builder().user(user).amount(request.getAmount()).description(request.getDescription()).category(request.getCategory()).type(type).transactionDate(txDate).build();
         expense = personalExpenseRepository.save(expense);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("id", expense.getId());
-        response.put("amount", expense.getAmount());
-        response.put("description", expense.getDescription());
-        response.put("category", expense.getCategory());
-        response.put("type", expense.getType().name());
-        response.put("transactionDate", expense.getTransactionDate());
-        response.put("message", "Transaction recorded");
-        return response;
+        if (type == PersonalExpense.TransactionType.EXPENSE) checkSpendingLimit(user, request.getCategory());
+
+        Map<String, Object> r = new HashMap<>();
+        r.put("id", expense.getId()); r.put("amount", expense.getAmount()); r.put("description", expense.getDescription());
+        r.put("category", expense.getCategory()); r.put("type", expense.getType().name()); r.put("transactionDate", expense.getTransactionDate()); r.put("message", "Transaction recorded");
+        return r;
     }
 
     public Map<String, Object> getMonthlySummary(String phone, int year, int month) {
         User user = getUserByPhone(phone);
-
         LocalDateTime start = LocalDateTime.of(year, month, 1, 0, 0);
         LocalDateTime end = start.plusMonths(1);
+        List<PersonalExpense> txs = personalExpenseRepository.findByUserAndTransactionDateBetween(user, start, end);
 
-        List<PersonalExpense> transactions = personalExpenseRepository
-                .findByUserAndTransactionDateBetween(user, start, end);
+        double income = txs.stream().filter(t -> t.getType() == PersonalExpense.TransactionType.INCOME).mapToDouble(PersonalExpense::getAmount).sum();
+        double expenses = txs.stream().filter(t -> t.getType() == PersonalExpense.TransactionType.EXPENSE).mapToDouble(PersonalExpense::getAmount).sum();
+        Map<String, Double> cats = txs.stream().filter(t -> t.getType() == PersonalExpense.TransactionType.EXPENSE).collect(Collectors.groupingBy(PersonalExpense::getCategory, Collectors.summingDouble(PersonalExpense::getAmount)));
 
-        double totalIncome = transactions.stream()
-                .filter(t -> t.getType() == PersonalExpense.TransactionType.INCOME)
-                .mapToDouble(PersonalExpense::getAmount)
-                .sum();
+        List<SpendingLimit> limits = spendingLimitRepository.findByUser(user);
+        Map<String, Object> limitStatus = new HashMap<>();
+        for (SpendingLimit l : limits) {
+            double spent = cats.getOrDefault(l.getCategory(), 0.0);
+            Map<String, Object> s = new HashMap<>();
+            s.put("limit", l.getMonthlyLimit()); s.put("spent", spent); s.put("remaining", l.getMonthlyLimit() - spent);
+            s.put("percentUsed", Math.round(spent / l.getMonthlyLimit() * 100 * 10.0) / 10.0); s.put("exceeded", spent > l.getMonthlyLimit());
+            limitStatus.put(l.getCategory(), s);
+        }
 
-        double totalExpenses = transactions.stream()
-                .filter(t -> t.getType() == PersonalExpense.TransactionType.EXPENSE)
-                .mapToDouble(PersonalExpense::getAmount)
-                .sum();
-
-        Map<String, Double> categoryBreakdown = transactions.stream()
-                .filter(t -> t.getType() == PersonalExpense.TransactionType.EXPENSE)
-                .collect(Collectors.groupingBy(
-                        PersonalExpense::getCategory,
-                        Collectors.summingDouble(PersonalExpense::getAmount)
-                ));
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("year", year);
-        response.put("month", month);
-        response.put("totalIncome", totalIncome);
-        response.put("totalExpenses", totalExpenses);
-        response.put("netBalance", totalIncome - totalExpenses);
-        response.put("categoryBreakdown", categoryBreakdown);
-        response.put("transactionCount", transactions.size());
-        return response;
+        Map<String, Object> r = new HashMap<>();
+        r.put("year", year); r.put("month", month); r.put("totalIncome", income); r.put("totalExpenses", expenses);
+        r.put("netBalance", income - expenses); r.put("categoryBreakdown", cats); r.put("spendingLimits", limitStatus); r.put("transactionCount", txs.size());
+        return r;
     }
 
     public List<Map<String, Object>> getTransactions(String phone) {
+        return personalExpenseRepository.findByUser(getUserByPhone(phone)).stream().map(t -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", t.getId()); m.put("amount", t.getAmount()); m.put("description", t.getDescription());
+            m.put("category", t.getCategory()); m.put("type", t.getType().name()); m.put("transactionDate", t.getTransactionDate());
+            return m;
+        }).collect(Collectors.toList());
+    }
+
+    public Map<String, Object> setSpendingLimit(String phone, SpendingLimitRequest request) {
         User user = getUserByPhone(phone);
-
-        return personalExpenseRepository.findByUser(user).stream()
-                .map(t -> {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("id", t.getId());
-                    map.put("amount", t.getAmount());
-                    map.put("description", t.getDescription());
-                    map.put("category", t.getCategory());
-                    map.put("type", t.getType().name());
-                    map.put("transactionDate", t.getTransactionDate());
-                    return map;
-                }).collect(Collectors.toList());
+        SpendingLimit limit = spendingLimitRepository.findByUserAndCategory(user, request.getCategory()).orElse(SpendingLimit.builder().user(user).category(request.getCategory()).build());
+        limit.setMonthlyLimit(request.getMonthlyLimit());
+        spendingLimitRepository.save(limit);
+        Map<String, Object> r = new HashMap<>();
+        r.put("category", limit.getCategory()); r.put("monthlyLimit", limit.getMonthlyLimit()); r.put("message", "Spending limit set");
+        return r;
     }
 
-    private User getUserByPhone(String phone) {
-        return userRepository.findByPhone(phone)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public List<Map<String, Object>> getSpendingLimits(String phone) {
+        return spendingLimitRepository.findByUser(getUserByPhone(phone)).stream().map(l -> {
+            Map<String, Object> m = new HashMap<>(); m.put("id", l.getId()); m.put("category", l.getCategory()); m.put("monthlyLimit", l.getMonthlyLimit()); return m;
+        }).collect(Collectors.toList());
     }
+
+    public String deleteSpendingLimit(String phone, Long limitId) {
+        User user = getUserByPhone(phone);
+        SpendingLimit limit = spendingLimitRepository.findById(limitId).orElseThrow(() -> new RuntimeException("Not found"));
+        if (!limit.getUser().getId().equals(user.getId())) throw new RuntimeException("Not yours");
+        spendingLimitRepository.delete(limit);
+        return "Spending limit deleted";
+    }
+
+    private void checkSpendingLimit(User user, String category) {
+        SpendingLimit limit = spendingLimitRepository.findByUserAndCategory(user, category).orElse(null);
+        if (limit == null) return;
+        LocalDateTime start = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+        double spent = personalExpenseRepository.findByUserAndTransactionDateBetween(user, start, start.plusMonths(1)).stream()
+                .filter(t -> t.getType() == PersonalExpense.TransactionType.EXPENSE && t.getCategory().equals(category)).mapToDouble(PersonalExpense::getAmount).sum();
+        double pct = spent / limit.getMonthlyLimit() * 100;
+        if (pct >= 100) notificationService.send(user, "Limit Exceeded", "You exceeded your GHS " + limit.getMonthlyLimit() + " limit for " + category, Notification.NotificationType.SPENDING_LIMIT_WARNING, limit.getId());
+        else if (pct >= 90) notificationService.send(user, "Limit Warning", Math.round(pct) + "% of your " + category + " limit used", Notification.NotificationType.SPENDING_LIMIT_WARNING, limit.getId());
+    }
+
+    private User getUserByPhone(String phone) { return userRepository.findByPhone(phone).orElseThrow(() -> new RuntimeException("User not found")); }
 }

@@ -11,14 +11,11 @@ import HomeScreen from '../screens/HomeScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import CirclesScreen from '../screens/CirclesScreen';
 import CircleDetailScreen from '../screens/CircleDetailScreen';
+import LoansScreen from '../screens/LoansScreen';
+import RequestLoanScreen from '../screens/RequestLoanScreen';
+import LoanDetailScreen from '../screens/LoanDetailScreen';
 
 // Placeholder screens
-const LoansScreen = () => (
-  <View style={{ flex: 1, backgroundColor: '#1a1a2e', justifyContent: 'center', alignItems: 'center' }}>
-    <Text style={{ color: '#fff', fontSize: 18 }}>Loans - Coming Soon</Text>
-  </View>
-);
-
 const ExpensesScreen = () => (
   <View style={{ flex: 1, backgroundColor: '#1a1a2e', justifyContent: 'center', alignItems: 'center' }}>
     <Text style={{ color: '#fff', fontSize: 18 }}>Expenses - Coming Soon</Text>
@@ -49,52 +46,14 @@ function MainTabs() {
         },
         tabBarActiveTintColor: '#e94560',
         tabBarInactiveTintColor: '#666',
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-        },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
       }}
     >
-      <Tab.Screen
-        name="HomeTab"
-        component={HomeScreen}
-        options={{
-          tabBarLabel: 'Home',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🏠</Text>,
-        }}
-      />
-      <Tab.Screen
-        name="CirclesTab"
-        component={CirclesScreen}
-        options={{
-          tabBarLabel: 'Circles',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👥</Text>,
-        }}
-      />
-      <Tab.Screen
-        name="LoansTab"
-        component={LoansScreen}
-        options={{
-          tabBarLabel: 'Loans',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>💰</Text>,
-        }}
-      />
-      <Tab.Screen
-        name="ExpensesTab"
-        component={ExpensesScreen}
-        options={{
-          tabBarLabel: 'Expenses',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>📊</Text>,
-        }}
-      />
-      <Tab.Screen
-        name="ProfileTab"
-        component={ProfileScreen}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👤</Text>,
-        }}
-      />
+      <Tab.Screen name="HomeTab" component={HomeScreen} options={{ tabBarLabel: 'Home', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🏠</Text> }} />
+      <Tab.Screen name="CirclesTab" component={CirclesScreen} options={{ tabBarLabel: 'Circles', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👥</Text> }} />
+      <Tab.Screen name="LoansTab" component={LoansScreen} options={{ tabBarLabel: 'Loans', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>💰</Text> }} />
+      <Tab.Screen name="ExpensesTab" component={ExpensesScreen} options={{ tabBarLabel: 'Expenses', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>📊</Text> }} />
+      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ tabBarLabel: 'Profile', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👤</Text> }} />
     </Tab.Navigator>
   );
 }
@@ -118,6 +77,8 @@ export default function AppNavigator() {
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="CircleDetail" component={CircleDetailScreen} />
+            <Stack.Screen name="RequestLoan" component={RequestLoanScreen} />
+            <Stack.Screen name="LoanDetail" component={LoanDetailScreen} />
           </>
         ) : (
           <>
