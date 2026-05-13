@@ -14,14 +14,15 @@ export default function RequestLoanScreen({ route, navigation }) {
   const [loading, setLoading] = useState(false);
 
   const handleRequest = async () => {
-    if (!amount || parseFloat(amount) <= 0) { Alert.alert('Error', 'Enter a valid amount'); return; }
-    if (!reason.trim()) { Alert.alert('Error', 'Enter a reason'); return; }
+    if (!amount || parseFloat(amount) <= 0) { if (typeof window !== 'undefined') window.alert('Enter a valid amount'); return; }
+      if (!reason.trim()) { if (typeof window !== 'undefined') window.alert('Enter a reason'); return; }
     setLoading(true);
     try {
       await requestLoan({ circleId, amount: parseFloat(amount), reason, repaymentType, repaymentPeriodMonths: parseInt(repaymentPeriod) || 1 });
-      Alert.alert('Success', 'Loan request posted to your circle', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+      if (typeof window !== 'undefined') { window.alert('Loan request posted to your circle'); }
+      navigation.goBack();
     } catch (error) {
-      Alert.alert('Error', error.message);
+      if (typeof window !== 'undefined') window.alert(error.message);
     } finally { setLoading(false); }
   };
 
