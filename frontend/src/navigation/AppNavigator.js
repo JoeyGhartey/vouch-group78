@@ -14,19 +14,9 @@ import CircleDetailScreen from '../screens/CircleDetailScreen';
 import LoansScreen from '../screens/LoansScreen';
 import RequestLoanScreen from '../screens/RequestLoanScreen';
 import LoanDetailScreen from '../screens/LoanDetailScreen';
-
-// Placeholder screens
-const ExpensesScreen = () => (
-  <View style={{ flex: 1, backgroundColor: '#1a1a2e', justifyContent: 'center', alignItems: 'center' }}>
-    <Text style={{ color: '#fff', fontSize: 18 }}>Expenses - Coming Soon</Text>
-  </View>
-);
-
-const ProfileScreen = () => (
-  <View style={{ flex: 1, backgroundColor: '#1a1a2e', justifyContent: 'center', alignItems: 'center' }}>
-    <Text style={{ color: '#fff', fontSize: 18 }}>Profile - Coming Soon</Text>
-  </View>
-);
+import ExpensesScreen from '../screens/ExpensesScreen';
+import AddSharedExpenseScreen from '../screens/AddSharedExpenseScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -79,6 +69,7 @@ export default function AppNavigator() {
             <Stack.Screen name="CircleDetail" component={CircleDetailScreen} />
             <Stack.Screen name="RequestLoan" component={RequestLoanScreen} />
             <Stack.Screen name="LoanDetail" component={LoanDetailScreen} />
+            <Stack.Screen name="AddSharedExpense" component={AddSharedExpenseScreen} />
           </>
         ) : (
           <>
