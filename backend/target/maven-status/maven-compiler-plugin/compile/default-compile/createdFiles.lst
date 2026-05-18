@@ -9,6 +9,7 @@ com\vouch\dto\PaymentInitResponse$PaymentInitResponseBuilder.class
 com\vouch\dto\UpdateCircleRequest.class
 com\vouch\service\CustomUserDetailsService.class
 com\vouch\repository\SpendingLimitRepository.class
+com\vouch\service\GroupFundingService.class
 com\vouch\repository\PersonalExpenseRepository.class
 com\vouch\entity\CircleMember$MemberRole.class
 com\vouch\service\TrustScoreService.class
@@ -16,6 +17,7 @@ com\vouch\dto\UpdateProfileRequest.class
 com\vouch\entity\Notification.class
 com\vouch\config\SecurityConfig.class
 com\vouch\entity\User$Role.class
+com\vouch\controller\GroupFundingController.class
 com\vouch\controller\AuthController.class
 com\vouch\dto\CreateCircleRequest.class
 com\vouch\service\LoanSchedulerService.class
