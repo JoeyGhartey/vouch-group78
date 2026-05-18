@@ -36,12 +36,14 @@ com\vouch\dto\CircleMemberResponse$CircleMemberResponseBuilder.class
 com\vouch\repository\UserRepository.class
 com\vouch\repository\LoanAgreementRepository.class
 com\vouch\dto\RegisterRequest.class
+com\vouch\service\LoanAgreementPdfService.class
 com\vouch\entity\Loan$LoanBuilder.class
 com\vouch\controller\UserProfileController.class
 com\vouch\entity\LoanInstallment.class
 com\vouch\entity\ExpenseSplit$ExpenseSplitBuilder.class
 com\vouch\entity\ExpenseSplit.class
 com\vouch\entity\Loan.class
+com\vouch\controller\LoanAgreementController.class
 com\vouch\dto\SharedExpenseRequest.class
 com\vouch\repository\LoanRepository.class
 com\vouch\dto\PaymentInitResponse.class
