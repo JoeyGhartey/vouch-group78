@@ -5,6 +5,7 @@ com\vouch\entity\LoanContribution.class
 com\vouch\entity\Dispute$DisputeBuilder.class
 com\vouch\dto\DisputeResolveRequest.class
 com\vouch\repository\NotificationRepository.class
+com\vouch\dto\PaymentInitResponse$PaymentInitResponseBuilder.class
 com\vouch\dto\UpdateCircleRequest.class
 com\vouch\service\CustomUserDetailsService.class
 com\vouch\repository\SpendingLimitRepository.class
@@ -25,7 +26,9 @@ com\vouch\controller\NotificationController.class
 com\vouch\entity\LoanContribution$LoanContributionBuilder.class
 com\vouch\entity\PersonalExpense.class
 com\vouch\entity\LoanInstallment$InstallmentStatus.class
+com\vouch\service\PaystackService.class
 com\vouch\dto\AuthResponse$AuthResponseBuilder.class
+com\vouch\entity\PaymentTransaction.class
 com\vouch\entity\SpendingLimit$SpendingLimitBuilder.class
 com\vouch\dto\CircleMemberResponse$CircleMemberResponseBuilder.class
 com\vouch\repository\UserRepository.class
@@ -39,14 +42,19 @@ com\vouch\entity\ExpenseSplit.class
 com\vouch\entity\Loan.class
 com\vouch\dto\SharedExpenseRequest.class
 com\vouch\repository\LoanRepository.class
+com\vouch\dto\PaymentInitResponse.class
 com\vouch\entity\CircleMember$MemberStatus.class
 com\vouch\dto\SpendingLimitRequest.class
+com\vouch\entity\PaymentTransaction$TransactionStatus.class
 com\vouch\VouchApplication.class
 com\vouch\entity\PersonalExpense$TransactionType.class
 com\vouch\controller\AdminController.class
+com\vouch\controller\PaymentController.class
 com\vouch\entity\CircleMember.class
 com\vouch\entity\Dispute.class
 com\vouch\controller\DisputeController.class
+com\vouch\repository\PaymentTransactionRepository.class
+com\vouch\entity\PaymentTransaction$PaymentTransactionBuilder.class
 com\vouch\service\PersonalExpenseService.class
 com\vouch\controller\SmartInsightsController.class
 com\vouch\service\AuthService.class
@@ -60,6 +68,7 @@ com\vouch\security\JwtUtil.class
 com\vouch\entity\PersonalExpense$PersonalExpenseBuilder.class
 com\vouch\entity\User$UserBuilder.class
 com\vouch\service\CircleService.class
+com\vouch\entity\PaymentTransaction$TransactionType.class
 com\vouch\entity\SharedExpense.class
 com\vouch\repository\LoanInstallmentRepository.class
 com\vouch\dto\AuthResponse.class

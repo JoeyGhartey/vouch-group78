@@ -22,6 +22,7 @@ C:\Users\joey\vouch\backend\src\main\java\com\vouch\dto\FundLoanRequest.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\dto\LoanRequest.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\dto\LoanResponse.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\dto\LoginRequest.java
+C:\Users\joey\vouch\backend\src\main\java\com\vouch\dto\PaymentInitResponse.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\dto\PersonalExpenseRequest.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\dto\RegisterRequest.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\dto\SharedExpenseRequest.java
@@ -38,6 +39,7 @@ C:\Users\joey\vouch\backend\src\main\java\com\vouch\entity\LoanAgreement.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\entity\LoanContribution.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\entity\LoanInstallment.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\entity\Notification.java
+C:\Users\joey\vouch\backend\src\main\java\com\vouch\entity\PaymentTransaction.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\entity\PersonalExpense.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\entity\SharedExpense.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\entity\SpendingLimit.java
@@ -51,6 +53,7 @@ C:\Users\joey\vouch\backend\src\main\java\com\vouch\repository\LoanContributionR
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\repository\LoanInstallmentRepository.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\repository\LoanRepository.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\repository\NotificationRepository.java
+C:\Users\joey\vouch\backend\src\main\java\com\vouch\repository\PaymentTransactionRepository.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\repository\PersonalExpenseRepository.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\repository\SharedExpenseRepository.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\repository\SpendingLimitRepository.java
@@ -64,6 +67,8 @@ C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\DisputeService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\LoanSchedulerService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\LoanService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\NotificationService.java
+C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\PaymentController.java
+C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\PaystackService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\PersonalExpenseService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\SharedExpenseService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\SmartInsightsService.java
