@@ -10,6 +10,7 @@ com\vouch\dto\UpdateCircleRequest.class
 com\vouch\service\CustomUserDetailsService.class
 com\vouch\repository\SpendingLimitRepository.class
 com\vouch\service\GroupFundingService.class
+com\vouch\controller\InstallmentController.class
 com\vouch\repository\PersonalExpenseRepository.class
 com\vouch\entity\CircleMember$MemberRole.class
 com\vouch\service\TrustScoreService.class
@@ -38,6 +39,7 @@ com\vouch\repository\LoanAgreementRepository.class
 com\vouch\dto\RegisterRequest.class
 com\vouch\service\LoanAgreementPdfService.class
 com\vouch\entity\Loan$LoanBuilder.class
+com\vouch\controller\DebtSimplificationController.class
 com\vouch\controller\UserProfileController.class
 com\vouch\entity\LoanInstallment.class
 com\vouch\entity\ExpenseSplit$ExpenseSplitBuilder.class
@@ -51,7 +53,9 @@ com\vouch\entity\CircleMember$MemberStatus.class
 com\vouch\dto\SpendingLimitRequest.class
 com\vouch\entity\PaymentTransaction$TransactionStatus.class
 com\vouch\VouchApplication.class
+com\vouch\service\DebtSimplificationService.class
 com\vouch\entity\PersonalExpense$TransactionType.class
+com\vouch\service\InstallmentService.class
 com\vouch\controller\AdminController.class
 com\vouch\controller\PaymentController.class
 com\vouch\entity\CircleMember.class

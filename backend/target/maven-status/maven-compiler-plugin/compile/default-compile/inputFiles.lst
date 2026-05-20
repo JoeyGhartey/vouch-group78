@@ -3,9 +3,11 @@ C:\Users\joey\vouch\backend\src\main\java\com\vouch\config\SecurityConfig.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\AdminController.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\AuthController.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\CircleController.java
+C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\DebtSimplificationController.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\DisputeController.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\GroupFundingController.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\HealthController.java
+C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\InstallmentController.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\LoanAgreementController.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\LoanController.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\NotificationController.java
@@ -65,8 +67,10 @@ C:\Users\joey\vouch\backend\src\main\java\com\vouch\security\JwtUtil.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\AuthService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\CircleService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\CustomUserDetailsService.java
+C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\DebtSimplificationService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\DisputeService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\GroupFundingService.java
+C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\InstallmentService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\LoanAgreementPdfService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\LoanSchedulerService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\LoanService.java
