@@ -24,6 +24,7 @@ public class LoanService {
     private final UserRepository userRepository;
     private final CircleService circleService;
     private final TrustScoreService trustScoreService;
+    private final InstallmentService installmentService;
 
     @Transactional
     public LoanResponse requestLoan(String phone, LoanRequest request) {
@@ -227,6 +228,7 @@ public class LoanService {
         userRepository.save(lender);
 
         loan = loanRepository.save(loan);
+        installmentService.generateInstallments(loan);
         return mapToLoanResponse(loan, "Loan disbursed and active.");
     }
 
