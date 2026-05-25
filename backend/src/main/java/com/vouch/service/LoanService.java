@@ -25,7 +25,7 @@ public class LoanService {
     private final CircleService circleService;
     private final TrustScoreService trustScoreService;
     private final InstallmentService installmentService;
-
+    private static final double PLATFORM_FEE_PERCENT = 2.0; // 2% platform fee
     @Transactional
     public LoanResponse requestLoan(String phone, LoanRequest request) {
         User borrower = getUserByPhone(phone);
@@ -190,6 +190,9 @@ public class LoanService {
             throw new RuntimeException("Only the lender can trigger disbursement");
         }
 
+// Calculate platform fee
+        double platformFee = Math.round(loan.getAmount() * PLATFORM_FEE_PERCENT / 100 * 100.0) / 100.0;
+        double amountAfterFee = loan.getAmount() - platformFee;
         loan.setStatus(Loan.LoanStatus.DISBURSED);
         loan.setDisbursedAt(LocalDateTime.now());
 
@@ -229,8 +232,7 @@ public class LoanService {
 
         loan = loanRepository.save(loan);
         installmentService.generateInstallments(loan);
-        return mapToLoanResponse(loan, "Loan disbursed and active.");
-    }
+	return mapToLoanResponse(loan, "Loan disbursed and active. Platform fee: GHS " + String.format("%.2f", platformFee) + ". Borrower 	receives: GHS " + String.format("%.2f", amountAfterFee));    }
 
     @Transactional
     public LoanResponse repayLoan(String phone, Long loanId, Double amount) {
