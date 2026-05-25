@@ -32,7 +32,7 @@ public class UserProfileService {
         return mapToResponse(userRepository.save(user));
     }
 
-    private User getUserByPhone(String phone) { return userRepository.findByPhone(phone).orElseThrow(() -> new RuntimeException("User not found")); }
+    public User getUserByPhone(String phone) { return userRepository.findByPhone(phone).orElseThrow(() -> new RuntimeException("User not found")); }
 
     private UserProfileResponse mapToResponse(User u) {
         return UserProfileResponse.builder().id(u.getId()).phone(u.getPhone()).firstName(u.getFirstName()).lastName(u.getLastName())
