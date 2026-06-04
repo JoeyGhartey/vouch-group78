@@ -5,6 +5,7 @@ import com.vouch.dto.UserProfileResponse;
 import com.vouch.entity.User;
 import com.vouch.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 public class UserProfileService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public UserProfileResponse getMyProfile(String phone) {
         return mapToResponse(getUserByPhone(phone));
@@ -32,7 +34,19 @@ public class UserProfileService {
         return mapToResponse(userRepository.save(user));
     }
 
-    public User getUserByPhone(String phone) { return userRepository.findByPhone(phone).orElseThrow(() -> new RuntimeException("User not found")); }
+    public String changePassword(String phone, String oldPassword, String newPassword) {
+        User user = getUserByPhone(phone);
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        return "Password changed successfully";
+    }
+
+    public User getUserByPhone(String phone) {
+        return userRepository.findByPhone(phone).orElseThrow(() -> new RuntimeException("User not found"));
+    }
 
     private UserProfileResponse mapToResponse(User u) {
         return UserProfileResponse.builder().id(u.getId()).phone(u.getPhone()).firstName(u.getFirstName()).lastName(u.getLastName())

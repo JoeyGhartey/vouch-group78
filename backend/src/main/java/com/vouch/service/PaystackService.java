@@ -25,6 +25,9 @@ public class PaystackService {
     @Value("${paystack.secret.key}")
     private String paystackSecretKey;
 
+    @Value("${paystack.callback.url}")
+    private String paystackCallbackUrl;
+
     private static final String PAYSTACK_BASE_URL = "https://api.paystack.co";
     private static final String INITIALIZE_URL = PAYSTACK_BASE_URL + "/transaction/initialize";
     private static final String VERIFY_URL = PAYSTACK_BASE_URL + "/transaction/verify/";
@@ -66,8 +69,7 @@ public class PaystackService {
         payload.put("amount", amountInPesewas);
         payload.put("currency", "GHS");
         payload.put("reference", reference);
-        payload.put("callback_url", "http://localhost:8081/payment/callback");
-
+        payload.put("callback_url", paystackCallbackUrl);
         Map<String, String> metadata = new HashMap<>();
         metadata.put("type", "LOAN_DISBURSEMENT");
         metadata.put("loan_id", loanId.toString());
@@ -146,8 +148,7 @@ public class PaystackService {
         payload.put("amount", amountInPesewas);
         payload.put("currency", "GHS");
         payload.put("reference", reference);
-        payload.put("callback_url", "http://localhost:8081/payment/callback");
-
+        payload.put("callback_url", paystackCallbackUrl);
         Map<String, String> metadata = new HashMap<>();
         metadata.put("type", "LOAN_REPAYMENT");
         metadata.put("loan_id", loanId.toString());

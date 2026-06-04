@@ -12,6 +12,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
+// import javax.management.Notification;
+
 @Service
 @RequiredArgsConstructor
 public class LoanService {
@@ -25,6 +27,7 @@ public class LoanService {
     private final CircleService circleService;
     private final TrustScoreService trustScoreService;
     private final InstallmentService installmentService;
+    private final NotificationService notificationService;
     private static final double PLATFORM_FEE_PERCENT = 2.0; // 2% platform fee
     @Transactional
     public LoanResponse requestLoan(String phone, LoanRequest request) {
@@ -327,6 +330,21 @@ public class LoanService {
         }
 
         userRepository.save(borrower);
+        // Notify all circle members of the default
+        List<CircleMember> circleMembers = circleMemberRepository.findByCircleAndStatus(
+            loan.getCircle(), CircleMember.MemberStatus.ACTIVE);
+        for (CircleMember member : circleMembers) {
+            if (!member.getUser().getId().equals(borrower.getId())) {
+                notificationService.send(
+                    member.getUser(),
+                    "Loan Default",
+                    borrower.getFirstName() + " " + borrower.getLastName() +
+                    " has defaulted on a loan in " + loan.getCircle().getName(),
+                    Notification.NotificationType.LOAN_DEFAULTED,
+                    loan.getId()
+                );
+            }
+        }
 
         // Update circle stats
         CircleMember borrowerMember = circleMemberRepository.findByCircleAndUser(loan.getCircle(), loan.getBorrower())

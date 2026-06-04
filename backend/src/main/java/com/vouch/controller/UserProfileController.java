@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/profile")
 @RequiredArgsConstructor
@@ -28,5 +30,16 @@ public class UserProfileController {
     @PutMapping
     public ResponseEntity<UserProfileResponse> updateProfile(Authentication auth, @RequestBody UpdateProfileRequest request) {
         return ResponseEntity.ok(userProfileService.updateProfile(auth.getName(), request));
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<Map<String, String>> changePassword(Authentication auth, @RequestBody Map<String, String> body) {
+        String oldPassword = body.get("oldPassword");
+        String newPassword = body.get("newPassword");
+        if (oldPassword == null || newPassword == null || newPassword.length() < 6) {
+            throw new RuntimeException("New password must be at least 6 characters");
+        }
+        String result = userProfileService.changePassword(auth.getName(), oldPassword, newPassword);
+        return ResponseEntity.ok(Map.of("message", result));
     }
 }

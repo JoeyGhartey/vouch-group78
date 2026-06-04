@@ -1,0 +1,10 @@
+
+C:\Users\joey>cd C:\Users\joey\vouch\frontend
+
+C:\Users\joey\vouch\frontend>npx expo start --web
+
+
+
+C:\Users\joey>cd C:\Users\joey\vouch\backend
+
+C:\Users\joey\vouch\backend>mvn spring-boot:run
