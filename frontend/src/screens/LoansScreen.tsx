@@ -4,20 +4,40 @@ import {
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getMyBorrowedLoans, getMyLentLoans } from '../services/api';
+import { RootStackParamList } from '../navigation/AppNavigator';
 
-export default function LoansScreen({ navigation }) {
-  const [borrowed, setBorrowed] = useState([]);
-  const [lent, setLent] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState('borrowed');
+type Props = {
+  navigation: NativeStackNavigationProp<RootStackParamList>;
+};
 
-  const loadLoans = async () => {
+interface Loan {
+  id: number;
+  amount: number;
+  status: string;
+  reason: string;
+  circleName: string;
+  lenderName?: string;
+  borrowerName: string;
+  interestRate: number;
+  totalRepaymentAmount: number;
+  amountRepaid: number;
+  dueDate?: string;
+}
+
+export default function LoansScreen({ navigation }: Props) {
+  const [borrowed, setBorrowed] = useState<Loan[]>([]);
+  const [lent, setLent] = useState<Loan[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>('borrowed');
+
+  const loadLoans = async (): Promise<void> => {
     try {
       const [b, l] = await Promise.all([getMyBorrowedLoans(), getMyLentLoans()]);
-      setBorrowed(b);
-      setLent(l);
+      setBorrowed(b as Loan[]);
+      setLent(l as Loan[]);
     } catch (error) {
       console.error(error);
     } finally {
@@ -28,18 +48,27 @@ export default function LoansScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { loadLoans(); }, []));
 
-  const statusColor = (s) => ({ REQUESTED:'#FFC107', AGREEMENT_PENDING:'#FF9800', AGREEMENT_SIGNED:'#2196F3', ACTIVE:'#4CAF50', DUE:'#FF9800', GRACE_PERIOD:'#e94560', REPAID:'#4CAF50', DEFAULTED:'#f44336', DISPUTED:'#9C27B0', CANCELLED:'#666' }[s] || '#666');
+  const statusColor = (s: string): string => ({
+    REQUESTED: '#FFC107', AGREEMENT_PENDING: '#FF9800', AGREEMENT_SIGNED: '#2196F3',
+    ACTIVE: '#4CAF50', DUE: '#FF9800', GRACE_PERIOD: '#e94560',
+    REPAID: '#4CAF50', DEFAULTED: '#f44336', DISPUTED: '#9C27B0', CANCELLED: '#666',
+  }[s] || '#666');
 
-  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) : '';
+  const fmtDate = (d?: string): string =>
+    d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
   const loans = activeTab === 'borrowed' ? borrowed : lent;
-  const totalActive = loans.filter(l => ['ACTIVE','DUE','GRACE_PERIOD'].includes(l.status)).reduce((s, l) => s + (l.totalRepaymentAmount - l.amountRepaid), 0);
+  const totalActive = loans
+    .filter((l) => ['ACTIVE', 'DUE', 'GRACE_PERIOD'].includes(l.status))
+    .reduce((s, l) => s + (l.totalRepaymentAmount - l.amountRepaid), 0);
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#e94560" /></View>;
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}><Text style={styles.title}>My Loans</Text></View>
+      <View style={styles.header}>
+        <Text style={styles.title}>My Loans</Text>
+      </View>
 
       <View style={styles.summaryCard}>
         <Text style={styles.summaryLabel}>{activeTab === 'borrowed' ? 'Total You Owe' : 'Total Owed to You'}</Text>
@@ -47,7 +76,7 @@ export default function LoansScreen({ navigation }) {
       </View>
 
       <View style={styles.tabRow}>
-        {['borrowed', 'lent'].map(t => (
+        {['borrowed', 'lent'].map((t) => (
           <TouchableOpacity key={t} style={[styles.tab, activeTab === t && styles.activeTab]} onPress={() => setActiveTab(t)}>
             <Text style={[styles.tabText, activeTab === t && styles.activeTabText]}>
               {t === 'borrowed' ? `Borrowed (${borrowed.length})` : `Lent (${lent.length})`}
@@ -60,14 +89,19 @@ export default function LoansScreen({ navigation }) {
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>{activeTab === 'borrowed' ? '📩' : '💰'}</Text>
           <Text style={styles.emptyText}>{activeTab === 'borrowed' ? 'No borrowed loans' : 'No lent loans'}</Text>
-          <Text style={styles.emptySubtext}>{activeTab === 'borrowed' ? 'Request a loan from your circles' : 'Fund a loan request in your circles'}</Text>
+          <Text style={styles.emptySubtext}>
+            {activeTab === 'borrowed' ? 'Request a loan from your circles' : 'Fund a loan request in your circles'}
+          </Text>
         </View>
       ) : (
         <FlatList
           data={loans}
-          keyExtractor={i => i.id.toString()}
+          keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.loanCard} onPress={() => navigation.navigate('LoanDetail', { loanId: item.id })}>
+            <TouchableOpacity
+              style={styles.loanCard}
+              onPress={() => navigation.navigate('LoanDetail', { loanId: item.id })}
+            >
               <View style={styles.loanHeader}>
                 <Text style={styles.loanAmount}>GHS {item.amount}</Text>
                 <View style={[styles.badge, { backgroundColor: statusColor(item.status) }]}>
@@ -77,19 +111,25 @@ export default function LoansScreen({ navigation }) {
               <Text style={styles.loanReason}>{item.reason}</Text>
               <Text style={styles.loanCircle}>Circle: {item.circleName}</Text>
               <View style={styles.loanMeta}>
-                <Text style={styles.metaText}>{activeTab === 'borrowed' ? `Lender: ${item.lenderName || 'Waiting...'}` : `Borrower: ${item.borrowerName}`}</Text>
+                <Text style={styles.metaText}>
+                  {activeTab === 'borrowed' ? `Lender: ${item.lenderName || 'Waiting...'}` : `Borrower: ${item.borrowerName}`}
+                </Text>
                 {item.interestRate > 0 && <Text style={styles.interest}>{item.interestRate}% interest</Text>}
               </View>
               {item.dueDate && <Text style={styles.dueDate}>Due: {fmtDate(item.dueDate)}</Text>}
-              {item.totalRepaymentAmount > 0 && !['REPAID','CANCELLED','REQUESTED'].includes(item.status) && (
+              {item.totalRepaymentAmount > 0 && !['REPAID', 'CANCELLED', 'REQUESTED'].includes(item.status) && (
                 <View style={styles.progressRow}>
-                  <View style={styles.progressBar}><View style={[styles.progressFill, { width: `${(item.amountRepaid / item.totalRepaymentAmount) * 100}%` }]} /></View>
+                  <View style={styles.progressBar}>
+                    <View style={[styles.progressFill, { width: `${(item.amountRepaid / item.totalRepaymentAmount) * 100}%` as any }]} />
+                  </View>
                   <Text style={styles.progressText}>GHS {item.amountRepaid} / {item.totalRepaymentAmount}</Text>
                 </View>
               )}
             </TouchableOpacity>
           )}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadLoans(); }} tintColor="#e94560" />}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadLoans(); }} tintColor="#e94560" />
+          }
         />
       )}
     </View>

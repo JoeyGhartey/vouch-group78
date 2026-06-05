@@ -3,27 +3,37 @@ import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import { requestLoan } from '../services/api';
+import { RootStackParamList } from '../navigation/AppNavigator';
 
-export default function RequestLoanScreen({ route, navigation }) {
+type Props = {
+  route: RouteProp<RootStackParamList, 'RequestLoan'>;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'RequestLoan'>;
+};
+
+export default function RequestLoanScreen({ route, navigation }: Props) {
   const { circleId } = route.params;
-  const [amount, setAmount] = useState('');
-  const [reason, setReason] = useState('');
-  const [repaymentType, setRepaymentType] = useState('FIXED');
-  const [repaymentPeriod, setRepaymentPeriod] = useState('1');
-  const [loading, setLoading] = useState(false);
+  const [amount, setAmount] = useState<string>('');
+  const [reason, setReason] = useState<string>('');
+  const [repaymentType, setRepaymentType] = useState<string>('FIXED');
+  const [repaymentPeriod, setRepaymentPeriod] = useState<string>('1');
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const handleRequest = async () => {
-    if (!amount || parseFloat(amount) <= 0) { if (typeof window !== 'undefined') window.alert('Enter a valid amount'); return; }
-      if (!reason.trim()) { if (typeof window !== 'undefined') window.alert('Enter a reason'); return; }
+  const handleRequest = async (): Promise<void> => {
+    if (!amount || parseFloat(amount) <= 0) { Alert.alert('Error', 'Enter a valid amount'); return; }
+    if (!reason.trim()) { Alert.alert('Error', 'Enter a reason'); return; }
     setLoading(true);
     try {
       await requestLoan({ circleId, amount: parseFloat(amount), reason, repaymentType, repaymentPeriodMonths: parseInt(repaymentPeriod) || 1 });
-      if (typeof window !== 'undefined') { window.alert('Loan request posted to your circle'); }
+      Alert.alert('Success', 'Loan request posted to your circle');
       navigation.goBack();
     } catch (error) {
-      if (typeof window !== 'undefined') window.alert(error.message);
-    } finally { setLoading(false); }
+      Alert.alert('Error', (error as Error).message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -43,7 +53,7 @@ export default function RequestLoanScreen({ route, navigation }) {
 
         <Text style={styles.label}>Repayment Type</Text>
         <View style={styles.typeRow}>
-          {['FIXED', 'FLEXIBLE'].map(t => (
+          {['FIXED', 'FLEXIBLE'].map((t) => (
             <TouchableOpacity key={t} style={[styles.typeBtn, repaymentType === t && styles.typeSel]} onPress={() => setRepaymentType(t)}>
               <Text style={[styles.typeText, repaymentType === t && styles.typeTextSel]}>{t === 'FIXED' ? 'Fixed' : 'Flexible'}</Text>
               <Text style={styles.typeDesc}>{t === 'FIXED' ? 'One-time payment' : 'Monthly installments'}</Text>

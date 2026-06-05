@@ -11,22 +11,28 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { register } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { RootStackParamList } from '../navigation/AppNavigator';
 
-export default function RegisterScreen({ navigation }) {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [momoProvider, setMomoProvider] = useState('MTN');
-  const [momoNumber, setMomoNumber] = useState('');
-  const [loading, setLoading] = useState(false);
+type Props = {
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Register'>;
+};
+
+export default function RegisterScreen({ navigation }: Props) {
+  const [firstName, setFirstName] = useState<string>('');
+  const [lastName, setLastName] = useState<string>('');
+  const [phone, setPhone] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [momoProvider, setMomoProvider] = useState<string>('MTN');
+  const [momoNumber, setMomoNumber] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
   const { signIn } = useAuth();
 
-  const handleRegister = async () => {
+  const handleRegister = async (): Promise<void> => {
     if (!firstName || !lastName || !phone || !password) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
@@ -50,16 +56,16 @@ export default function RegisterScreen({ navigation }) {
         password,
         momoProvider,
         momoNumber: momoNumber || phone,
-      });
+      }) as { token: string; [key: string]: unknown };
       await signIn(response);
     } catch (error) {
-      Alert.alert('Registration Failed', error.message || 'Could not create account');
+      Alert.alert('Registration Failed', (error as Error).message || 'Could not create account');
     } finally {
       setLoading(false);
     }
   };
 
-  const providers = ['MTN', 'Telecel', 'AirtelTigo'];
+  const providers: string[] = ['MTN', 'Telecel', 'AirtelTigo'];
 
   return (
     <KeyboardAvoidingView
@@ -122,18 +128,10 @@ export default function RegisterScreen({ navigation }) {
             {providers.map((p) => (
               <TouchableOpacity
                 key={p}
-                style={[
-                  styles.providerButton,
-                  momoProvider === p && styles.providerSelected,
-                ]}
+                style={[styles.providerButton, momoProvider === p && styles.providerSelected]}
                 onPress={() => setMomoProvider(p)}
               >
-                <Text
-                  style={[
-                    styles.providerText,
-                    momoProvider === p && styles.providerTextSelected,
-                  ]}
-                >
+                <Text style={[styles.providerText, momoProvider === p && styles.providerTextSelected]}>
                   {p}
                 </Text>
               </TouchableOpacity>
@@ -197,46 +195,15 @@ export default function RegisterScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1a1a2e',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 24,
-    paddingTop: 60,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  logo: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#e94560',
-    letterSpacing: 6,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#a0a0b0',
-    marginTop: 8,
-  },
-  form: {
-    width: '100%',
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  halfInput: {
-    width: '48%',
-  },
-  label: {
-    color: '#a0a0b0',
-    fontSize: 14,
-    marginBottom: 6,
-    marginTop: 12,
-  },
+  container: { flex: 1, backgroundColor: '#1a1a2e' },
+  scrollContent: { flexGrow: 1, padding: 24, paddingTop: 60 },
+  header: { alignItems: 'center', marginBottom: 32 },
+  logo: { fontSize: 36, fontWeight: 'bold', color: '#e94560', letterSpacing: 6 },
+  subtitle: { fontSize: 16, color: '#a0a0b0', marginTop: 8 },
+  form: { width: '100%' },
+  row: { flexDirection: 'row', justifyContent: 'space-between' },
+  halfInput: { width: '48%' },
+  label: { color: '#a0a0b0', fontSize: 14, marginBottom: 6, marginTop: 12 },
   input: {
     backgroundColor: '#16213e',
     borderRadius: 12,
@@ -246,11 +213,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2a2a4a',
   },
-  providerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
+  providerRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   providerButton: {
     flex: 1,
     padding: 12,
@@ -261,18 +224,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2a2a4a',
   },
-  providerSelected: {
-    backgroundColor: '#e94560',
-    borderColor: '#e94560',
-  },
-  providerText: {
-    color: '#a0a0b0',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  providerTextSelected: {
-    color: '#fff',
-  },
+  providerSelected: { backgroundColor: '#e94560', borderColor: '#e94560' },
+  providerText: { color: '#a0a0b0', fontSize: 14, fontWeight: '600' },
+  providerTextSelected: { color: '#fff' },
   button: {
     backgroundColor: '#e94560',
     borderRadius: 12,
@@ -280,25 +234,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 24,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  linkButton: {
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 40,
-  },
-  linkText: {
-    color: '#a0a0b0',
-    fontSize: 14,
-  },
-  linkBold: {
-    color: '#e94560',
-    fontWeight: 'bold',
-  },
+  buttonDisabled: { opacity: 0.6 },
+  buttonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  linkButton: { alignItems: 'center', marginTop: 20, marginBottom: 40 },
+  linkText: { color: '#a0a0b0', fontSize: 14 },
+  linkBold: { color: '#e94560', fontWeight: 'bold' },
 });

@@ -1,29 +1,88 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, TextInput, Modal, Alert, FlatList,
+  ActivityIndicator, RefreshControl, TextInput, Modal, Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import {
   getCircle, inviteMember, approveMember, removeMember, leaveCircle,
   getCircleLoans, getCircleExpenses, getCircleBalances, getCircleInsights,
 } from '../services/api';
+import { RootStackParamList } from '../navigation/AppNavigator';
 
-export default function CircleDetailScreen({ route, navigation }) {
+type Props = {
+  route: RouteProp<RootStackParamList, 'CircleDetail'>;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'CircleDetail'>;
+};
+
+interface CircleMember {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  memberRole: string;
+  circleTrustScore: number;
+  loansGivenInCircle: number;
+  loansReceivedInCircle: number;
+  defaultsInCircle: number;
+}
+
+interface Circle {
+  name: string;
+  description?: string;
+  memberCount: number;
+  maxLoanAmount: number;
+  members: CircleMember[];
+}
+
+interface Loan {
+  id: number;
+  amount: number;
+  status: string;
+  reason: string;
+  borrowerName: string;
+  lenderName?: string;
+  interestRate: number;
+  totalRepaymentAmount: number;
+}
+
+interface Expense {
+  expenseId: number;
+  description: string;
+  totalAmount: number;
+  paidBy: string;
+  category?: string;
+}
+
+interface Insights {
+  circleHealth: string;
+  totalLoans: number;
+  activeLoans: number;
+  repaidLoans: number;
+  defaultedLoans: number;
+  circleRepaymentRate: number;
+  totalAmountCirculated: number;
+  averageTrustScore: number;
+  topLender?: string;
+  topBorrower?: string;
+}
+
+export default function CircleDetailScreen({ route, navigation }: Props) {
   const { circleId } = route.params;
-  const [circle, setCircle] = useState(null);
-  const [loans, setLoans] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [balances, setBalances] = useState({});
-  const [insights, setInsights] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState('members');
-  const [showInvite, setShowInvite] = useState(false);
-  const [invitePhone, setInvitePhone] = useState('');
-  const [inviting, setInviting] = useState(false);
+  const [circle, setCircle] = useState<Circle | null>(null);
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [balances, setBalances] = useState<Record<string, number>>({});
+  const [insights, setInsights] = useState<Insights | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>('members');
+  const [showInvite, setShowInvite] = useState<boolean>(false);
+  const [invitePhone, setInvitePhone] = useState<string>('');
+  const [inviting, setInviting] = useState<boolean>(false);
 
-  const loadData = async () => {
+  const loadData = async (): Promise<void> => {
     try {
       const [circleData, loansData, expensesData, balancesData] = await Promise.all([
         getCircle(circleId),
@@ -31,14 +90,13 @@ export default function CircleDetailScreen({ route, navigation }) {
         getCircleExpenses(circleId).catch(() => []),
         getCircleBalances(circleId).catch(() => ({ balances: {} })),
       ]);
-      setCircle(circleData);
-      setLoans(loansData);
-      setExpenses(expensesData);
-      setBalances(balancesData.balances || {});
-
+      setCircle(circleData as Circle);
+      setLoans(loansData as Loan[]);
+      setExpenses(expensesData as Expense[]);
+      setBalances((balancesData as { balances: Record<string, number> }).balances || {});
       try {
         const insightsData = await getCircleInsights(circleId);
-        setInsights(insightsData);
+        setInsights(insightsData as Insights);
       } catch (e) {}
     } catch (error) {
       console.error('Error loading circle:', error);
@@ -50,53 +108,23 @@ export default function CircleDetailScreen({ route, navigation }) {
 
   useFocusEffect(useCallback(() => { loadData(); }, []));
 
-  const handleInvite = async () => {
-    if (!invitePhone.trim()) {
-      Alert.alert('Error', 'Enter a phone number');
-      return;
-    }
+  const handleInvite = async (): Promise<void> => {
+    if (!invitePhone.trim()) { Alert.alert('Error', 'Enter a phone number'); return; }
     setInviting(true);
     try {
-      const result = await inviteMember(circleId, invitePhone);
+      const result = await inviteMember(circleId, invitePhone) as { message: string };
       Alert.alert('Success', result.message);
       setShowInvite(false);
       setInvitePhone('');
       loadData();
     } catch (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', (error as Error).message);
     } finally {
       setInviting(false);
     }
   };
 
-  const handleApprove = async (memberId) => {
-    try {
-      await approveMember(circleId, memberId);
-      Alert.alert('Success', 'Member approved');
-      loadData();
-    } catch (error) {
-      Alert.alert('Error', error.message);
-    }
-  };
-
-  const handleRemove = async (userId) => {
-    Alert.alert('Remove Member', 'Are you sure?', [
-      { text: 'Cancel' },
-      {
-        text: 'Remove', style: 'destructive',
-        onPress: async () => {
-          try {
-            await removeMember(circleId, userId);
-            loadData();
-          } catch (error) {
-            Alert.alert('Error', error.message);
-          }
-        },
-      },
-    ]);
-  };
-
-  const handleLeave = () => {
+  const handleLeave = (): void => {
     Alert.alert('Leave Circle', 'Are you sure you want to leave this circle?', [
       { text: 'Cancel' },
       {
@@ -106,15 +134,15 @@ export default function CircleDetailScreen({ route, navigation }) {
             await leaveCircle(circleId);
             navigation.goBack();
           } catch (error) {
-            Alert.alert('Error', error.message);
+            Alert.alert('Error', (error as Error).message);
           }
         },
       },
     ]);
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
+  const getStatusColor = (status: string): string => {
+    const colors: Record<string, string> = {
       REQUESTED: '#FFC107', AGREEMENT_PENDING: '#FF9800', AGREEMENT_SIGNED: '#2196F3',
       ACTIVE: '#4CAF50', DUE: '#FF9800', GRACE_PERIOD: '#e94560',
       REPAID: '#4CAF50', DEFAULTED: '#f44336', DISPUTED: '#9C27B0', CANCELLED: '#666',
@@ -122,19 +150,11 @@ export default function CircleDetailScreen({ route, navigation }) {
     return colors[status] || '#666';
   };
 
-  if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#e94560" /></View>;
-  }
-
-  if (!circle) {
-    return <View style={styles.center}><Text style={styles.errorText}>Circle not found</Text></View>;
-  }
-
-  const tabs = ['members', 'loans', 'expenses', 'insights'];
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#e94560" /></View>;
+  if (!circle) return <View style={styles.center}><Text style={styles.errorText}>Circle not found</Text></View>;
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>← Back</Text>
@@ -145,20 +165,14 @@ export default function CircleDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Circle Info */}
       <View style={styles.infoCard}>
         <Text style={styles.infoText}>{circle.memberCount} members • Max GHS {circle.maxLoanAmount}</Text>
         {circle.description ? <Text style={styles.descText}>{circle.description}</Text> : null}
       </View>
 
-      {/* Tabs */}
       <View style={styles.tabRow}>
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-            onPress={() => setActiveTab(tab)}
-          >
+        {['members', 'loans', 'expenses', 'insights'].map((tab) => (
+          <TouchableOpacity key={tab} style={[styles.tab, activeTab === tab && styles.activeTab]} onPress={() => setActiveTab(tab)}>
             <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </Text>
@@ -166,11 +180,7 @@ export default function CircleDetailScreen({ route, navigation }) {
         ))}
       </View>
 
-      <ScrollView
-        style={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor="#e94560" />}
-      >
-        {/* Members Tab */}
+      <ScrollView style={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor="#e94560" />}>
         {activeTab === 'members' && (
           <>
             {circle.members.map((member) => (
@@ -193,25 +203,16 @@ export default function CircleDetailScreen({ route, navigation }) {
           </>
         )}
 
-        {/* Loans Tab */}
         {activeTab === 'loans' && (
           <>
-            <TouchableOpacity
-              style={styles.actionBtn}
-              onPress={() => navigation.navigate('RequestLoan', { circleId })}
-            >
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('RequestLoan', { circleId })}>
               <Text style={styles.actionBtnText}>Request a Loan</Text>
             </TouchableOpacity>
-
             {loans.length === 0 ? (
               <Text style={styles.emptyText}>No loans in this circle yet</Text>
             ) : (
               loans.map((loan) => (
-                <TouchableOpacity
-                  key={loan.id}
-                  style={styles.loanCard}
-                  onPress={() => navigation.navigate('LoanDetail', { loanId: loan.id })}
-                >
+                <TouchableOpacity key={loan.id} style={styles.loanCard} onPress={() => navigation.navigate('LoanDetail', { loanId: loan.id })}>
                   <View style={styles.loanHeader}>
                     <Text style={styles.loanAmount}>GHS {loan.amount}</Text>
                     <View style={[styles.statusBadge, { backgroundColor: getStatusColor(loan.status) }]}>
@@ -219,9 +220,7 @@ export default function CircleDetailScreen({ route, navigation }) {
                     </View>
                   </View>
                   <Text style={styles.loanReason}>{loan.reason}</Text>
-                  <Text style={styles.loanParties}>
-                    {loan.borrowerName} ← {loan.lenderName || 'Waiting for lender'}
-                  </Text>
+                  <Text style={styles.loanParties}>{loan.borrowerName} ← {loan.lenderName || 'Waiting for lender'}</Text>
                   {loan.interestRate > 0 && (
                     <Text style={styles.loanInterest}>{loan.interestRate}% interest • Repay GHS {loan.totalRepaymentAmount}</Text>
                   )}
@@ -231,29 +230,22 @@ export default function CircleDetailScreen({ route, navigation }) {
           </>
         )}
 
-        {/* Expenses Tab */}
         {activeTab === 'expenses' && (
           <>
-            <TouchableOpacity
-              style={styles.actionBtn}
-              onPress={() => navigation.navigate('AddSharedExpense', { circleId, members: circle.members })}
-            >
+            <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AddSharedExpense', { circleId, members: circle.members })}>
               <Text style={styles.actionBtnText}>Add Shared Expense</Text>
             </TouchableOpacity>
-
-            {/* Balances */}
             {Object.keys(balances).length > 0 && (
               <View style={styles.balancesCard}>
                 <Text style={styles.balancesTitle}>Outstanding Balances</Text>
                 {Object.entries(balances).map(([key, amount]) => (
                   <View key={key} style={styles.balanceRow}>
                     <Text style={styles.balanceText}>{key}</Text>
-                    <Text style={styles.balanceAmount}>GHS {amount.toFixed(2)}</Text>
+                    <Text style={styles.balanceAmount}>GHS {(amount as number).toFixed(2)}</Text>
                   </View>
                 ))}
               </View>
             )}
-
             {expenses.length === 0 ? (
               <Text style={styles.emptyText}>No shared expenses yet</Text>
             ) : (
@@ -271,75 +263,38 @@ export default function CircleDetailScreen({ route, navigation }) {
           </>
         )}
 
-        {/* Insights Tab */}
         {activeTab === 'insights' && insights && (
           <View style={styles.insightsCard}>
             <Text style={styles.insightsTitle}>Circle Health: {insights.circleHealth}</Text>
-            <View style={styles.insightRow}>
-              <Text style={styles.insightLabel}>Total Loans</Text>
-              <Text style={styles.insightValue}>{insights.totalLoans}</Text>
-            </View>
-            <View style={styles.insightRow}>
-              <Text style={styles.insightLabel}>Active Loans</Text>
-              <Text style={styles.insightValue}>{insights.activeLoans}</Text>
-            </View>
-            <View style={styles.insightRow}>
-              <Text style={styles.insightLabel}>Repaid</Text>
-              <Text style={styles.insightValue}>{insights.repaidLoans}</Text>
-            </View>
-            <View style={styles.insightRow}>
-              <Text style={styles.insightLabel}>Defaulted</Text>
-              <Text style={styles.insightValue}>{insights.defaultedLoans}</Text>
-            </View>
-            <View style={styles.insightRow}>
-              <Text style={styles.insightLabel}>Repayment Rate</Text>
-              <Text style={styles.insightValue}>{insights.circleRepaymentRate}%</Text>
-            </View>
-            <View style={styles.insightRow}>
-              <Text style={styles.insightLabel}>Total Circulated</Text>
-              <Text style={styles.insightValue}>GHS {insights.totalAmountCirculated}</Text>
-            </View>
-            <View style={styles.insightRow}>
-              <Text style={styles.insightLabel}>Avg Trust Score</Text>
-              <Text style={styles.insightValue}>{insights.averageTrustScore}</Text>
-            </View>
-            {insights.topLender && (
-              <View style={styles.insightRow}>
-                <Text style={styles.insightLabel}>Top Lender</Text>
-                <Text style={styles.insightValue}>{insights.topLender}</Text>
+            {[
+              ['Total Loans', insights.totalLoans],
+              ['Active Loans', insights.activeLoans],
+              ['Repaid', insights.repaidLoans],
+              ['Defaulted', insights.defaultedLoans],
+              ['Repayment Rate', `${insights.circleRepaymentRate}%`],
+              ['Total Circulated', `GHS ${insights.totalAmountCirculated}`],
+              ['Avg Trust Score', insights.averageTrustScore],
+              ...(insights.topLender ? [['Top Lender', insights.topLender]] : []),
+              ...(insights.topBorrower ? [['Top Borrower', insights.topBorrower]] : []),
+            ].map(([label, value], i) => (
+              <View key={i} style={styles.insightRow}>
+                <Text style={styles.insightLabel}>{label}</Text>
+                <Text style={styles.insightValue}>{value}</Text>
               </View>
-            )}
-            {insights.topBorrower && (
-              <View style={styles.insightRow}>
-                <Text style={styles.insightLabel}>Top Borrower</Text>
-                <Text style={styles.insightValue}>{insights.topBorrower}</Text>
-              </View>
-            )}
+            ))}
           </View>
         )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Invite Modal */}
       <Modal visible={showInvite} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Invite to {circle.name}</Text>
             <Text style={styles.label}>Phone Number</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 0551234567"
-              placeholderTextColor="#555"
-              value={invitePhone}
-              onChangeText={setInvitePhone}
-              keyboardType="phone-pad"
-            />
-            <TouchableOpacity
-              style={[styles.createBtn, inviting && { opacity: 0.6 }]}
-              onPress={handleInvite}
-              disabled={inviting}
-            >
+            <TextInput style={styles.input} placeholder="e.g. 0551234567" placeholderTextColor="#555" value={invitePhone} onChangeText={setInvitePhone} keyboardType="phone-pad" />
+            <TouchableOpacity style={[styles.createBtn, inviting && { opacity: 0.6 }]} onPress={handleInvite} disabled={inviting}>
               {inviting ? <ActivityIndicator color="#fff" /> : <Text style={styles.createBtnText}>Send Invite</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowInvite(false)}>
@@ -414,4 +369,4 @@ const styles = StyleSheet.create({
   createBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   cancelBtn: { padding: 16, alignItems: 'center', marginTop: 8 },
   cancelBtnText: { color: '#a0a0b0', fontSize: 16 },
-});
+}); 

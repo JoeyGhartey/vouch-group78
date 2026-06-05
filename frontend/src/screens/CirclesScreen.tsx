@@ -4,23 +4,47 @@ import {
   ActivityIndicator, RefreshControl, TextInput, Modal, Alert, ScrollView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getMyCircles, createCircle } from '../services/api';
+import { RootStackParamList } from '../navigation/AppNavigator';
 
-export default function CirclesScreen({ navigation }) {
-  const [circles, setCircles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
-  const [newCircle, setNewCircle] = useState({
+type Props = {
+  navigation: NativeStackNavigationProp<RootStackParamList>;
+};
+
+interface Circle {
+  id: number;
+  name: string;
+  description?: string;
+  memberCount: number;
+  maxLoanAmount: number;
+  minTrustScore: number;
+  groupFundingThreshold: number;
+}
+
+interface NewCircleForm {
+  name: string;
+  description: string;
+  maxLoanAmount: string;
+  groupFundingThreshold: string;
+  minTrustScore: string;
+}
+
+export default function CirclesScreen({ navigation }: Props) {
+  const [circles, setCircles] = useState<Circle[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [showCreate, setShowCreate] = useState<boolean>(false);
+  const [newCircle, setNewCircle] = useState<NewCircleForm>({
     name: '', description: '', maxLoanAmount: '5000',
     groupFundingThreshold: '3000', minTrustScore: '0',
   });
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<boolean>(false);
 
-  const loadCircles = async () => {
+  const loadCircles = async (): Promise<void> => {
     try {
       const data = await getMyCircles();
-      setCircles(data);
+      setCircles(data as Circle[]);
     } catch (error) {
       console.error('Error loading circles:', error);
     } finally {
@@ -31,7 +55,7 @@ export default function CirclesScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { loadCircles(); }, []));
 
-  const handleCreate = async () => {
+  const handleCreate = async (): Promise<void> => {
     if (!newCircle.name.trim()) {
       Alert.alert('Error', 'Circle name is required');
       return;
@@ -49,7 +73,7 @@ export default function CirclesScreen({ navigation }) {
       setNewCircle({ name: '', description: '', maxLoanAmount: '5000', groupFundingThreshold: '3000', minTrustScore: '0' });
       loadCircles();
     } catch (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert('Error', (error as Error).message);
     } finally {
       setCreating(false);
     }
@@ -106,11 +130,16 @@ export default function CirclesScreen({ navigation }) {
               </View>
             </TouchableOpacity>
           )}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadCircles(); }} tintColor="#e94560" />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => { setRefreshing(true); loadCircles(); }}
+              tintColor="#e94560"
+            />
+          }
         />
       )}
 
-      {/* Create Circle Modal */}
       <Modal visible={showCreate} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -205,7 +234,7 @@ const styles = StyleSheet.create({
   circleStatValue: { color: '#fff', fontSize: 14, fontWeight: '600' },
   circleStatLabel: { color: '#a0a0b0', fontSize: 11, marginTop: 4 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 24 },
-  modalContent: { backgroundColor: '#16213e', borderRadius: 16, padding: 24, maxHeight: '80%' },
+  modalContent: { backgroundColor: '#16213e', borderRadius: 16, padding: 24, maxHeight: '80%' as const },
   modalTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
   label: { color: '#a0a0b0', fontSize: 14, marginBottom: 6, marginTop: 12 },
   input: { backgroundColor: '#1a1a2e', borderRadius: 12, padding: 14, fontSize: 16, color: '#fff', borderWidth: 1, borderColor: '#2a2a4a' },

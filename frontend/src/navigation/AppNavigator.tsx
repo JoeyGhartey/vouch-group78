@@ -18,8 +18,27 @@ import ExpensesScreen from '../screens/ExpensesScreen';
 import AddSharedExpenseScreen from '../screens/AddSharedExpenseScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
-const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+export type RootStackParamList = {
+  Main: undefined;
+  Notifications: undefined;
+  CircleDetail: { circleId: number };
+  RequestLoan: { circleId: number };
+  LoanDetail: { loanId: number };
+  AddSharedExpense: { circleId: number; members: { userId: number; firstName: string; lastName: string }[] };
+  Login: undefined;
+  Register: undefined;
+};
+
+export type TabParamList = {
+  HomeTab: undefined;
+  CirclesTab: undefined;
+  LoansTab: undefined;
+  ExpensesTab: undefined;
+  ProfileTab: undefined;
+};
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<TabParamList>();
 
 function MainTabs() {
   return (

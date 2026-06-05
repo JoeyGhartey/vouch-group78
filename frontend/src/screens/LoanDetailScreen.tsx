@@ -4,32 +4,69 @@ import {
   ActivityIndicator, Alert, TextInput, Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import {
   getLoan, fundLoan, signAgreement, disburseLoan, repayLoan,
   cancelLoan, defaultLoan, openDispute, getProfile,
 } from '../services/api';
+import { RootStackParamList } from '../navigation/AppNavigator';
 
-export default function LoanDetailScreen({ route, navigation }) {
+type Props = {
+  route: RouteProp<RootStackParamList, 'LoanDetail'>;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'LoanDetail'>;
+};
+
+interface Loan {
+  id: number;
+  amount: number;
+  status: string;
+  reason: string;
+  borrowerName: string;
+  borrowerId: number;
+  lenderName?: string;
+  lenderId?: number;
+  circleName: string;
+  interestRate: number;
+  totalRepaymentAmount: number;
+  amountRepaid: number;
+  overdueInterestAccrued: number;
+  repaymentType: string;
+  repaymentPeriodMonths: number;
+  dueDate?: string;
+  createdAt: string;
+  disbursedAt?: string;
+  gracePeriodEnd?: string;
+}
+
+interface Profile {
+  id: number;
+}
+
+export default function LoanDetailScreen({ route, navigation }: Props) {
   const { loanId } = route.params;
-  const [loan, setLoan] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [acting, setActing] = useState(false);
-  const [showFund, setShowFund] = useState(false);
-  const [showRepay, setShowRepay] = useState(false);
-  const [showDispute, setShowDispute] = useState(false);
-  const [interestRate, setInterestRate] = useState('5');
-  const [repayAmount, setRepayAmount] = useState('');
-  const [disputeReason, setDisputeReason] = useState('');
-  const [disputeEvidence, setDisputeEvidence] = useState('');
+  const [loan, setLoan] = useState<Loan | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [acting, setActing] = useState<boolean>(false);
+  const [showFund, setShowFund] = useState<boolean>(false);
+  const [showRepay, setShowRepay] = useState<boolean>(false);
+  const [showDispute, setShowDispute] = useState<boolean>(false);
+  const [interestRate, setInterestRate] = useState<string>('5');
+  const [repayAmount, setRepayAmount] = useState<string>('');
+  const [disputeReason, setDisputeReason] = useState<string>('');
+  const [disputeEvidence, setDisputeEvidence] = useState<string>('');
 
-  const loadData = async () => {
+  const loadData = async (): Promise<void> => {
     try {
       const [l, p] = await Promise.all([getLoan(loanId), getProfile()]);
-      setLoan(l);
-      setProfile(p);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      setLoan(l as Loan);
+      setProfile(p as Profile);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useFocusEffect(useCallback(() => { loadData(); }, []));
@@ -37,64 +74,99 @@ export default function LoanDetailScreen({ route, navigation }) {
   const isBorrower = profile && loan && profile.id === loan.borrowerId;
   const isLender = profile && loan && profile.id === loan.lenderId;
 
-  const doAction = async (action, successMsg) => {
+  const doAction = async (action: () => Promise<void>, successMsg?: string): Promise<void> => {
     setActing(true);
-    try { await action(); loadData(); if (successMsg) Alert.alert('Success', successMsg); }
-    catch (e) { Alert.alert('Error', e.message); }
-    finally { setActing(false); }
+    try {
+      await action();
+      loadData();
+      if (successMsg) Alert.alert('Success', successMsg);
+    } catch (e) {
+      Alert.alert('Error', (e as Error).message);
+    } finally {
+      setActing(false);
+    }
   };
 
-  const handleFund = () => {
+  const handleFund = (): void => {
     if (!interestRate || parseFloat(interestRate) < 0) { Alert.alert('Error', 'Enter a valid interest rate'); return; }
     doAction(async () => {
-      await fundLoan({ loanId: loan.id, interestRate: parseFloat(interestRate) });
+      await fundLoan({ loanId: loan!.id, interestRate: parseFloat(interestRate) });
       setShowFund(false);
     }, 'Loan funded. Agreement pending signatures.');
   };
 
-  const handleSign = () => doAction(() => signAgreement(loan.id), 'Agreement signed.');
-  
-  const handleDisburse = () => {
-    Alert.alert('Disburse Loan', `Send GHS ${loan.amount} to ${loan.borrowerName}?`, [
-      { text: 'Cancel' },
-      { text: 'Disburse', onPress: () => doAction(() => disburseLoan(loan.id), 'Loan disbursed and active.') },
-    ]);
+const handleSign = (): void => {
+  doAction(async () => { await signAgreement(loan!.id); }, 'Agreement signed.');
+};
+ const handleDisburse = (): void => {
+  Alert.alert('Disburse Loan', `Send GHS ${loan!.amount} to ${loan!.borrowerName}?`, [
+    { text: 'Cancel' },
+    { text: 'Disburse', onPress: () => doAction(async () => { await disburseLoan(loan!.id); }, 'Loan disbursed and active.') },
+  ]);
+};
+
+  const handleRepay = (): void => {
+    const amt = repayAmount ? parseFloat(repayAmount) : undefined;
+    doAction(async () => {
+      await repayLoan(loan!.id, amt);
+      setShowRepay(false);
+      setRepayAmount('');
+    }, 'Repayment recorded.');
   };
 
-  const handleRepay = () => {
-    const amt = repayAmount ? parseFloat(repayAmount) : null;
-    doAction(async () => { await repayLoan(loan.id, amt); setShowRepay(false); setRepayAmount(''); }, 'Repayment recorded.');
-  };
+  const handleCancel = (): void => {
+  Alert.alert('Cancel Loan', 'Cancel this request?', [
+    { text: 'No' },
+    { text: 'Yes', style: 'destructive', onPress: () => doAction(async () => { await cancelLoan(loan!.id); }, 'Loan cancelled.') },
+  ]);
+};
 
-  const handleCancel = () => {
-    Alert.alert('Cancel Loan', 'Cancel this request?', [
-      { text: 'No' },
-      { text: 'Yes', style: 'destructive', onPress: () => doAction(() => cancelLoan(loan.id), 'Loan cancelled.') },
-    ]);
-  };
-
-  const handleDefault = () => {
-    Alert.alert('Mark Defaulted', 'This will significantly impact the borrower\'s trust score.', [
-      { text: 'Cancel' },
-      { text: 'Mark Defaulted', style: 'destructive', onPress: () => doAction(() => defaultLoan(loan.id), 'Loan defaulted.') },
-    ]);
-  };
-
-  const handleDispute = () => {
+ const handleDefault = (): void => {
+  Alert.alert('Mark Defaulted', "This will significantly impact the borrower's trust score.", [
+    { text: 'Cancel' },
+    { text: 'Mark Defaulted', style: 'destructive', onPress: () => doAction(async () => { await defaultLoan(loan!.id); }, 'Loan defaulted.') },
+  ]);
+};
+  const handleDispute = (): void => {
     if (!disputeReason.trim()) { Alert.alert('Error', 'Enter a reason'); return; }
     doAction(async () => {
-      await openDispute({ loanId: loan.id, reason: disputeReason, evidence: disputeEvidence });
-      setShowDispute(false); setDisputeReason(''); setDisputeEvidence('');
+      await openDispute({ loanId: loan!.id, reason: disputeReason, evidence: disputeEvidence });
+      setShowDispute(false);
+      setDisputeReason('');
+      setDisputeEvidence('');
     }, 'Dispute opened. Admin will review.');
   };
 
-  const statusColor = (s) => ({ REQUESTED:'#FFC107', AGREEMENT_PENDING:'#FF9800', AGREEMENT_SIGNED:'#2196F3', ACTIVE:'#4CAF50', DUE:'#FF9800', GRACE_PERIOD:'#e94560', REPAID:'#4CAF50', DEFAULTED:'#f44336', DISPUTED:'#9C27B0', CANCELLED:'#666' }[s] || '#666');
-  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : 'N/A';
+  const statusColor = (s: string): string => ({
+    REQUESTED: '#FFC107', AGREEMENT_PENDING: '#FF9800', AGREEMENT_SIGNED: '#2196F3',
+    ACTIVE: '#4CAF50', DUE: '#FF9800', GRACE_PERIOD: '#e94560',
+    REPAID: '#4CAF50', DEFAULTED: '#f44336', DISPUTED: '#9C27B0', CANCELLED: '#666',
+  }[s] || '#666');
+
+  const fmtDate = (d?: string): string =>
+    d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A';
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#e94560" /></View>;
-  if (!loan) return <View style={styles.center}><Text style={{ color:'#e94560', fontSize:16 }}>Loan not found</Text></View>;
+  if (!loan) return <View style={styles.center}><Text style={{ color: '#e94560', fontSize: 16 }}>Loan not found</Text></View>;
 
   const totalOwed = loan.totalRepaymentAmount + loan.overdueInterestAccrued - loan.amountRepaid;
+
+  const details: [string, string][] = [
+    ['Borrower', loan.borrowerName],
+    ['Lender', loan.lenderName || 'Waiting for lender'],
+    ['Circle', loan.circleName],
+    ['Reason', loan.reason],
+    ['Interest Rate', `${loan.interestRate}%`],
+    ['Total Repayment', `GHS ${loan.totalRepaymentAmount}`],
+    ['Amount Repaid', `GHS ${loan.amountRepaid}`],
+    ['Repayment Type', loan.repaymentType],
+    ['Period', `${loan.repaymentPeriodMonths} month(s)`],
+    ['Due Date', fmtDate(loan.dueDate)],
+    ['Created', fmtDate(loan.createdAt)],
+    ...(loan.disbursedAt ? [['Disbursed', fmtDate(loan.disbursedAt)] as [string, string]] : []),
+    ...(loan.overdueInterestAccrued > 0 ? [['Overdue Interest', `GHS ${loan.overdueInterestAccrued.toFixed(2)}`] as [string, string]] : []),
+    ...(loan.gracePeriodEnd ? [['Grace Period Ends', fmtDate(loan.gracePeriodEnd)] as [string, string]] : []),
+  ];
 
   return (
     <ScrollView style={styles.container}>
@@ -104,7 +176,6 @@ export default function LoanDetailScreen({ route, navigation }) {
         <View style={{ width: 50 }} />
       </View>
 
-      {/* Amount Card */}
       <View style={styles.amountCard}>
         <Text style={styles.amountLabel}>Loan Amount</Text>
         <Text style={styles.amount}>GHS {loan.amount}</Text>
@@ -113,24 +184,8 @@ export default function LoanDetailScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* Details */}
       <View style={styles.card}>
-        {[
-          ['Borrower', loan.borrowerName],
-          ['Lender', loan.lenderName || 'Waiting for lender'],
-          ['Circle', loan.circleName],
-          ['Reason', loan.reason],
-          ['Interest Rate', `${loan.interestRate}%`],
-          ['Total Repayment', `GHS ${loan.totalRepaymentAmount}`],
-          ['Amount Repaid', `GHS ${loan.amountRepaid}`],
-          ['Repayment Type', loan.repaymentType],
-          ['Period', `${loan.repaymentPeriodMonths} month(s)`],
-          ['Due Date', fmtDate(loan.dueDate)],
-          ['Created', fmtDate(loan.createdAt)],
-          ...(loan.disbursedAt ? [['Disbursed', fmtDate(loan.disbursedAt)]] : []),
-          ...(loan.overdueInterestAccrued > 0 ? [['Overdue Interest', `GHS ${loan.overdueInterestAccrued.toFixed(2)}`]] : []),
-          ...(loan.gracePeriodEnd ? [['Grace Period Ends', fmtDate(loan.gracePeriodEnd)]] : []),
-        ].map(([label, value], i) => (
+        {details.map(([label, value], i) => (
           <View key={i} style={styles.row}>
             <Text style={styles.rowLabel}>{label}</Text>
             <Text style={[styles.rowValue, label === 'Overdue Interest' && { color: '#e94560' }]}>{value}</Text>
@@ -138,19 +193,17 @@ export default function LoanDetailScreen({ route, navigation }) {
         ))}
       </View>
 
-      {/* Progress */}
-      {loan.totalRepaymentAmount > 0 && !['REPAID','CANCELLED','REQUESTED'].includes(loan.status) && (
+      {loan.totalRepaymentAmount > 0 && !['REPAID', 'CANCELLED', 'REQUESTED'].includes(loan.status) && (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Repayment Progress</Text>
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${Math.min((loan.amountRepaid / (loan.totalRepaymentAmount + loan.overdueInterestAccrued)) * 100, 100)}%` }]} />
+            <View style={[styles.progressFill, { width: `${Math.min((loan.amountRepaid / (loan.totalRepaymentAmount + loan.overdueInterestAccrued)) * 100, 100)}%` as any }]} />
           </View>
           <Text style={styles.progressText}>GHS {loan.amountRepaid.toFixed(2)} / {(loan.totalRepaymentAmount + loan.overdueInterestAccrued).toFixed(2)}</Text>
           {totalOwed > 0 && <Text style={styles.remaining}>Remaining: GHS {totalOwed.toFixed(2)}</Text>}
         </View>
       )}
 
-      {/* Actions */}
       <View style={styles.actions}>
         {loan.status === 'REQUESTED' && !isBorrower && (
           <TouchableOpacity style={styles.primaryBtn} onPress={() => setShowFund(true)}>
@@ -167,7 +220,7 @@ export default function LoanDetailScreen({ route, navigation }) {
             {acting ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Disburse GHS {loan.amount}</Text>}
           </TouchableOpacity>
         )}
-        {['ACTIVE','DUE','GRACE_PERIOD'].includes(loan.status) && isBorrower && (
+        {['ACTIVE', 'DUE', 'GRACE_PERIOD'].includes(loan.status) && isBorrower && (
           <TouchableOpacity style={styles.primaryBtn} onPress={() => { setRepayAmount(totalOwed.toFixed(2)); setShowRepay(true); }}>
             <Text style={styles.btnText}>Repay Loan</Text>
           </TouchableOpacity>
@@ -182,14 +235,13 @@ export default function LoanDetailScreen({ route, navigation }) {
             <Text style={styles.btnText}>Mark as Defaulted</Text>
           </TouchableOpacity>
         )}
-        {['ACTIVE','DUE','GRACE_PERIOD','REPAID'].includes(loan.status) && (isBorrower || isLender) && (
+        {['ACTIVE', 'DUE', 'GRACE_PERIOD', 'REPAID'].includes(loan.status) && (isBorrower || isLender) && (
           <TouchableOpacity style={styles.outlineBtn} onPress={() => setShowDispute(true)}>
             <Text style={styles.outlineText}>Open Dispute</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Fund Modal */}
       <Modal visible={showFund} animationType="slide" transparent>
         <View style={styles.modalBg}>
           <View style={styles.modal}>
@@ -197,7 +249,9 @@ export default function LoanDetailScreen({ route, navigation }) {
             <Text style={styles.modalSub}>GHS {loan.amount} to {loan.borrowerName}</Text>
             <Text style={styles.label}>Interest Rate (%)</Text>
             <TextInput style={styles.input} placeholder="e.g. 5" placeholderTextColor="#555" value={interestRate} onChangeText={setInterestRate} keyboardType="numeric" />
-            {parseFloat(interestRate) > 0 && <Text style={styles.calcText}>Total repayment: GHS {(loan.amount * (1 + parseFloat(interestRate || 0) / 100)).toFixed(2)}</Text>}
+            {parseFloat(interestRate) > 0 && (
+              <Text style={styles.calcText}>Total repayment: GHS {(loan.amount * (1 + parseFloat(interestRate || '0') / 100)).toFixed(2)}</Text>
+            )}
             <TouchableOpacity style={styles.primaryBtn} onPress={handleFund} disabled={acting}>
               {acting ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Confirm & Fund</Text>}
             </TouchableOpacity>
@@ -206,7 +260,6 @@ export default function LoanDetailScreen({ route, navigation }) {
         </View>
       </Modal>
 
-      {/* Repay Modal */}
       <Modal visible={showRepay} animationType="slide" transparent>
         <View style={styles.modalBg}>
           <View style={styles.modal}>
@@ -222,7 +275,6 @@ export default function LoanDetailScreen({ route, navigation }) {
         </View>
       </Modal>
 
-      {/* Dispute Modal */}
       <Modal visible={showDispute} animationType="slide" transparent>
         <View style={styles.modalBg}>
           <View style={styles.modal}>

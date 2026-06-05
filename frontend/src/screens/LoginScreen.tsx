@@ -11,16 +11,22 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { login } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { RootStackParamList } from '../navigation/AppNavigator';
 
-export default function LoginScreen({ navigation }) {
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+type Props = {
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
+};
+
+export default function LoginScreen({ navigation }: Props) {
+  const [phone, setPhone] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
   const { signIn } = useAuth();
 
-  const handleLogin = async () => {
+  const handleLogin = async (): Promise<void> => {
     if (!phone || !password) {
       Alert.alert('Error', 'Please enter your phone number and password');
       return;
@@ -28,10 +34,10 @@ export default function LoginScreen({ navigation }) {
 
     setLoading(true);
     try {
-      const response = await login({ phone, password });
+      const response = await login({ phone, password }) as { token: string; [key: string]: unknown };
       await signIn(response);
     } catch (error) {
-      Alert.alert('Login Failed', error.message || 'Invalid phone number or password');
+      Alert.alert('Login Failed', (error as Error).message || 'Invalid phone number or password');
     } finally {
       setLoading(false);
     }
@@ -53,6 +59,7 @@ export default function LoginScreen({ navigation }) {
           <TextInput
             style={styles.input}
             placeholder="e.g. 0241234567"
+            placeholderTextColor="#555"
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
@@ -63,6 +70,7 @@ export default function LoginScreen({ navigation }) {
           <TextInput
             style={styles.input}
             placeholder="Enter your password"
+            placeholderTextColor="#555"
             value={password}
             onChangeText={setPassword}
             secureTextEntry

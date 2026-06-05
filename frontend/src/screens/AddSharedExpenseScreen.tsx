@@ -1,32 +1,48 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, ActivityIndicator,
+  ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import { createSharedExpense } from '../services/api';
+import { RootStackParamList } from '../navigation/AppNavigator';
 
-export default function AddSharedExpenseScreen({ route, navigation }) {
-  const { circleId, members } = route.params;
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('Food');
-  const [selectedMembers, setSelectedMembers] = useState(members ? members.map(m => m.userId) : []);
-  const [loading, setLoading] = useState(false);
+type Props = {
+  route: RouteProp<RootStackParamList, 'AddSharedExpense'>;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'AddSharedExpense'>;
+};
+
+interface Member {
+  userId: number;
+  firstName: string;
+  lastName: string;
+}
+
+export default function AddSharedExpenseScreen({ route, navigation }: Props) {
+  const { circleId, members } = route.params as { circleId: number; members: Member[] };
+  const [description, setDescription] = useState<string>('');
+  const [amount, setAmount] = useState<string>('');
+  const [category, setCategory] = useState<string>('Food');
+  const [selectedMembers, setSelectedMembers] = useState<number[]>(
+    members ? members.map((m) => m.userId) : []
+  );
+  const [loading, setLoading] = useState<boolean>(false);
 
   const categories = ['Food', 'Transport', 'Entertainment', 'Utilities', 'Shopping', 'Other'];
 
-  const toggleMember = (userId) => {
+  const toggleMember = (userId: number): void => {
     if (selectedMembers.includes(userId)) {
-      setSelectedMembers(selectedMembers.filter(id => id !== userId));
+      setSelectedMembers(selectedMembers.filter((id) => id !== userId));
     } else {
       setSelectedMembers([...selectedMembers, userId]);
     }
   };
 
-  const handleSubmit = async () => {
-    if (!amount || parseFloat(amount) <= 0) { if (typeof window !== 'undefined') window.alert('Enter a valid amount'); return; }
-    if (!description.trim()) { if (typeof window !== 'undefined') window.alert('Enter a description'); return; }
-    if (selectedMembers.length < 2) { if (typeof window !== 'undefined') window.alert('Select at least 2 members'); return; }
+  const handleSubmit = async (): Promise<void> => {
+    if (!amount || parseFloat(amount) <= 0) { Alert.alert('Error', 'Enter a valid amount'); return; }
+    if (!description.trim()) { Alert.alert('Error', 'Enter a description'); return; }
+    if (selectedMembers.length < 2) { Alert.alert('Error', 'Select at least 2 members'); return; }
 
     setLoading(true);
     try {
@@ -37,19 +53,23 @@ export default function AddSharedExpenseScreen({ route, navigation }) {
         category,
         participantIds: selectedMembers,
       });
-      if (typeof window !== 'undefined') window.alert('Shared expense created');
+      Alert.alert('Success', 'Shared expense created');
       navigation.goBack();
     } catch (e) {
-      if (typeof window !== 'undefined') window.alert(e.message);
-    } finally { setLoading(false); }
+      Alert.alert('Error', (e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const splitAmount = selectedMembers.length > 0 ? parseFloat(amount || 0) / selectedMembers.length : 0;
+  const splitAmount = selectedMembers.length > 0 ? parseFloat(amount || '0') / selectedMembers.length : 0;
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.back}>← Back</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.back}>← Back</Text>
+        </TouchableOpacity>
         <Text style={styles.title}>Add Shared Expense</Text>
         <View style={{ width: 50 }} />
       </View>
@@ -63,7 +83,7 @@ export default function AddSharedExpenseScreen({ route, navigation }) {
 
         <Text style={styles.label}>Category</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4 }}>
-          {categories.map(c => (
+          {categories.map((c) => (
             <TouchableOpacity key={c} style={[styles.catBtn, category === c && styles.catBtnSel]} onPress={() => setCategory(c)}>
               <Text style={[styles.catBtnText, category === c && styles.catBtnTextSel]}>{c}</Text>
             </TouchableOpacity>
@@ -71,7 +91,7 @@ export default function AddSharedExpenseScreen({ route, navigation }) {
         </ScrollView>
 
         <Text style={styles.label}>Split Between</Text>
-        {members && members.map(m => (
+        {members && members.map((m) => (
           <TouchableOpacity key={m.userId} style={[styles.memberBtn, selectedMembers.includes(m.userId) && styles.memberBtnSel]} onPress={() => toggleMember(m.userId)}>
             <Text style={[styles.memberText, selectedMembers.includes(m.userId) && styles.memberTextSel]}>
               {m.firstName} {m.lastName}
@@ -93,7 +113,6 @@ export default function AddSharedExpenseScreen({ route, navigation }) {
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Add Expense</Text>}
         </TouchableOpacity>
       </View>
-
       <View style={{ height: 40 }} />
     </ScrollView>
   );
