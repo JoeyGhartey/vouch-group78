@@ -11,6 +11,7 @@ C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\InstallmentContro
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\LoanAgreementController.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\LoanController.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\NotificationController.java
+C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\PaymentController.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\PersonalExpenseController.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\SharedExpenseController.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\controller\SmartInsightsController.java
@@ -75,7 +76,6 @@ C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\LoanAgreementPdfServ
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\LoanSchedulerService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\LoanService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\NotificationService.java
-C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\PaymentController.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\PaystackService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\PersonalExpenseService.java
 C:\Users\joey\vouch\backend\src\main\java\com\vouch\service\SharedExpenseService.java

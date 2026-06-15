@@ -1,10 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, TextInput, Modal, Alert, ScrollView,
+  ActivityIndicator, RefreshControl, TextInput, Modal, Alert,
+  ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { getMyCircles, createCircle } from '../services/api';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -29,6 +31,14 @@ interface NewCircleForm {
   groupFundingThreshold: string;
   minTrustScore: string;
 }
+
+const BG = '#F8F9FA';
+const WHITE = '#FFFFFF';
+const DARK = '#0f172a';
+const MUTED = '#6B7280';
+const BORDER = '#E5E7EB';
+const ACCENT = '#C9A84C';
+const DANGER = '#dc2626';
 
 export default function CirclesScreen({ navigation }: Props) {
   const [circles, setCircles] = useState<Circle[]>([]);
@@ -56,10 +66,7 @@ export default function CirclesScreen({ navigation }: Props) {
   useFocusEffect(useCallback(() => { loadCircles(); }, []));
 
   const handleCreate = async (): Promise<void> => {
-    if (!newCircle.name.trim()) {
-      Alert.alert('Error', 'Circle name is required');
-      return;
-    }
+    if (!newCircle.name.trim()) { Alert.alert('Error', 'Circle name is required'); return; }
     setCreating(true);
     try {
       await createCircle({
@@ -80,166 +87,148 @@ export default function CirclesScreen({ navigation }: Props) {
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#e94560" /></View>;
+    return <View style={styles.center}><ActivityIndicator size="large" color={ACCENT} /></View>;
   }
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>My Circles</Text>
-        <TouchableOpacity style={styles.addButton} onPress={() => setShowCreate(true)}>
-          <Text style={styles.addButtonText}>+ Create</Text>
+        <TouchableOpacity style={styles.addBtn} onPress={() => setShowCreate(true)}>
+          <Ionicons name="add" size={18} color={WHITE} />
+          <Text style={styles.addBtnText}>Create</Text>
         </TouchableOpacity>
       </View>
 
       {circles.length === 0 ? (
         <View style={styles.center}>
-          <Text style={styles.emptyIcon}>👥</Text>
-          <Text style={styles.emptyText}>No circles yet</Text>
-          <Text style={styles.emptySubtext}>Create one to start lending with friends</Text>
+          <Ionicons name="people-outline" size={48} color={MUTED} />
+          <Text style={styles.emptyTitle}>No circles yet</Text>
+          <Text style={styles.emptyText}>Create one to start lending with friends</Text>
+          <TouchableOpacity style={styles.emptyBtn} onPress={() => setShowCreate(true)}>
+            <Text style={styles.emptyBtnText}>Create Circle</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
           data={circles}
           keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={{ padding: 16, gap: 12 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadCircles(); }} tintColor={ACCENT} />}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.circleCard}
               onPress={() => navigation.navigate('CircleDetail', { circleId: item.id })}
             >
-              <View style={styles.circleCardHeader}>
-                <Text style={styles.circleName}>{item.name}</Text>
-                <Text style={styles.memberCount}>{item.memberCount} members</Text>
+              <View style={styles.circleTop}>
+                <View style={styles.circleIconBox}>
+                  <Ionicons name="people-outline" size={20} color={ACCENT} />
+                </View>
+                <View style={styles.circleInfo}>
+                  <Text style={styles.circleName}>{item.name}</Text>
+                  <Text style={styles.circleMeta}>{item.memberCount} members</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={MUTED} />
               </View>
               {item.description ? (
                 <Text style={styles.circleDesc}>{item.description}</Text>
               ) : null}
-              <View style={styles.circleStats}>
-                <View style={styles.circleStat}>
-                  <Text style={styles.circleStatValue}>GHS {item.maxLoanAmount}</Text>
-                  <Text style={styles.circleStatLabel}>Max Loan</Text>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>GHS {item.maxLoanAmount?.toLocaleString()}</Text>
+                  <Text style={styles.statLabel}>Max Loan</Text>
                 </View>
-                <View style={styles.circleStat}>
-                  <Text style={styles.circleStatValue}>{item.minTrustScore}</Text>
-                  <Text style={styles.circleStatLabel}>Min Score</Text>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>{item.minTrustScore}</Text>
+                  <Text style={styles.statLabel}>Min Score</Text>
                 </View>
-                <View style={styles.circleStat}>
-                  <Text style={styles.circleStatValue}>GHS {item.groupFundingThreshold}</Text>
-                  <Text style={styles.circleStatLabel}>Group Threshold</Text>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>GHS {item.groupFundingThreshold?.toLocaleString()}</Text>
+                  <Text style={styles.statLabel}>Group Threshold</Text>
                 </View>
               </View>
             </TouchableOpacity>
           )}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => { setRefreshing(true); loadCircles(); }}
-              tintColor="#e94560"
-            />
-          }
         />
       )}
 
       <Modal visible={showCreate} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <ScrollView>
-              <Text style={styles.modalTitle}>Create a Circle</Text>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={styles.modalBg}>
+            <View style={styles.modal}>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <Text style={styles.modalTitle}>Create a Circle</Text>
 
-              <Text style={styles.label}>Circle Name *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. The Boys"
-                placeholderTextColor="#555"
-                value={newCircle.name}
-                onChangeText={(t) => setNewCircle({ ...newCircle, name: t })}
-              />
+                <Text style={styles.label}>Circle Name *</Text>
+                <TextInput style={styles.input} placeholder="e.g. The Boys" placeholderTextColor={MUTED} value={newCircle.name} onChangeText={(t) => setNewCircle({ ...newCircle, name: t })} />
 
-              <Text style={styles.label}>Description</Text>
-              <TextInput
-                style={[styles.input, { height: 80 }]}
-                placeholder="What's this circle about?"
-                placeholderTextColor="#555"
-                value={newCircle.description}
-                onChangeText={(t) => setNewCircle({ ...newCircle, description: t })}
-                multiline
-              />
+                <Text style={styles.label}>Description</Text>
+                <TextInput style={[styles.input, { height: 80 }]} placeholder="What's this circle about?" placeholderTextColor={MUTED} value={newCircle.description} onChangeText={(t) => setNewCircle({ ...newCircle, description: t })} multiline />
 
-              <Text style={styles.label}>Max Loan Amount (GHS)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="5000"
-                placeholderTextColor="#555"
-                value={newCircle.maxLoanAmount}
-                onChangeText={(t) => setNewCircle({ ...newCircle, maxLoanAmount: t })}
-                keyboardType="numeric"
-              />
+                <Text style={styles.label}>Max Loan Amount (GHS)</Text>
+                <TextInput style={styles.input} placeholder="5000" placeholderTextColor={MUTED} value={newCircle.maxLoanAmount} onChangeText={(t) => setNewCircle({ ...newCircle, maxLoanAmount: t })} keyboardType="numeric" />
 
-              <Text style={styles.label}>Group Funding Threshold (GHS)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="3000"
-                placeholderTextColor="#555"
-                value={newCircle.groupFundingThreshold}
-                onChangeText={(t) => setNewCircle({ ...newCircle, groupFundingThreshold: t })}
-                keyboardType="numeric"
-              />
+                <Text style={styles.label}>Group Funding Threshold (GHS)</Text>
+                <TextInput style={styles.input} placeholder="3000" placeholderTextColor={MUTED} value={newCircle.groupFundingThreshold} onChangeText={(t) => setNewCircle({ ...newCircle, groupFundingThreshold: t })} keyboardType="numeric" />
 
-              <Text style={styles.label}>Minimum Trust Score</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="0"
-                placeholderTextColor="#555"
-                value={newCircle.minTrustScore}
-                onChangeText={(t) => setNewCircle({ ...newCircle, minTrustScore: t })}
-                keyboardType="numeric"
-              />
+                <Text style={styles.label}>Minimum Trust Score</Text>
+                <TextInput style={styles.input} placeholder="0" placeholderTextColor={MUTED} value={newCircle.minTrustScore} onChangeText={(t) => setNewCircle({ ...newCircle, minTrustScore: t })} keyboardType="numeric" />
 
-              <TouchableOpacity
-                style={[styles.createBtn, creating && { opacity: 0.6 }]}
-                onPress={handleCreate}
-                disabled={creating}
-              >
-                {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.createBtnText}>Create Circle</Text>}
-              </TouchableOpacity>
+                <TouchableOpacity style={[styles.createBtn, creating && { opacity: 0.6 }]} onPress={handleCreate} disabled={creating}>
+                  {creating ? <ActivityIndicator color={WHITE} /> : <Text style={styles.createBtnText}>Create Circle</Text>}
+                </TouchableOpacity>
 
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowCreate(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-            </ScrollView>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowCreate(false)}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1a1a2e' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a2e' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, paddingTop: 60 },
-  title: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
-  addButton: { backgroundColor: '#e94560', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8 },
-  addButtonText: { color: '#fff', fontWeight: '600' },
-  emptyIcon: { fontSize: 48, marginBottom: 16 },
-  emptyText: { color: '#fff', fontSize: 18, fontWeight: '600' },
-  emptySubtext: { color: '#a0a0b0', fontSize: 14, marginTop: 8 },
-  circleCard: { backgroundColor: '#16213e', marginHorizontal: 24, marginBottom: 12, borderRadius: 16, padding: 20 },
-  circleCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  circleName: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  memberCount: { color: '#e94560', fontSize: 14 },
-  circleDesc: { color: '#a0a0b0', fontSize: 14, marginTop: 8 },
-  circleStats: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#2a2a4a' },
-  circleStat: { alignItems: 'center' },
-  circleStatValue: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  circleStatLabel: { color: '#a0a0b0', fontSize: 11, marginTop: 4 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 24 },
-  modalContent: { backgroundColor: '#16213e', borderRadius: 16, padding: 24, maxHeight: '80%' as const },
-  modalTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-  label: { color: '#a0a0b0', fontSize: 14, marginBottom: 6, marginTop: 12 },
-  input: { backgroundColor: '#1a1a2e', borderRadius: 12, padding: 14, fontSize: 16, color: '#fff', borderWidth: 1, borderColor: '#2a2a4a' },
-  createBtn: { backgroundColor: '#e94560', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
-  createBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  cancelBtn: { padding: 16, alignItems: 'center', marginTop: 8 },
-  cancelBtnText: { color: '#a0a0b0', fontSize: 16 },
+  container: { flex: 1, backgroundColor: BG },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: BG, padding: 24 },
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: WHITE, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
+    borderBottomWidth: 1, borderBottomColor: BORDER,
+  },
+  title: { fontSize: 22, fontWeight: '700', color: DARK },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: DARK, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  addBtnText: { color: WHITE, fontSize: 14, fontWeight: '600' },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: DARK, marginTop: 12, marginBottom: 6 },
+  emptyText: { fontSize: 13, color: MUTED, textAlign: 'center', marginBottom: 20 },
+  emptyBtn: { backgroundColor: DARK, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 },
+  emptyBtnText: { color: WHITE, fontSize: 14, fontWeight: '700' },
+  circleCard: {
+    backgroundColor: WHITE, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: BORDER,
+  },
+  circleTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  circleIconBox: { width: 42, height: 42, borderRadius: 12, backgroundColor: BG, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: BORDER },
+  circleInfo: { flex: 1 },
+  circleName: { fontSize: 16, fontWeight: '700', color: DARK },
+  circleMeta: { fontSize: 12, color: MUTED, marginTop: 2 },
+  circleDesc: { fontSize: 13, color: MUTED, marginBottom: 12 },
+  statsRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: BORDER, paddingTop: 12 },
+  statItem: { flex: 1, alignItems: 'center' },
+  statDivider: { width: 1, backgroundColor: BORDER },
+  statValue: { fontSize: 13, fontWeight: '700', color: DARK },
+  statLabel: { fontSize: 10, color: MUTED, marginTop: 3 },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modal: { backgroundColor: WHITE, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '90%' as const },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: DARK, textAlign: 'center', marginBottom: 20 },
+  label: { fontSize: 12, color: MUTED, fontWeight: '600', marginBottom: 6, marginTop: 14 },
+  input: { backgroundColor: BG, borderRadius: 10, padding: 14, fontSize: 14, color: DARK, borderWidth: 1, borderColor: BORDER },
+  createBtn: { backgroundColor: DARK, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
+  createBtnText: { color: WHITE, fontSize: 15, fontWeight: '700' },
+  cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
+  cancelBtnText: { color: MUTED, fontSize: 14 },
 });

@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
+import com.vouch.dto.DisputeResolveRequest;
 import java.util.List;
 
 @RestController
@@ -31,5 +31,17 @@ public class DisputeController {
     @GetMapping("/{disputeId}")
     public ResponseEntity<DisputeResponse> getDispute(Authentication auth, @PathVariable Long disputeId) {
         return ResponseEntity.ok(disputeService.getDispute(auth.getName(), disputeId));
+    }
+    @GetMapping("/admin/open")
+    public ResponseEntity<List<DisputeResponse>> getAllOpenDisputes(Authentication auth) {
+        return ResponseEntity.ok(disputeService.getAllOpenDisputes(auth.getName()));
+    }
+
+    @PostMapping("/{disputeId}/resolve")
+    public ResponseEntity<DisputeResponse> resolveDispute(
+            Authentication auth,
+            @PathVariable Long disputeId,
+            @RequestBody DisputeResolveRequest request) {
+        return ResponseEntity.ok(disputeService.resolveDispute(auth.getName(), disputeId, request));
     }
 }

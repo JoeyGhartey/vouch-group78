@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-
 @Service
 @RequiredArgsConstructor
 public class DisputeService {
@@ -43,6 +42,11 @@ public class DisputeService {
 
         User otherParty = opener.getId().equals(loan.getBorrower().getId()) ? loan.getLender() : loan.getBorrower();
         if (otherParty != null) notificationService.send(otherParty, "Dispute Opened", opener.getFirstName() + " opened a dispute on loan GHS " + loan.getAmount(), Notification.NotificationType.DISPUTE_OPENED, dispute.getId());
+        String adminMsg = opener.getFirstName() + " opened a dispute on loan GHS " + loan.getAmount() + ". Review required.";
+        Long savedDisputeId = dispute.getId();
+        userRepository.findAll().stream()
+            .filter(u -> u.getRole() == User.Role.ADMIN)
+            .forEach(admin -> notificationService.send(admin, "New Dispute", adminMsg, Notification.NotificationType.DISPUTE_OPENED, savedDisputeId));
 
         return mapToResponse(dispute, "Dispute opened. Admin will review.");
     }

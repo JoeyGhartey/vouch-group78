@@ -53,6 +53,5 @@ public class UserProfileService {
                 .email(u.getEmail()).momoProvider(u.getMomoProvider()).momoNumber(u.getMomoNumber()).trustScore(u.getTrustScore())
                 .totalLoansGiven(u.getTotalLoansGiven()).totalLoansReceived(u.getTotalLoansReceived()).loansRepaidOnTime(u.getLoansRepaidOnTime())
                 .defaults(u.getDefaults()).borrowingSuspended(u.getBorrowingSuspended()).borrowingSuspendedUntil(u.getBorrowingSuspendedUntil())
-                .permanentBan(u.getPermanentBan()).createdAt(u.getCreatedAt()).lastActive(u.getLastActive()).build();
-    }
+.permanentBan(u.getPermanentBan()).createdAt(u.getCreatedAt()).lastActive(u.getLastActive()).role(u.getRole().name()).build();    }
 }

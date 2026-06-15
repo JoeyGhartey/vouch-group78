@@ -1,9 +1,9 @@
 import * as SecureStore from 'expo-secure-store';
 
-const API_URL = 'http://localhost:8080/api'; // Web
+//const API_URL = 'http://localhost:8080/api'; // Web
 // const API_URL = 'http://10.0.2.2:8080/api'; // Android emulator
 // const API_URL = 'http://YOUR_IP:8080/api'; // Physical device
-
+const API_URL = 'http://confidential.local:8080/api';
 let token: string | null = null;
 
 export const setToken = (newToken: string): void => {
@@ -140,3 +140,12 @@ export const getDispute = (disputeId: number) => request(`/disputes/${disputeId}
 export const getBorrowerInsights = () => request('/insights/borrower');
 export const getLenderInsights = () => request('/insights/lender');
 export const getCircleInsights = (circleId: number) => request(`/insights/circle/${circleId}`);
+
+// Payments
+export const initializeDisbursement = (loanId: number) => request(`/payments/disburse/${loanId}`, 'POST');
+export const initializeRepayment = (loanId: number, amount?: number) => request(`/payments/repay/${loanId}`, 'POST', amount ? { amount } : null);
+export const verifyPayment = (reference: string) => request(`/payments/verify/${reference}`);
+
+// Admin
+export const getAdminOpenDisputes = () => request('/disputes/admin/open');
+export const resolveDispute = (disputeId: number, data: unknown) => request(`/disputes/${disputeId}/resolve`, 'POST', data);

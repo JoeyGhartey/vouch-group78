@@ -4,8 +4,15 @@ import {
   ActivityIndicator, RefreshControl, TextInput, Modal, Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { getProfile, updateProfile, getBorrowerInsights, getLenderInsights } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { RootStackParamList } from '../navigation/AppNavigator';
+
+type Props = {
+  navigation: NativeStackNavigationProp<RootStackParamList>;
+};
 
 interface Profile {
   firstName: string;
@@ -22,6 +29,7 @@ interface Profile {
   permanentBan?: boolean;
   borrowingSuspended?: boolean;
   createdAt?: string;
+  role?: string;
 }
 
 interface EditData {
@@ -53,7 +61,16 @@ interface LenderInsights {
   recommendations?: string[];
 }
 
-export default function ProfileScreen() {
+const BG = '#F8F9FA';
+const WHITE = '#FFFFFF';
+const DARK = '#0f172a';
+const MUTED = '#6B7280';
+const BORDER = '#E5E7EB';
+const ACCENT = '#C9A84C';
+const DANGER = '#dc2626';
+const SUCCESS = '#16a34a';
+
+export default function ProfileScreen({ navigation }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [borrowerInsights, setBorrowerInsights] = useState<BorrowerInsights | null>(null);
   const [lenderInsights, setLenderInsights] = useState<LenderInsights | null>(null);
@@ -111,9 +128,9 @@ export default function ProfileScreen() {
     setShowEdit(true);
   };
 
-  const getTrustColor = (s: number): string => s >= 70 ? '#4CAF50' : s >= 40 ? '#FFC107' : '#e94560';
+  const getTrustColor = (s: number): string => s >= 70 ? SUCCESS : s >= 40 ? ACCENT : DANGER;
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#e94560" /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={ACCENT} /></View>;
 
   const editFields: [string, keyof EditData][] = [
     ['First Name', 'firstName'],
@@ -125,10 +142,12 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor="#e94560" />}>
+      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={ACCENT} />}>
         <View style={styles.header}>
           <Text style={styles.title}>Profile</Text>
-          <TouchableOpacity onPress={openEdit}><Text style={styles.editBtn}>Edit</Text></TouchableOpacity>
+          <TouchableOpacity onPress={openEdit}>
+            <Text style={styles.editBtn}>Edit</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.profileCard}>
@@ -147,9 +166,9 @@ export default function ProfileScreen() {
 
         <View style={styles.statsCard}>
           {([
-            ['Loans Given', profile?.totalLoansGiven],
-            ['Loans Received', profile?.totalLoansReceived],
-            ['Repaid On Time', profile?.loansRepaidOnTime],
+            ['Lent', profile?.totalLoansGiven],
+            ['Borrowed', profile?.totalLoansReceived],
+            ['On Time', profile?.loansRepaidOnTime],
             ['Defaults', profile?.defaults],
           ] as [string, number | undefined][]).map(([label, value], i) => (
             <View key={i} style={styles.statItem}>
@@ -170,7 +189,7 @@ export default function ProfileScreen() {
           ] as [string, string][]).map(([label, value], i) => (
             <View key={i} style={styles.detailRow}>
               <Text style={styles.detailLabel}>{label}</Text>
-              <Text style={[styles.detailValue, label === 'Borrowing Status' && value !== 'Active' && { color: '#e94560' }]}>
+              <Text style={[styles.detailValue, label === 'Borrowing Status' && value !== 'Active' && { color: DANGER }]}>
                 {value}
               </Text>
             </View>
@@ -239,7 +258,18 @@ export default function ProfileScreen() {
           </View>
         )}
 
+        {profile?.role === 'ADMIN' && (
+          <TouchableOpacity
+            style={styles.adminBtn}
+            onPress={() => navigation.navigate('Admin')}
+          >
+            <Ionicons name="shield-checkmark-outline" size={18} color={WHITE} style={{ marginRight: 8 }} />
+            <Text style={styles.adminBtnText}>Admin Panel — Open Disputes</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity style={styles.logoutBtn} onPress={signOut}>
+          <Ionicons name="log-out-outline" size={16} color={DANGER} style={{ marginRight: 6 }} />
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
@@ -257,12 +287,12 @@ export default function ProfileScreen() {
                   style={styles.input}
                   value={editData[key]}
                   onChangeText={(t) => setEditData({ ...editData, [key]: t })}
-                  placeholderTextColor="#555"
+                  placeholderTextColor={MUTED}
                 />
               </View>
             ))}
             <TouchableOpacity style={[styles.primaryBtn, saving && { opacity: 0.6 }]} onPress={handleEdit} disabled={saving}>
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Save Changes</Text>}
+              {saving ? <ActivityIndicator color={WHITE} /> : <Text style={styles.btnText}>Save Changes</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowEdit(false)}>
               <Text style={styles.cancelText}>Cancel</Text>
@@ -275,44 +305,76 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1a1a2e' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a2e' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, paddingTop: 60 },
-  title: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
-  editBtn: { color: '#e94560', fontSize: 16, fontWeight: '600' },
-  profileCard: { backgroundColor: '#16213e', marginHorizontal: 24, borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 16 },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#e94560', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  avatarText: { color: '#fff', fontSize: 28, fontWeight: 'bold' },
-  name: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
-  phone: { color: '#a0a0b0', fontSize: 14, marginTop: 4 },
+  container: { flex: 1, backgroundColor: BG },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: BG },
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: 20, paddingTop: 56, backgroundColor: WHITE,
+    borderBottomWidth: 1, borderBottomColor: BORDER,
+  },
+  title: { color: DARK, fontSize: 22, fontWeight: '700' },
+  editBtn: { color: ACCENT, fontSize: 15, fontWeight: '600' },
+  profileCard: {
+    backgroundColor: DARK, marginHorizontal: 16, borderRadius: 16,
+    padding: 24, alignItems: 'center', marginTop: 16, marginBottom: 12,
+  },
+  avatar: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: ACCENT, justifyContent: 'center', alignItems: 'center', marginBottom: 12,
+  },
+  avatarText: { color: WHITE, fontSize: 26, fontWeight: '800' },
+  name: { color: WHITE, fontSize: 20, fontWeight: '700' },
+  phone: { color: '#94a3b8', fontSize: 13, marginTop: 4 },
   scoreContainer: { alignItems: 'center', marginTop: 12 },
-  score: { fontSize: 36, fontWeight: 'bold' },
-  scoreLabel: { color: '#a0a0b0', fontSize: 12, marginTop: 2 },
-  statsCard: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: '#16213e', marginHorizontal: 24, borderRadius: 16, padding: 20, marginBottom: 16 },
+  score: { fontSize: 32, fontWeight: '800' },
+  scoreLabel: { color: '#94a3b8', fontSize: 12, marginTop: 2 },
+  statsCard: {
+    flexDirection: 'row', justifyContent: 'space-around',
+    backgroundColor: WHITE, marginHorizontal: 16, borderRadius: 14,
+    padding: 16, marginBottom: 12, borderWidth: 1, borderColor: BORDER,
+  },
   statItem: { alignItems: 'center' },
-  statValue: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  statLabel: { color: '#a0a0b0', fontSize: 11, marginTop: 4, textAlign: 'center' },
-  card: { backgroundColor: '#16213e', marginHorizontal: 24, borderRadius: 16, padding: 20, marginBottom: 16 },
-  cardTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#2a2a4a' },
-  detailLabel: { color: '#a0a0b0', fontSize: 14 },
-  detailValue: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  tabRow: { flexDirection: 'row', marginHorizontal: 24, marginBottom: 16 },
+  statValue: { color: DARK, fontSize: 20, fontWeight: '800' },
+  statLabel: { color: MUTED, fontSize: 11, marginTop: 4, textAlign: 'center' },
+  card: {
+    backgroundColor: WHITE, marginHorizontal: 16, borderRadius: 14,
+    padding: 16, marginBottom: 12, borderWidth: 1, borderColor: BORDER,
+  },
+  cardTitle: { color: DARK, fontSize: 15, fontWeight: '700', marginBottom: 12 },
+  detailRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: BORDER,
+  },
+  detailLabel: { color: MUTED, fontSize: 13 },
+  detailValue: { color: DARK, fontSize: 13, fontWeight: '600' },
+  tabRow: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 12 },
   tab: { flex: 1, padding: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  activeTab: { borderBottomColor: '#e94560' },
-  tabText: { color: '#666', fontSize: 13, fontWeight: '600' },
-  activeTabText: { color: '#e94560' },
-  recTitle: { color: '#FFC107', fontSize: 14, fontWeight: 'bold', marginBottom: 8 },
-  recText: { color: '#a0a0b0', fontSize: 13, marginBottom: 4 },
-  logoutBtn: { marginHorizontal: 24, marginTop: 16, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#e94560', alignItems: 'center' },
-  logoutText: { color: '#e94560', fontSize: 16, fontWeight: '600' },
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 24 },
-  modal: { backgroundColor: '#16213e', borderRadius: 16, padding: 24, maxHeight: '80%' as const },
-  modalTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 16 },
-  label: { color: '#a0a0b0', fontSize: 14, marginBottom: 6, marginTop: 12 },
-  input: { backgroundColor: '#1a1a2e', borderRadius: 12, padding: 14, fontSize: 16, color: '#fff', borderWidth: 1, borderColor: '#2a2a4a' },
-  primaryBtn: { backgroundColor: '#e94560', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 20 },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  cancelBtn: { padding: 16, alignItems: 'center', marginTop: 4 },
-  cancelText: { color: '#a0a0b0', fontSize: 16 },
+  activeTab: { borderBottomColor: ACCENT },
+  tabText: { color: MUTED, fontSize: 13, fontWeight: '600' },
+  activeTabText: { color: ACCENT },
+  recTitle: { color: ACCENT, fontSize: 13, fontWeight: '700', marginBottom: 8 },
+  recText: { color: MUTED, fontSize: 13, marginBottom: 4 },
+  adminBtn: {
+    marginHorizontal: 16, marginTop: 8, padding: 16, borderRadius: 12,
+    backgroundColor: DARK, alignItems: 'center', flexDirection: 'row', justifyContent: 'center',
+  },
+  adminBtnText: { color: WHITE, fontSize: 14, fontWeight: '700' },
+  logoutBtn: {
+    marginHorizontal: 16, marginTop: 10, padding: 14, borderRadius: 12,
+    borderWidth: 1, borderColor: BORDER, alignItems: 'center',
+    backgroundColor: WHITE, flexDirection: 'row', justifyContent: 'center',
+  },
+  logoutText: { color: DANGER, fontSize: 14, fontWeight: '700' },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
+  modal: { backgroundColor: WHITE, borderRadius: 16, padding: 24, maxHeight: '80%' as const },
+  modalTitle: { color: DARK, fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 16 },
+  label: { color: MUTED, fontSize: 13, marginBottom: 6, marginTop: 12 },
+  input: {
+    backgroundColor: BG, borderRadius: 10, padding: 12,
+    fontSize: 14, color: DARK, borderWidth: 1, borderColor: BORDER,
+  },
+  primaryBtn: { backgroundColor: DARK, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 20 },
+  btnText: { color: WHITE, fontSize: 15, fontWeight: '700' },
+  cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
+  cancelText: { color: MUTED, fontSize: 14 },
 });

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator,
+  ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { requestLoan } from '../services/api';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -12,6 +13,14 @@ type Props = {
   route: RouteProp<RootStackParamList, 'RequestLoan'>;
   navigation: NativeStackNavigationProp<RootStackParamList, 'RequestLoan'>;
 };
+
+const BG = '#F8F9FA';
+const WHITE = '#FFFFFF';
+const DARK = '#0f172a';
+const MUTED = '#6B7280';
+const BORDER = '#E5E7EB';
+const ACCENT = '#C9A84C';
+const SUCCESS = '#16a34a';
 
 export default function RequestLoanScreen({ route, navigation }: Props) {
   const { circleId } = route.params;
@@ -26,7 +35,10 @@ export default function RequestLoanScreen({ route, navigation }: Props) {
     if (!reason.trim()) { Alert.alert('Error', 'Enter a reason'); return; }
     setLoading(true);
     try {
-      await requestLoan({ circleId, amount: parseFloat(amount), reason, repaymentType, repaymentPeriodMonths: parseInt(repaymentPeriod) || 1 });
+      await requestLoan({
+        circleId, amount: parseFloat(amount), reason,
+        repaymentType, repaymentPeriodMonths: parseInt(repaymentPeriod) || 1,
+      });
       Alert.alert('Success', 'Loan request posted to your circle');
       navigation.goBack();
     } catch (error) {
@@ -37,70 +49,133 @@ export default function RequestLoanScreen({ route, navigation }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.back}>← Back</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.back}>← Back</Text>
+        </TouchableOpacity>
         <Text style={styles.title}>Request a Loan</Text>
         <View style={{ width: 50 }} />
       </View>
 
-      <View style={styles.form}>
-        <Text style={styles.label}>Amount (GHS) *</Text>
-        <TextInput style={styles.input} placeholder="e.g. 500" placeholderTextColor="#555" value={amount} onChangeText={setAmount} keyboardType="numeric" />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.form}>
 
-        <Text style={styles.label}>Reason *</Text>
-        <TextInput style={[styles.input, { height: 100 }]} placeholder="Why do you need this loan?" placeholderTextColor="#555" value={reason} onChangeText={setReason} multiline />
+          <Text style={styles.label}>Amount (GHS) *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. 500"
+            placeholderTextColor={MUTED}
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="numeric"
+          />
 
-        <Text style={styles.label}>Repayment Type</Text>
-        <View style={styles.typeRow}>
-          {['FIXED', 'FLEXIBLE'].map((t) => (
-            <TouchableOpacity key={t} style={[styles.typeBtn, repaymentType === t && styles.typeSel]} onPress={() => setRepaymentType(t)}>
-              <Text style={[styles.typeText, repaymentType === t && styles.typeTextSel]}>{t === 'FIXED' ? 'Fixed' : 'Flexible'}</Text>
-              <Text style={styles.typeDesc}>{t === 'FIXED' ? 'One-time payment' : 'Monthly installments'}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+          <Text style={styles.label}>Reason *</Text>
+          <TextInput
+            style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
+            placeholder="Why do you need this loan?"
+            placeholderTextColor={MUTED}
+            value={reason}
+            onChangeText={setReason}
+            multiline
+          />
 
-        <Text style={styles.label}>Repayment Period (months)</Text>
-        <TextInput style={styles.input} placeholder="1" placeholderTextColor="#555" value={repaymentPeriod} onChangeText={setRepaymentPeriod} keyboardType="numeric" />
-
-        {parseFloat(amount) > 0 && (
-          <View style={styles.preview}>
-            <Text style={styles.previewTitle}>Loan Preview</Text>
-            <Text style={styles.previewText}>Amount: GHS {parseFloat(amount).toFixed(2)}</Text>
-            <Text style={styles.previewText}>Type: {repaymentType === 'FIXED' ? 'One-time payment' : 'Monthly installments'}</Text>
-            <Text style={styles.previewText}>Period: {repaymentPeriod} month(s)</Text>
-            <Text style={styles.previewNote}>Interest rate will be set by the lender</Text>
+          <Text style={styles.label}>Repayment Type</Text>
+          <View style={styles.typeRow}>
+            {[
+              { key: 'FIXED', label: 'Fixed', desc: 'One-time payment' },
+              { key: 'FLEXIBLE', label: 'Flexible', desc: 'Monthly installments' },
+            ].map((t) => (
+              <TouchableOpacity
+                key={t.key}
+                style={[styles.typeBtn, repaymentType === t.key && styles.typeSel]}
+                onPress={() => setRepaymentType(t.key)}
+              >
+                <Text style={[styles.typeText, repaymentType === t.key && styles.typeTextSel]}>{t.label}</Text>
+                <Text style={[styles.typeDesc, repaymentType === t.key && { color: '#94a3b8' }]}>{t.desc}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        )}
 
-        <TouchableOpacity style={[styles.submitBtn, loading && { opacity: 0.6 }]} onPress={handleRequest} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Submit Loan Request</Text>}
-        </TouchableOpacity>
-      </View>
-      <View style={{ height: 40 }} />
-    </ScrollView>
+          <Text style={styles.label}>Repayment Period (months)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="1"
+            placeholderTextColor={MUTED}
+            value={repaymentPeriod}
+            onChangeText={setRepaymentPeriod}
+            keyboardType="numeric"
+          />
+
+          {parseFloat(amount) > 0 && (
+            <View style={styles.preview}>
+              <View style={styles.previewHeader}>
+                <Ionicons name="information-circle-outline" size={18} color={ACCENT} />
+                <Text style={styles.previewTitle}>Loan Preview</Text>
+              </View>
+              {[
+                ['Amount', `GHS ${parseFloat(amount).toFixed(2)}`],
+                ['Type', repaymentType === 'FIXED' ? 'One-time payment' : 'Monthly installments'],
+                ['Period', `${repaymentPeriod} month(s)`],
+              ].map(([label, value], i) => (
+                <View key={i} style={styles.previewRow}>
+                  <Text style={styles.previewLabel}>{label}</Text>
+                  <Text style={styles.previewValue}>{value}</Text>
+                </View>
+              ))}
+              <Text style={styles.previewNote}>Interest rate will be set by the lender</Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.submitBtn, loading && { opacity: 0.6 }]}
+            onPress={handleRequest}
+            disabled={loading}
+          >
+            {loading ? <ActivityIndicator color={WHITE} /> : <Text style={styles.submitText}>Submit Loan Request</Text>}
+          </TouchableOpacity>
+        </View>
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1a1a2e' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, paddingTop: 60 },
-  back: { color: '#e94560', fontSize: 16 },
-  title: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  form: { paddingHorizontal: 24 },
-  label: { color: '#a0a0b0', fontSize: 14, marginBottom: 6, marginTop: 16 },
-  input: { backgroundColor: '#16213e', borderRadius: 12, padding: 14, fontSize: 16, color: '#fff', borderWidth: 1, borderColor: '#2a2a4a' },
-  typeRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  typeBtn: { flex: 1, backgroundColor: '#16213e', borderRadius: 12, padding: 16, marginHorizontal: 4, alignItems: 'center', borderWidth: 1, borderColor: '#2a2a4a' },
-  typeSel: { backgroundColor: '#e94560', borderColor: '#e94560' },
-  typeText: { color: '#a0a0b0', fontSize: 16, fontWeight: '600' },
-  typeTextSel: { color: '#fff' },
-  typeDesc: { color: '#666', fontSize: 12, marginTop: 4 },
-  preview: { backgroundColor: '#16213e', borderRadius: 12, padding: 16, marginTop: 20 },
-  previewTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginBottom: 10 },
-  previewText: { color: '#a0a0b0', fontSize: 14, marginBottom: 4 },
-  previewNote: { color: '#FFC107', fontSize: 13, marginTop: 8, fontStyle: 'italic' },
-  submitBtn: { backgroundColor: '#e94560', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
-  submitText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  container: { flex: 1, backgroundColor: BG },
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: WHITE, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
+    borderBottomWidth: 1, borderBottomColor: BORDER,
+  },
+  back: { color: ACCENT, fontSize: 16, fontWeight: '600' },
+  title: { fontSize: 18, fontWeight: '700', color: DARK },
+  form: { padding: 16 },
+  label: { fontSize: 12, color: MUTED, fontWeight: '600', marginBottom: 6, marginTop: 16 },
+  input: {
+    backgroundColor: WHITE, borderRadius: 12, padding: 14,
+    fontSize: 15, color: DARK, borderWidth: 1, borderColor: BORDER,
+  },
+  typeRow: { flexDirection: 'row', gap: 10 },
+  typeBtn: {
+    flex: 1, backgroundColor: WHITE, borderRadius: 12, padding: 14,
+    alignItems: 'center', borderWidth: 1.5, borderColor: BORDER,
+  },
+  typeSel: { backgroundColor: DARK, borderColor: DARK },
+  typeText: { fontSize: 14, fontWeight: '700', color: MUTED },
+  typeTextSel: { color: WHITE },
+  typeDesc: { fontSize: 11, color: MUTED, marginTop: 4, textAlign: 'center' },
+  preview: {
+    backgroundColor: WHITE, borderRadius: 14, padding: 16,
+    marginTop: 20, borderWidth: 1, borderColor: BORDER,
+  },
+  previewHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  previewTitle: { fontSize: 14, fontWeight: '700', color: DARK },
+  previewRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: BORDER },
+  previewLabel: { fontSize: 13, color: MUTED },
+  previewValue: { fontSize: 13, fontWeight: '600', color: DARK },
+  previewNote: { fontSize: 12, color: ACCENT, marginTop: 10, fontStyle: 'italic' },
+  submitBtn: { backgroundColor: DARK, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
+  submitText: { color: WHITE, fontSize: 16, fontWeight: '700' },
 });

@@ -2,8 +2,9 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { View, Text } from 'react-native';
 
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
@@ -17,6 +18,7 @@ import LoanDetailScreen from '../screens/LoanDetailScreen';
 import ExpensesScreen from '../screens/ExpensesScreen';
 import AddSharedExpenseScreen from '../screens/AddSharedExpenseScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import AdminScreen from '../screens/AdminScreen';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -25,6 +27,7 @@ export type RootStackParamList = {
   RequestLoan: { circleId: number };
   LoanDetail: { loanId: number };
   AddSharedExpense: { circleId: number; members: { userId: number; firstName: string; lastName: string }[] };
+  Admin: undefined;
   Login: undefined;
   Register: undefined;
 };
@@ -46,23 +49,23 @@ function MainTabs() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#16213e',
-          borderTopColor: '#2a2a4a',
+          backgroundColor: '#ffffff',
+          borderTopColor: '#e2e8f0',
           borderTopWidth: 1,
           paddingBottom: 8,
           paddingTop: 8,
-          height: 60,
+          height: 64,
         },
-        tabBarActiveTintColor: '#e94560',
-        tabBarInactiveTintColor: '#666',
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+        tabBarActiveTintColor: '#C9A84C',
+        tabBarInactiveTintColor: '#94a3b8',
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}
     >
-      <Tab.Screen name="HomeTab" component={HomeScreen} options={{ tabBarLabel: 'Home', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🏠</Text> }} />
-      <Tab.Screen name="CirclesTab" component={CirclesScreen} options={{ tabBarLabel: 'Circles', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👥</Text> }} />
-      <Tab.Screen name="LoansTab" component={LoansScreen} options={{ tabBarLabel: 'Loans', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>💰</Text> }} />
-      <Tab.Screen name="ExpensesTab" component={ExpensesScreen} options={{ tabBarLabel: 'Expenses', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>📊</Text> }} />
-      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ tabBarLabel: 'Profile', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>👤</Text> }} />
+      <Tab.Screen name="HomeTab" component={HomeScreen} options={{ tabBarLabel: 'Home', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} /> }} />
+      <Tab.Screen name="CirclesTab" component={CirclesScreen} options={{ tabBarLabel: 'Circles', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color} /> }} />
+      <Tab.Screen name="LoansTab" component={LoansScreen} options={{ tabBarLabel: 'Loans', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'card' : 'card-outline'} size={22} color={color} /> }} />
+      <Tab.Screen name="ExpensesTab" component={ExpensesScreen} options={{ tabBarLabel: 'Expenses', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'pie-chart' : 'pie-chart-outline'} size={22} color={color} /> }} />
+      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ tabBarLabel: 'Profile', tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? 'person' : 'person-outline'} size={22} color={color} /> }} />
     </Tab.Navigator>
   );
 }
@@ -72,8 +75,8 @@ export default function AppNavigator() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#1a1a2e', justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: '#e94560', fontSize: 36, fontWeight: 'bold' }}>VOUCH</Text>
+      <View style={{ flex: 1, backgroundColor: '#F8F9FA', justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: '#C9A84C', fontSize: 36, fontWeight: 'bold' }}>VOUCH</Text>
       </View>
     );
   }
@@ -89,6 +92,7 @@ export default function AppNavigator() {
             <Stack.Screen name="RequestLoan" component={RequestLoanScreen} />
             <Stack.Screen name="LoanDetail" component={LoanDetailScreen} />
             <Stack.Screen name="AddSharedExpense" component={AddSharedExpenseScreen} />
+            <Stack.Screen name="Admin" component={AdminScreen} />
           </>
         ) : (
           <>

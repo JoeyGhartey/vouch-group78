@@ -20,6 +20,7 @@ public class UserProfileResponse {
     private Boolean borrowingSuspended;
     private LocalDateTime borrowingSuspendedUntil;
     private Boolean permanentBan;
+    private String role;
     private LocalDateTime createdAt;
     private LocalDateTime lastActive;
 }
