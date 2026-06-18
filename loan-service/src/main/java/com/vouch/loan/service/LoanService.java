@@ -432,6 +432,18 @@ public class LoanService {
     }
 
     @Transactional
+    public Map<String, Object> setLoanDisputed(Long loanId) {
+        Loan loan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+        loan.setStatus(Loan.LoanStatus.DISPUTED);
+        loanRepository.save(loan);
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("status", loan.getStatus().name());
+        result.put("loanId", loan.getId());
+        return result;
+    }
+
+    @Transactional
     public Map<String, Object> completeDisbursement(Long loanId) {
         Loan loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));

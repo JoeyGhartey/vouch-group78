@@ -29,4 +29,9 @@ public class InternalLoanController {
             @PathVariable Long loanId, @RequestBody Map<String, Double> body) {
         return ResponseEntity.ok(loanService.completeRepayment(loanId, body.get("amount")));
     }
+
+    @PostMapping("/{loanId}/set-disputed")
+    public ResponseEntity<Map<String, Object>> setDisputed(@PathVariable Long loanId) {
+        return ResponseEntity.ok(loanService.setLoanDisputed(loanId));
+    }
 }
