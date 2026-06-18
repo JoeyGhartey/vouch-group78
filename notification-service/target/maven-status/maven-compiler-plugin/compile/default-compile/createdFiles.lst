@@ -1,0 +1,15 @@
+com\vouch\notification\config\SecurityConfig.class
+com\vouch\notification\config\AppConfig.class
+com\vouch\notification\security\JwtAuthenticationFilter.class
+com\vouch\notification\service\NotificationService.class
+com\vouch\notification\controller\InternalNotificationController.class
+com\vouch\notification\repository\NotificationRepository.class
+com\vouch\notification\entity\Notification$NotificationType.class
+com\vouch\notification\config\GlobalExceptionHandler.class
+com\vouch\notification\entity\Notification.class
+com\vouch\notification\controller\NotificationController.class
+com\vouch\notification\service\AuthServiceClient.class
+com\vouch\notification\entity\Notification$NotificationBuilder.class
+com\vouch\notification\dto\CreateNotificationRequest.class
+com\vouch\notification\security\JwtUtil.class
+com\vouch\notification\NotificationServiceApplication.class
