@@ -5,6 +5,7 @@ com\vouch\loan\security\JwtAuthenticationFilter.class
 com\vouch\loan\dto\UpdateCircleRequest.class
 com\vouch\loan\entity\CircleMember$MemberRole.class
 com\vouch\loan\controller\InstallmentController.class
+com\vouch\loan\controller\InternalLoanController.class
 com\vouch\loan\repository\LoanContributionRepository.class
 com\vouch\loan\dto\CircleResponse.class
 com\vouch\loan\repository\CircleRepository.class

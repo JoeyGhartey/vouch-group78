@@ -4,6 +4,7 @@ C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\config\SecurityCon
 C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\controller\CircleController.java
 C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\controller\GroupFundingController.java
 C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\controller\InstallmentController.java
+C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\controller\InternalLoanController.java
 C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\controller\LoanAgreementController.java
 C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\controller\LoanController.java
 C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\dto\CircleMemberResponse.java

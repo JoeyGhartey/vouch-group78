@@ -411,6 +411,94 @@ public class LoanService {
         loanAgreementRepository.save(agreement);
     }
 
+    public Map<String, Object> getInternalLoanDetails(Long loanId) {
+        Loan loan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+        Map<String, Object> details = new java.util.HashMap<>();
+        details.put("id", loan.getId());
+        details.put("borrowerId", loan.getBorrowerId());
+        details.put("lenderId", loan.getLenderId());
+        details.put("circleId", loan.getCircle().getId());
+        details.put("amount", loan.getAmount());
+        details.put("totalRepaymentAmount", loan.getTotalRepaymentAmount());
+        details.put("amountRepaid", loan.getAmountRepaid());
+        details.put("overdueInterestAccrued", loan.getOverdueInterestAccrued());
+        details.put("status", loan.getStatus().name());
+        details.put("repaymentPeriodMonths", loan.getRepaymentPeriodMonths());
+        details.put("repaymentType", loan.getRepaymentType().name());
+        details.put("isGroupFunded", loan.getIsGroupFunded());
+        details.put("dueDate", loan.getDueDate());
+        return details;
+    }
+
+    @Transactional
+    public Map<String, Object> completeDisbursement(Long loanId) {
+        Loan loan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        if (loan.getStatus() != Loan.LoanStatus.AGREEMENT_SIGNED) {
+            throw new RuntimeException("Loan is not in AGREEMENT_SIGNED state");
+        }
+
+        loan.setStatus(Loan.LoanStatus.ACTIVE);
+        loan.setDisbursedAt(LocalDateTime.now());
+        if (loan.getDueDate() == null) {
+            loan.setDueDate(LocalDateTime.now().plusMonths(loan.getRepaymentPeriodMonths()));
+        }
+
+        circleMemberRepository.findByCircleAndUserId(loan.getCircle(), loan.getBorrowerId()).ifPresent(m -> {
+            m.setLoansReceivedInCircle(m.getLoansReceivedInCircle() + 1);
+            circleMemberRepository.save(m);
+        });
+        if (loan.getLenderId() != null) {
+            circleMemberRepository.findByCircleAndUserId(loan.getCircle(), loan.getLenderId()).ifPresent(m -> {
+                m.setLoansGivenInCircle(m.getLoansGivenInCircle() + 1);
+                circleMemberRepository.save(m);
+            });
+        }
+
+        loan = loanRepository.save(loan);
+        installmentService.generateInstallments(loan);
+
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("status", loan.getStatus().name());
+        result.put("disbursedAt", loan.getDisbursedAt());
+        result.put("dueDate", loan.getDueDate());
+        return result;
+    }
+
+    @Transactional
+    public Map<String, Object> completeRepayment(Long loanId, Double amount) {
+        Loan loan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        loan.setAmountRepaid(Math.round((loan.getAmountRepaid() + amount) * 100.0) / 100.0);
+        double totalOwed = loan.getTotalRepaymentAmount() + loan.getOverdueInterestAccrued();
+
+        Map<String, Object> result = new java.util.HashMap<>();
+
+        if (loan.getAmountRepaid() >= totalOwed) {
+            loan.setStatus(Loan.LoanStatus.REPAID);
+            loan.setCompletedAt(LocalDateTime.now());
+            boolean onTime = loan.getGracePeriodStart() == null;
+            trustScoreService.updateScoreOnRepayment(loan.getBorrowerId(), loan, onTime);
+
+            circleMemberRepository.findByCircleAndUserId(loan.getCircle(), loan.getBorrowerId()).ifPresent(m -> {
+                m.setLoansRepaidInCircle(m.getLoansRepaidInCircle() + 1);
+                circleMemberRepository.save(m);
+            });
+            result.put("fullyRepaid", true);
+        } else {
+            result.put("fullyRepaid", false);
+        }
+
+        loan = loanRepository.save(loan);
+        result.put("status", loan.getStatus().name());
+        result.put("amountRepaid", loan.getAmountRepaid());
+        result.put("remaining", Math.round((totalOwed - loan.getAmountRepaid()) * 100.0) / 100.0);
+        return result;
+    }
+
     private LoanResponse mapToLoanResponse(Loan loan, String message) {
         String borrowerName = authServiceClient.getUserName(loan.getBorrowerId());
         String lenderName = loan.getLenderId() != null ? authServiceClient.getUserName(loan.getLenderId()) : null;
