@@ -58,7 +58,7 @@ interface Loan {
   createdAt: string;
 }
 
-const BG = '#F8F9FA';
+const BG = '#EDEEF2';
 const WHITE = '#FFFFFF';
 const DARK = '#0f172a';
 const CARD = '#0f172a';

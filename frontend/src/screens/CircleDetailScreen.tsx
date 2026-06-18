@@ -70,7 +70,7 @@ interface Insights {
   topBorrower?: string;
 }
 
-const BG = '#F8F9FA';
+const BG = '#EDEEF2';
 const WHITE = '#FFFFFF';
 const DARK = '#0f172a';
 const MUTED = '#6B7280';
