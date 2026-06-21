@@ -104,6 +104,26 @@ public class CircleService {
     }
 
     @Transactional
+    public String acceptInvite(String phone, Long circleId) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        Circle circle = circleRepository.findById(circleId)
+                .orElseThrow(() -> new RuntimeException("Circle not found"));
+        CircleMember member = circleMemberRepository.findByCircleAndUserId(circle, userId)
+                .orElseThrow(() -> new RuntimeException("No pending invite found"));
+        if (member.getStatus() != CircleMember.MemberStatus.PENDING) {
+            throw new RuntimeException("No pending invite found");
+        }
+        member.setStatus(CircleMember.MemberStatus.ACTIVE);
+        circleMemberRepository.save(member);
+
+        String userName = authServiceClient.getUserFirstName(userId);
+        notificationServiceClient.send(circle.getCreatorId(), "Member Joined",
+                userName + " accepted the invite to \"" + circle.getName() + "\"",
+                "CIRCLE_MEMBER_APPROVED", circle.getId());
+        return "You have joined \"" + circle.getName() + "\"";
+    }
+
+    @Transactional
     public String removeMember(String phone, Long circleId, Long targetUserId) {
         Long removerId = authServiceClient.getUserIdByPhone(phone);
         Circle circle = circleRepository.findById(circleId).orElseThrow(() -> new RuntimeException("Circle not found"));

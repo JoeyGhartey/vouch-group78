@@ -12,6 +12,7 @@ import {
   getCircle, inviteMember, leaveCircle,
   getCircleLoans, getCircleExpenses, getCircleBalances, getCircleInsights,
 } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Props = {
@@ -82,6 +83,7 @@ const WARNING = '#d97706';
 
 export default function CircleDetailScreen({ route, navigation }: Props) {
   const { circleId } = route.params;
+  const { showAlert } = useAppAlert();
   const [circle, setCircle] = useState<Circle | null>(null);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -92,6 +94,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   const [activeTab, setActiveTab] = useState<string>('members');
   const [showInvite, setShowInvite] = useState<boolean>(false);
   const [invitePhone, setInvitePhone] = useState<string>('');
+  const [inviteError, setInviteError] = useState<string>('');
   const [inviting, setInviting] = useState<boolean>(false);
 
   const loadData = async (): Promise<void> => {
@@ -121,16 +124,20 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   useFocusEffect(useCallback(() => { loadData(); }, []));
 
   const handleInvite = async (): Promise<void> => {
-    if (!invitePhone.trim()) { Alert.alert('Error', 'Enter a phone number'); return; }
+    if (!invitePhone.trim()) { setInviteError('Enter a phone number'); return; }
     setInviting(true);
+    setInviteError('');
     try {
       const result = await inviteMember(circleId, invitePhone) as { message: string };
-      Alert.alert('Success', result.message);
+      showAlert('success', 'Invite Sent', result.message);
       setShowInvite(false);
       setInvitePhone('');
       loadData();
     } catch (error) {
-      Alert.alert('Error', (error as Error).message);
+      const raw = (error as Error).message;
+      setInviteError(raw.includes('User not found')
+        ? "No user found with this phone number. Make sure they've registered."
+        : raw);
     } finally {
       setInviting(false);
     }
@@ -172,7 +179,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
           <Text style={styles.back}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={1}>{circle.name}</Text>
-        <TouchableOpacity style={styles.inviteBtn} onPress={() => setShowInvite(true)}>
+        <TouchableOpacity style={styles.inviteBtn} onPress={() => { setInviteError(''); setShowInvite(true); }}>
           <Ionicons name="person-add-outline" size={16} color={WHITE} />
         </TouchableOpacity>
       </View>
@@ -351,9 +358,10 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                 placeholder="e.g. 0551234567"
                 placeholderTextColor={MUTED}
                 value={invitePhone}
-                onChangeText={setInvitePhone}
+                onChangeText={(text) => { setInvitePhone(text); setInviteError(''); }}
                 keyboardType="phone-pad"
               />
+              {inviteError !== '' && <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 6 }}>{inviteError}</Text>}
               <TouchableOpacity style={[styles.primaryBtn, { marginTop: 20 }, inviting && { opacity: 0.6 }]} onPress={handleInvite} disabled={inviting}>
                 {inviting ? <ActivityIndicator color={WHITE} /> : <Text style={styles.primaryBtnText}>Send Invite</Text>}
               </TouchableOpacity>

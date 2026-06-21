@@ -59,4 +59,9 @@ public class CircleController {
     public ResponseEntity<Map<String, String>> leaveCircle(Authentication auth, @PathVariable Long circleId) {
         return ResponseEntity.ok(Map.of("message", circleService.leaveCircle(auth.getName(), circleId)));
     }
+
+    @PostMapping("/{circleId}/accept")
+    public ResponseEntity<Map<String, String>> acceptInvite(Authentication auth, @PathVariable Long circleId) {
+        return ResponseEntity.ok(Map.of("message", circleService.acceptInvite(auth.getName(), circleId)));
+    }
 }
