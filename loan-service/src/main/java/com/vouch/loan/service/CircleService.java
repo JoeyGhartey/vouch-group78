@@ -40,6 +40,12 @@ public class CircleService {
                 .stream().map(m -> mapToCircleResponse(m.getCircle())).collect(Collectors.toList());
     }
 
+    public List<CircleResponse> getPendingInvites(String phone) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        return circleMemberRepository.findByUserIdAndStatus(userId, CircleMember.MemberStatus.PENDING)
+                .stream().map(m -> mapToCircleResponse(m.getCircle())).collect(Collectors.toList());
+    }
+
     public CircleResponse getCircle(String phone, Long circleId) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
         Circle circle = circleRepository.findById(circleId).orElseThrow(() -> new RuntimeException("Circle not found"));

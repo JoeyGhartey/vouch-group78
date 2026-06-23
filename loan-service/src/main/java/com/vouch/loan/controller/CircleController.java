@@ -30,6 +30,11 @@ public class CircleController {
         return ResponseEntity.ok(circleService.getMyCircles(auth.getName()));
     }
 
+    @GetMapping("/pending")
+    public ResponseEntity<List<CircleResponse>> getPendingInvites(Authentication auth) {
+        return ResponseEntity.ok(circleService.getPendingInvites(auth.getName()));
+    }
+
     @GetMapping("/{circleId}")
     public ResponseEntity<CircleResponse> getCircle(Authentication auth, @PathVariable Long circleId) {
         return ResponseEntity.ok(circleService.getCircle(auth.getName(), circleId));

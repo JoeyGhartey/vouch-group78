@@ -88,6 +88,7 @@ export const getUserProfile = (userId: number) => request(`/profile/${userId}`);
 
 // Circles
 export const getMyCircles = () => request('/circles');
+export const getPendingInvites = () => request('/circles/pending');
 export const getCircle = (circleId: number) => request(`/circles/${circleId}`);
 export const createCircle = (data: unknown) => request('/circles', 'POST', data);
 export const updateCircle = (circleId: number, data: unknown) => request(`/circles/${circleId}`, 'PUT', data);
@@ -95,6 +96,7 @@ export const inviteMember = (circleId: number, phone: string) => request(`/circl
 export const approveMember = (circleId: number, memberId: number) => request(`/circles/${circleId}/approve/${memberId}`, 'POST');
 export const removeMember = (circleId: number, userId: number) => request(`/circles/${circleId}/remove/${userId}`, 'POST');
 export const leaveCircle = (circleId: number) => request(`/circles/${circleId}/leave`, 'POST');
+export const acceptInvite = (circleId: number) => request(`/circles/${circleId}/accept`, 'POST');
 
 // Loans
 export const requestLoan = (data: unknown) => request('/loans/request', 'POST', data);

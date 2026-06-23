@@ -5,13 +5,15 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { getNotifications, markNotificationRead, markAllNotificationsRead } from '../services/api';
+import { getNotifications, markNotificationRead, markAllNotificationsRead, acceptInvite } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
 
 interface Notification {
   id: number;
   title: string;
   message: string;
   type: string;
+  referenceId: number | null;
   read: boolean;
   createdAt: string;
 }
@@ -26,9 +28,12 @@ const DANGER = '#dc2626';
 const SUCCESS = '#16a34a';
 
 export default function NotificationsScreen() {
+  const { showAlert } = useAppAlert();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [acceptingId, setAcceptingId] = useState<number | null>(null);
+  const [acceptError, setAcceptError] = useState<Record<number, string>>({});
 
   const loadNotifications = async (): Promise<void> => {
     try {
@@ -59,6 +64,21 @@ export default function NotificationsScreen() {
       setNotifications(notifications.map((n) => ({ ...n, read: true })));
     } catch (error) {
       console.error('Error marking all:', error);
+    }
+  };
+
+  const handleAcceptInvite = async (notifId: number, circleId: number): Promise<void> => {
+    setAcceptingId(notifId);
+    setAcceptError(prev => { const next = { ...prev }; delete next[notifId]; return next; });
+    try {
+      const result = await acceptInvite(circleId) as { message: string };
+      showAlert('success', 'Circle Joined', result.message);
+      markNotificationRead(notifId).catch(() => {});
+      setNotifications(prev => prev.filter(n => n.id !== notifId));
+    } catch (error) {
+      setAcceptError(prev => ({ ...prev, [notifId]: (error as Error).message }));
+    } finally {
+      setAcceptingId(null);
     }
   };
 
@@ -150,6 +170,22 @@ export default function NotificationsScreen() {
               <View style={styles.notifContent}>
                 <Text style={styles.notifTitle}>{item.title}</Text>
                 <Text style={styles.notifMessage}>{item.message}</Text>
+                {item.type === 'CIRCLE_INVITE' && item.referenceId != null && (
+                  <View style={{ marginTop: 8 }}>
+                    <TouchableOpacity
+                      style={[styles.acceptBtn, acceptingId === item.id && { opacity: 0.6 }]}
+                      onPress={() => handleAcceptInvite(item.id, item.referenceId!)}
+                      disabled={acceptingId === item.id}
+                    >
+                      {acceptingId === item.id
+                        ? <ActivityIndicator size="small" color={WHITE} />
+                        : <Text style={styles.acceptBtnText}>Accept Invite</Text>}
+                    </TouchableOpacity>
+                    {acceptError[item.id] && (
+                      <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4 }}>{acceptError[item.id]}</Text>
+                    )}
+                  </View>
+                )}
                 <Text style={styles.notifTime}>{formatDate(item.createdAt)}</Text>
               </View>
               {!item.read && <View style={styles.unreadDot} />}
@@ -189,4 +225,6 @@ const styles = StyleSheet.create({
   notifMessage: { fontSize: 13, color: MUTED, marginTop: 3, lineHeight: 18 },
   notifTime: { fontSize: 11, color: MUTED, marginTop: 6 },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: ACCENT, marginTop: 4 },
+  acceptBtn: { backgroundColor: ACCENT, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, alignSelf: 'flex-start' },
+  acceptBtnText: { color: WHITE, fontSize: 13, fontWeight: '600' },
 });

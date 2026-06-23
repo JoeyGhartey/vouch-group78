@@ -7,7 +7,8 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { getMyCircles, createCircle } from '../services/api';
+import { getMyCircles, getPendingInvites, acceptInvite, createCircle } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Props = {
@@ -41,9 +42,12 @@ const ACCENT = '#C9A84C';
 const DANGER = '#dc2626';
 
 export default function CirclesScreen({ navigation }: Props) {
+  const { showAlert } = useAppAlert();
   const [circles, setCircles] = useState<Circle[]>([]);
+  const [pending, setPending] = useState<Circle[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [acceptingId, setAcceptingId] = useState<number | null>(null);
   const [showCreate, setShowCreate] = useState<boolean>(false);
   const [newCircle, setNewCircle] = useState<NewCircleForm>({
     name: '', description: '', maxLoanAmount: '5000',
@@ -53,8 +57,9 @@ export default function CirclesScreen({ navigation }: Props) {
 
   const loadCircles = async (): Promise<void> => {
     try {
-      const data = await getMyCircles();
-      setCircles(data as Circle[]);
+      const [activeData, pendingData] = await Promise.all([getMyCircles(), getPendingInvites()]);
+      setCircles(activeData as Circle[]);
+      setPending(pendingData as Circle[]);
     } catch (error) {
       console.error('Error loading circles:', error);
     } finally {
@@ -64,6 +69,21 @@ export default function CirclesScreen({ navigation }: Props) {
   };
 
   useFocusEffect(useCallback(() => { loadCircles(); }, []));
+
+  const handleAcceptInvite = async (circleId: number): Promise<void> => {
+    setAcceptingId(circleId);
+    try {
+      const result = await acceptInvite(circleId) as { message: string };
+      showAlert('success', 'Circle Joined', result.message);
+      setPending(prev => prev.filter(c => c.id !== circleId));
+      const activeData = await getMyCircles();
+      setCircles(activeData as Circle[]);
+    } catch (error) {
+      showAlert('error', 'Failed', (error as Error).message);
+    } finally {
+      setAcceptingId(null);
+    }
+  };
 
   const handleCreate = async (): Promise<void> => {
     if (!newCircle.name.trim()) { Alert.alert('Error', 'Circle name is required'); return; }
@@ -100,7 +120,7 @@ export default function CirclesScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      {circles.length === 0 ? (
+      {circles.length === 0 && pending.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="people-outline" size={48} color={MUTED} />
           <Text style={styles.emptyTitle}>No circles yet</Text>
@@ -110,13 +130,42 @@ export default function CirclesScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
-          data={circles}
-          keyExtractor={(item) => item.id.toString()}
+        <ScrollView
           contentContainerStyle={{ padding: 16, gap: 12 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadCircles(); }} tintColor={ACCENT} />}
-          renderItem={({ item }) => (
+        >
+          {pending.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>Pending Invites</Text>
+              {pending.map(item => (
+                <View key={`pending-${item.id}`} style={[styles.circleCard, styles.pendingCard]}>
+                  <View style={styles.circleTop}>
+                    <View style={[styles.circleIconBox, { borderColor: ACCENT }]}>
+                      <Ionicons name="mail-outline" size={20} color={ACCENT} />
+                    </View>
+                    <View style={styles.circleInfo}>
+                      <Text style={styles.circleName}>{item.name}</Text>
+                      <Text style={styles.circleMeta}>{item.memberCount} members</Text>
+                    </View>
+                  </View>
+                  {item.description ? <Text style={styles.circleDesc}>{item.description}</Text> : null}
+                  <TouchableOpacity
+                    style={[styles.acceptBtn, acceptingId === item.id && { opacity: 0.6 }]}
+                    onPress={() => handleAcceptInvite(item.id)}
+                    disabled={acceptingId === item.id}
+                  >
+                    {acceptingId === item.id
+                      ? <ActivityIndicator size="small" color={WHITE} />
+                      : <><Ionicons name="checkmark-circle-outline" size={16} color={WHITE} /><Text style={styles.acceptBtnText}>Accept Invite</Text></>}
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {circles.length > 0 && <Text style={styles.sectionTitle}>My Circles</Text>}
+            </>
+          )}
+          {circles.map(item => (
             <TouchableOpacity
+              key={item.id}
               style={styles.circleCard}
               onPress={() => navigation.navigate('CircleDetail', { circleId: item.id })}
             >
@@ -150,8 +199,8 @@ export default function CirclesScreen({ navigation }: Props) {
                 </View>
               </View>
             </TouchableOpacity>
-          )}
-        />
+          ))}
+        </ScrollView>
       )}
 
       <Modal visible={showCreate} animationType="slide" transparent>
@@ -231,4 +280,8 @@ const styles = StyleSheet.create({
   createBtnText: { color: WHITE, fontSize: 15, fontWeight: '700' },
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
   cancelBtnText: { color: MUTED, fontSize: 14 },
+  sectionTitle: { fontSize: 14, fontWeight: '700', color: MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 4 },
+  pendingCard: { borderLeftWidth: 3, borderLeftColor: ACCENT, backgroundColor: '#FFFDF5' },
+  acceptBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: ACCENT, borderRadius: 10, paddingVertical: 10, marginTop: 12 },
+  acceptBtnText: { color: WHITE, fontSize: 14, fontWeight: '600' },
 });
