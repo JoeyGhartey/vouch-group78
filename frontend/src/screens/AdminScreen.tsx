@@ -1,13 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Alert, TextInput, Modal,
+  ActivityIndicator, RefreshControl, TextInput, Modal,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { getAdminOpenDisputes, resolveDispute } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Props = {
@@ -37,6 +38,7 @@ const DANGER = '#dc2626';
 const SUCCESS = '#16a34a';
 
 export default function AdminScreen({ navigation }: Props) {
+  const { showAlert } = useAppAlert();
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -52,7 +54,7 @@ export default function AdminScreen({ navigation }: Props) {
       const data = await getAdminOpenDisputes();
       setDisputes(data as Dispute[]);
     } catch (e) {
-      Alert.alert('Error', (e as Error).message);
+      showAlert('error', 'Error', (e as Error).message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -62,17 +64,17 @@ export default function AdminScreen({ navigation }: Props) {
   useFocusEffect(useCallback(() => { loadDisputes(); }, []));
 
   const handleResolve = async (): Promise<void> => {
-    if (!resolution.trim()) { Alert.alert('Error', 'Enter a resolution'); return; }
+    if (!resolution.trim()) { showAlert('error', 'Error', 'Enter a resolution'); return; }
     setResolving(true);
     try {
       await resolveDispute(selectedDispute!.id, { outcome, resolution, adminNotes });
-      Alert.alert('Success', 'Dispute resolved. Both parties have been notified.');
+      showAlert('success', 'Success', 'Dispute resolved. Both parties have been notified.');
       setShowResolve(false);
       setResolution('');
       setAdminNotes('');
       loadDisputes();
     } catch (e) {
-      Alert.alert('Error', (e as Error).message);
+      showAlert('error', 'Error', (e as Error).message);
     } finally {
       setResolving(false);
     }

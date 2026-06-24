@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { createSharedExpense } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Props = {
@@ -31,6 +32,7 @@ const SUCCESS = '#16a34a';
 const CATEGORIES = ['Food', 'Transport', 'Entertainment', 'Utilities', 'Shopping', 'Other'];
 
 export default function AddSharedExpenseScreen({ route, navigation }: Props) {
+  const { showAlert } = useAppAlert();
   const { circleId, members } = route.params as { circleId: number; members: Member[] };
   const [description, setDescription] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
@@ -47,9 +49,9 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
   };
 
   const handleSubmit = async (): Promise<void> => {
-    if (!amount || parseFloat(amount) <= 0) { Alert.alert('Error', 'Enter a valid amount'); return; }
-    if (!description.trim()) { Alert.alert('Error', 'Enter a description'); return; }
-    if (selectedMembers.length < 2) { Alert.alert('Error', 'Select at least 2 members'); return; }
+    if (!amount || parseFloat(amount) <= 0) { showAlert('error', 'Error', 'Enter a valid amount'); return; }
+    if (!description.trim()) { showAlert('error', 'Error', 'Enter a description'); return; }
+    if (selectedMembers.length < 2) { showAlert('error', 'Error', 'Select at least 2 members'); return; }
     setLoading(true);
     try {
       await createSharedExpense({
@@ -57,10 +59,10 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
         totalAmount: parseFloat(amount),
         category, participantIds: selectedMembers,
       });
-      Alert.alert('Success', 'Shared expense created');
+      showAlert('success', 'Success', 'Shared expense created');
       navigation.goBack();
     } catch (e) {
-      Alert.alert('Error', (e as Error).message);
+      showAlert('error', 'Error', (e as Error).message);
     } finally {
       setLoading(false);
     }

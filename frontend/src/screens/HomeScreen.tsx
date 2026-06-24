@@ -17,7 +17,6 @@ import {
   getProfile, getMyCircles, getUnreadCount,
   getMyBorrowedLoans, getMyLentLoans,
 } from '../services/api';
-import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -82,8 +81,6 @@ export default function HomeScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [amountsVisible, setAmountsVisible] = useState<boolean>(false);
   const [activityExpanded, setActivityExpanded] = useState<boolean>();
-  const { signOut } = useAuth();
-
   const loadData = async (): Promise<void> => {
     try {
       const [profileData, circlesData, notifData, borrowed, lent] = await Promise.all([
@@ -394,11 +391,6 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
       )}
 
-      <TouchableOpacity style={styles.logoutBtn} onPress={signOut}>
-        <Ionicons name="log-out-outline" size={15} color={DANGER} style={{ marginRight: 6 }} />
-        <Text style={styles.logoutText}>Log Out</Text>
-      </TouchableOpacity>
-
       <View style={{ height: 40 }} />
     </ScrollView>
   );
@@ -527,10 +519,4 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, fontWeight: '600', color: DARK, marginTop: 10, marginBottom: 4 },
   emptySubText: { fontSize: 12, color: MUTED, textAlign: 'center' },
 
-  logoutBtn: {
-    marginHorizontal: 16, marginTop: 20, padding: 14, borderRadius: 12,
-    borderWidth: 1, borderColor: BORDER, alignItems: 'center',
-    backgroundColor: WHITE, flexDirection: 'row', justifyContent: 'center',
-  },
-  logoutText: { color: DANGER, fontSize: 14, fontWeight: '700' },
 });

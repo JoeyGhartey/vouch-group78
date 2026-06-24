@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { login } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -24,15 +25,16 @@ export default function LoginScreen({ navigation }: Props) {
   const [password, setPassword] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const { signIn } = useAuth();
+  const { showAlert } = useAppAlert();
 
   const handleLogin = async (): Promise<void> => {
-    if (!phone || !password) { Alert.alert('Error', 'Please enter your phone number and password'); return; }
+    if (!phone || !password) { showAlert('error', 'Error', 'Please enter your phone number and password'); return; }
     setLoading(true);
     try {
       const response = await login({ phone, password }) as { token: string; [key: string]: unknown };
       await signIn(response);
     } catch (error) {
-      Alert.alert('Login Failed', (error as Error).message || 'Invalid phone number or password');
+      showAlert('error', 'Login Failed', (error as Error).message || 'Invalid phone number or password');
     } finally {
       setLoading(false);
     }

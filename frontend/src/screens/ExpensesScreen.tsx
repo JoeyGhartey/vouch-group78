@@ -1,12 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ActivityIndicator, RefreshControl, TextInput, Modal, ScrollView, Alert,
+  ActivityIndicator, RefreshControl, TextInput, Modal, ScrollView,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { getPersonalTransactions, addPersonalExpense, getMonthlySummary, getSpendingLimits, setSpendingLimit } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
 
 interface Transaction {
   id: number;
@@ -62,6 +63,7 @@ const SUCCESS = '#16a34a';
 const CATEGORIES = ['Food', 'Transport', 'Airtime', 'Rent', 'Utilities', 'Entertainment', 'Education', 'Health', 'Other'];
 
 export default function ExpensesScreen() {
+  const { showAlert } = useAppAlert();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [limits, setLimits] = useState<LimitRecord[]>([]);
@@ -99,8 +101,8 @@ export default function ExpensesScreen() {
   useFocusEffect(useCallback(() => { loadData(); }, []));
 
   const handleAdd = async (): Promise<void> => {
-    if (!newExpense.amount || parseFloat(newExpense.amount) <= 0) { Alert.alert('Error', 'Enter a valid amount'); return; }
-    if (!newExpense.description.trim()) { Alert.alert('Error', 'Enter a description'); return; }
+    if (!newExpense.amount || parseFloat(newExpense.amount) <= 0) { showAlert('error', 'Error', 'Enter a valid amount'); return; }
+    if (!newExpense.description.trim()) { showAlert('error', 'Error', 'Enter a description'); return; }
     setAdding(true);
     try {
       await addPersonalExpense({
@@ -113,21 +115,21 @@ export default function ExpensesScreen() {
       setNewExpense({ amount: '', description: '', category: 'Food', type: 'EXPENSE' });
       loadData();
     } catch (e) {
-      Alert.alert('Error', (e as Error).message);
+      showAlert('error', 'Error', (e as Error).message);
     } finally {
       setAdding(false);
     }
   };
 
   const handleSetLimit = async (): Promise<void> => {
-    if (!newLimit.category.trim() || !newLimit.monthlyLimit) { Alert.alert('Error', 'Fill in all fields'); return; }
+    if (!newLimit.category.trim() || !newLimit.monthlyLimit) { showAlert('error', 'Error', 'Fill in all fields'); return; }
     try {
       await setSpendingLimit({ category: newLimit.category, monthlyLimit: parseFloat(newLimit.monthlyLimit) });
       setShowLimit(false);
       setNewLimit({ category: '', monthlyLimit: '' });
       loadData();
     } catch (e) {
-      Alert.alert('Error', (e as Error).message);
+      showAlert('error', 'Error', (e as Error).message);
     }
   };
 

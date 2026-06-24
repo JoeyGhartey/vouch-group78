@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { register } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -30,11 +31,12 @@ export default function RegisterScreen({ navigation }: Props) {
   const [momoNumber, setMomoNumber] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const { signIn } = useAuth();
+  const { showAlert } = useAppAlert();
 
   const handleRegister = async (): Promise<void> => {
-    if (!firstName || !lastName || !phone || !password) { Alert.alert('Error', 'Please fill in all required fields'); return; }
-    if (password.length < 6) { Alert.alert('Error', 'Password must be at least 6 characters'); return; }
-    if (password !== confirmPassword) { Alert.alert('Error', 'Passwords do not match'); return; }
+    if (!firstName || !lastName || !phone || !password) { showAlert('error', 'Error', 'Please fill in all required fields'); return; }
+    if (password.length < 6) { showAlert('error', 'Error', 'Password must be at least 6 characters'); return; }
+    if (password !== confirmPassword) { showAlert('error', 'Error', 'Passwords do not match'); return; }
     setLoading(true);
     try {
       const response = await register({
@@ -43,7 +45,7 @@ export default function RegisterScreen({ navigation }: Props) {
       }) as { token: string; [key: string]: unknown };
       await signIn(response);
     } catch (error) {
-      Alert.alert('Registration Failed', (error as Error).message || 'Could not create account');
+      showAlert('error', 'Registration Failed', (error as Error).message || 'Could not create account');
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, TextInput, Modal, Alert,
+  ActivityIndicator, RefreshControl, TextInput, Modal,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -14,6 +14,7 @@ import {
   settleExpense,
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
+import { useConfirmModal } from '../components/ConfirmModal';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -95,6 +96,7 @@ const WARNING = '#d97706';
 export default function CircleDetailScreen({ route, navigation }: Props) {
   const { circleId } = route.params;
   const { showAlert } = useAppAlert();
+  const { confirm } = useConfirmModal();
   const { user } = useAuth();
   const [circle, setCircle] = useState<Circle | null>(null);
   const [loans, setLoans] = useState<Loan[]>([]);
@@ -172,21 +174,15 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  const handleLeave = (): void => {
-    Alert.alert('Leave Circle', 'Are you sure you want to leave this circle?', [
-      { text: 'Cancel' },
-      {
-        text: 'Leave', style: 'destructive',
-        onPress: async () => {
-          try {
-            await leaveCircle(circleId);
-            navigation.goBack();
-          } catch (error) {
-            Alert.alert('Error', (error as Error).message);
-          }
-        },
-      },
-    ]);
+  const handleLeave = async (): Promise<void> => {
+    const ok = await confirm('Leave Circle', 'Are you sure you want to leave this circle?', 'Yes, Leave');
+    if (!ok) return;
+    try {
+      await leaveCircle(circleId);
+      navigation.goBack();
+    } catch (error) {
+      showAlert('error', 'Error', (error as Error).message);
+    }
   };
 
   const getStatusColor = (status: string): string => ({

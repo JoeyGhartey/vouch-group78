@@ -1,12 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, TextInput, Modal, Alert,
+  ActivityIndicator, RefreshControl, TextInput, Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { getProfile, updateProfile, getBorrowerInsights, getLenderInsights } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -71,6 +72,7 @@ const DANGER = '#dc2626';
 const SUCCESS = '#16a34a';
 
 export default function ProfileScreen({ navigation }: Props) {
+  const { showAlert } = useAppAlert();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [borrowerInsights, setBorrowerInsights] = useState<BorrowerInsights | null>(null);
   const [lenderInsights, setLenderInsights] = useState<LenderInsights | null>(null);
@@ -108,9 +110,9 @@ export default function ProfileScreen({ navigation }: Props) {
       const updated = await updateProfile(editData);
       setProfile(updated as Profile);
       setShowEdit(false);
-      Alert.alert('Success', 'Profile updated');
+      showAlert('success', 'Success', 'Profile updated');
     } catch (e) {
-      Alert.alert('Error', (e as Error).message);
+      showAlert('error', 'Error', (e as Error).message);
     } finally {
       setSaving(false);
     }

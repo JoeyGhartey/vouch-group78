@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Alert, TextInput, Modal,
+  ActivityIndicator, TextInput, Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,6 +12,8 @@ import {
   cancelLoan, defaultLoan, openDispute, getProfile,
   initializeDisbursement, initializeRepayment, verifyPayment,
 } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
+import { useConfirmModal } from '../components/ConfirmModal';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Props = {
@@ -63,6 +65,8 @@ const WARNING = '#d97706';
 
 export default function LoanDetailScreen({ route, navigation }: Props) {
   const { loanId } = route.params;
+  const { confirm } = useConfirmModal();
+  const { showAlert } = useAppAlert();
   const [loan, setLoan] = useState<Loan | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -97,9 +101,9 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     try {
       await action();
       loadData();
-      if (successMsg) Alert.alert('Success', successMsg);
+      if (successMsg) showAlert('success', 'Success', successMsg);
     } catch (e) {
-      Alert.alert('Error', (e as Error).message);
+      showAlert('error', 'Error', (e as Error).message);
     } finally {
       setActing(false);
     }
@@ -107,7 +111,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
 
   const handleFund = (): void => {
     if (!interestRate || parseFloat(interestRate) < 0) {
-      Alert.alert('Error', 'Enter a valid interest rate');
+      showAlert('error', 'Error', 'Enter a valid interest rate');
       return;
     }
     doAction(async () => {
@@ -116,126 +120,103 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     }, 'Loan funded. Agreement pending signatures.');
   };
 
-  const handleSign = (): void => {
+  const handleSign = async (): Promise<void> => {
+    const ok = await confirm('Sign Agreement', 'Are you sure you want to sign this loan agreement? This action is binding.', 'Yes, Sign');
+    if (!ok) return;
     doAction(async () => { await signAgreement(loan!.id); }, 'Agreement signed.');
   };
 
-  const handleDisburse = (): void => {
-    Alert.alert(
-      'Disburse Loan',
-      `You will be taken to Paystack to send GHS ${loan!.amount} to ${loan!.borrowerName}. Continue?`,
-      [
-        { text: 'Cancel' },
-        {
-          text: 'Continue to Payment',
-          onPress: async () => {
-            setActing(true);
-            try {
-              const response = await initializeDisbursement(loan!.id) as PaymentInitResponse;
-              if (response.authorizationUrl) {
-                const result = await WebBrowser.openBrowserAsync(response.authorizationUrl);
-                if (result.type === 'dismiss' || result.type === 'cancel') {
-                  // User closed browser — verify payment status
-                  setActing(true);
-                  try {
-                    const verification = await verifyPayment(response.reference) as { status: string; message: string };
-                    if (verification.status === 'SUCCESS') {
-                      Alert.alert('Success', 'Payment successful. Loan is now active.');
-                      loadData();
-                    } else {
-                      Alert.alert('Payment Pending', 'Payment not confirmed yet. Pull down to refresh.');
-                      loadData();
-                    }
-                  } catch (e) {
-                    loadData();
-                  } finally {
-                    setActing(false);
-                  }
-                }
-              } else {
-                // Fallback to direct disburse if no URL (test mode)
-                await disburseLoan(loan!.id);
-                Alert.alert('Success', 'Loan disbursed and active.');
-                loadData();
-              }
-            } catch (e) {
-              Alert.alert('Error', (e as Error).message);
-            } finally {
-              setActing(false);
+  const handleDisburse = async (): Promise<void> => {
+    const ok = await confirm('Disburse Loan', `You will be taken to Paystack to send GHS ${loan!.amount} to ${loan!.borrowerName}. Continue?`, 'Continue to Payment');
+    if (!ok) return;
+    setActing(true);
+    try {
+      const response = await initializeDisbursement(loan!.id) as PaymentInitResponse;
+      if (response.authorizationUrl) {
+        const result = await WebBrowser.openBrowserAsync(response.authorizationUrl);
+        if (result.type === 'dismiss' || result.type === 'cancel') {
+          setActing(true);
+          try {
+            const verification = await verifyPayment(response.reference) as { status: string; message: string };
+            if (verification.status === 'SUCCESS') {
+              showAlert('success', 'Success', 'Payment successful. Loan is now active.');
+              loadData();
+            } else {
+              showAlert('error', 'Payment Pending', 'Payment not confirmed yet. Pull down to refresh.');
+              loadData();
             }
-          },
-        },
-      ]
-    );
+          } catch (e) {
+            loadData();
+          } finally {
+            setActing(false);
+          }
+        }
+      } else {
+        await disburseLoan(loan!.id);
+        showAlert('success', 'Success', 'Loan disbursed and active.');
+        loadData();
+      }
+    } catch (e) {
+      showAlert('error', 'Error', (e as Error).message);
+    } finally {
+      setActing(false);
+    }
   };
 
-  const handleRepay = (): void => {
+  const handleRepay = async (): Promise<void> => {
     const amt = repayAmount ? parseFloat(repayAmount) : undefined;
-    Alert.alert(
-      'Confirm Repayment',
-      `You will be taken to Paystack to repay GHS ${amt?.toFixed(2) || totalOwed.toFixed(2)}. Continue?`,
-      [
-        { text: 'Cancel' },
-        {
-          text: 'Continue to Payment',
-          onPress: async () => {
-            setActing(true);
-            setShowRepay(false);
-            try {
-              const response = await initializeRepayment(loan!.id, amt) as PaymentInitResponse;
-              if (response.authorizationUrl) {
-                const result = await WebBrowser.openBrowserAsync(response.authorizationUrl);
-                if (result.type === 'dismiss' || result.type === 'cancel') {
-                  setActing(true);
-                  try {
-                    const verification = await verifyPayment(response.reference) as { status: string; message: string };
-                    if (verification.status === 'SUCCESS') {
-                      Alert.alert('Success', 'Repayment successful.');
-                      loadData();
-                    } else {
-                      Alert.alert('Payment Pending', 'Payment not confirmed yet. Pull down to refresh.');
-                      loadData();
-                    }
-                  } catch (e) {
-                    loadData();
-                  } finally {
-                    setActing(false);
-                  }
-                }
-              } else {
-                // Fallback
-                await repayLoan(loan!.id, amt);
-                Alert.alert('Success', 'Repayment recorded.');
-                loadData();
-              }
-            } catch (e) {
-              Alert.alert('Error', (e as Error).message);
-            } finally {
-              setActing(false);
-              setRepayAmount('');
+    const ok = await confirm('Confirm Repayment', `You will be taken to Paystack to repay GHS ${amt?.toFixed(2) || totalOwed.toFixed(2)}. Continue?`, 'Continue to Payment');
+    if (!ok) return;
+    setActing(true);
+    setShowRepay(false);
+    try {
+      const response = await initializeRepayment(loan!.id, amt) as PaymentInitResponse;
+      if (response.authorizationUrl) {
+        const result = await WebBrowser.openBrowserAsync(response.authorizationUrl);
+        if (result.type === 'dismiss' || result.type === 'cancel') {
+          setActing(true);
+          try {
+            const verification = await verifyPayment(response.reference) as { status: string; message: string };
+            if (verification.status === 'SUCCESS') {
+              showAlert('success', 'Success', 'Repayment successful.');
+              loadData();
+            } else {
+              showAlert('error', 'Payment Pending', 'Payment not confirmed yet. Pull down to refresh.');
+              loadData();
             }
-          },
-        },
-      ]
-    );
+          } catch (e) {
+            loadData();
+          } finally {
+            setActing(false);
+          }
+        }
+      } else {
+        await repayLoan(loan!.id, amt);
+        showAlert('success', 'Success', 'Repayment recorded.');
+        loadData();
+      }
+    } catch (e) {
+      showAlert('error', 'Error', (e as Error).message);
+    } finally {
+      setActing(false);
+      setRepayAmount('');
+    }
   };
 
-  const handleCancel = (): void => {
-    Alert.alert('Cancel Loan', 'Cancel this request?', [
-      { text: 'No' },
-      { text: 'Yes', style: 'destructive', onPress: () => doAction(async () => { await cancelLoan(loan!.id); }, 'Loan cancelled.') },
-    ]);
+  const handleCancel = async (): Promise<void> => {
+    const ok = await confirm('Cancel Loan', 'Cancel this request?', 'Yes, Cancel');
+    if (!ok) return;
+    doAction(async () => { await cancelLoan(loan!.id); }, 'Loan cancelled.');
   };
 
-  const handleDefault = (): void => {
-    Alert.alert('Mark Defaulted', "This will significantly impact the borrower's trust score.", [
-      { text: 'Cancel' },
-      { text: 'Mark Defaulted', style: 'destructive', onPress: () => doAction(async () => { await defaultLoan(loan!.id); }, 'Loan defaulted.') },
-    ]);
+  const handleDefault = async (): Promise<void> => {
+    const ok = await confirm('Mark Defaulted', "This will significantly impact the borrower's trust score.", 'Mark Defaulted');
+    if (!ok) return;
+    doAction(async () => { await defaultLoan(loan!.id); }, 'Loan defaulted.');
   };
 
   const handleDispute = (): void => {
-    if (!disputeReason.trim()) { Alert.alert('Error', 'Enter a reason'); return; }
+    if (!disputeReason.trim()) { showAlert('error', 'Error', 'Enter a reason'); return; }
     doAction(async () => {
       await openDispute({ loanId: loan!.id, reason: disputeReason, evidence: disputeEvidence });
       setShowDispute(false);

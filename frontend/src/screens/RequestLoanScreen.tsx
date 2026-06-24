@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { requestLoan } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Props = {
@@ -23,6 +24,7 @@ const ACCENT = '#C9A84C';
 const SUCCESS = '#16a34a';
 
 export default function RequestLoanScreen({ route, navigation }: Props) {
+  const { showAlert } = useAppAlert();
   const { circleId } = route.params;
   const [amount, setAmount] = useState<string>('');
   const [reason, setReason] = useState<string>('');
@@ -31,18 +33,18 @@ export default function RequestLoanScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState<boolean>(false);
 
   const handleRequest = async (): Promise<void> => {
-    if (!amount || parseFloat(amount) <= 0) { Alert.alert('Error', 'Enter a valid amount'); return; }
-    if (!reason.trim()) { Alert.alert('Error', 'Enter a reason'); return; }
+    if (!amount || parseFloat(amount) <= 0) { showAlert('error', 'Error', 'Enter a valid amount'); return; }
+    if (!reason.trim()) { showAlert('error', 'Error', 'Enter a reason'); return; }
     setLoading(true);
     try {
       await requestLoan({
         circleId, amount: parseFloat(amount), reason,
         repaymentType, repaymentPeriodMonths: parseInt(repaymentPeriod) || 1,
       });
-      Alert.alert('Success', 'Loan request posted to your circle');
+      showAlert('success', 'Success', 'Loan request posted to your circle');
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Error', (error as Error).message);
+      showAlert('error', 'Error', (error as Error).message);
     } finally {
       setLoading(false);
     }

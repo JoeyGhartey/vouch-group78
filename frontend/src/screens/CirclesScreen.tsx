@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, TextInput, Modal, Alert,
+  View, Text, StyleSheet, TouchableOpacity,
+  ActivityIndicator, RefreshControl, TextInput, Modal,
   ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -86,7 +86,7 @@ export default function CirclesScreen({ navigation }: Props) {
   };
 
   const handleCreate = async (): Promise<void> => {
-    if (!newCircle.name.trim()) { Alert.alert('Error', 'Circle name is required'); return; }
+    if (!newCircle.name.trim()) { showAlert('error', 'Error', 'Circle name is required'); return; }
     setCreating(true);
     try {
       await createCircle({
@@ -100,7 +100,7 @@ export default function CirclesScreen({ navigation }: Props) {
       setNewCircle({ name: '', description: '', maxLoanAmount: '5000', groupFundingThreshold: '3000', minTrustScore: '0' });
       loadCircles();
     } catch (error) {
-      Alert.alert('Error', (error as Error).message);
+      showAlert('error', 'Error', (error as Error).message);
     } finally {
       setCreating(false);
     }
