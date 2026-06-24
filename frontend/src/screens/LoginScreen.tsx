@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
@@ -7,20 +7,53 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { login } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { ColorScheme } from '../theme/colors';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
 };
 
-const BG = '#F8F9FA';
-const WHITE = '#FFFFFF';
-const DARK = '#0f172a';
-const MUTED = '#6B7280';
-const BORDER = '#E5E7EB';
-const ACCENT = '#C9A84C';
+const createStyles = (c: ColorScheme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  logoSection: { alignItems: 'center', marginBottom: 48 },
+  logoBox: {
+    width: 72, height: 72, borderRadius: 22,
+    backgroundColor: c.dark, justifyContent: 'center', alignItems: 'center',
+    marginBottom: 16, shadowColor: c.dark, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15, shadowRadius: 12, elevation: 6,
+  },
+  logoText: { fontSize: 36, fontWeight: '900', color: c.accent },
+  logoName: { fontSize: 28, fontWeight: '900', color: c.dark, letterSpacing: 6 },
+  logoSub: { fontSize: 13, color: c.muted, marginTop: 6 },
+  form: {
+    backgroundColor: c.surface, borderRadius: 20, padding: 24,
+    borderWidth: 1, borderColor: c.border,
+    shadowColor: c.dark, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+  },
+  formTitle: { fontSize: 20, fontWeight: '700', color: c.dark, marginBottom: 4 },
+  formSub: { fontSize: 13, color: c.muted, marginBottom: 24 },
+  label: { fontSize: 12, color: c.muted, fontWeight: '600', marginBottom: 6, marginTop: 16 },
+  input: {
+    backgroundColor: c.bg, borderRadius: 12, padding: 14,
+    fontSize: 15, color: c.dark, borderWidth: 1, borderColor: c.border,
+  },
+  btn: {
+    backgroundColor: c.dark, borderRadius: 12, padding: 16,
+    alignItems: 'center', marginTop: 24,
+  },
+  btnText: { color: c.surface, fontSize: 16, fontWeight: '700' },
+  linkBtn: { alignItems: 'center', marginTop: 20 },
+  linkText: { color: c.muted, fontSize: 14 },
+  linkBold: { color: c.accent, fontWeight: '700' },
+});
 
 export default function LoginScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [phone, setPhone] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
@@ -62,7 +95,7 @@ export default function LoginScreen({ navigation }: Props) {
           <TextInput
             style={styles.input}
             placeholder="e.g. 0241234567"
-            placeholderTextColor={MUTED}
+            placeholderTextColor={colors.muted}
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
@@ -73,7 +106,7 @@ export default function LoginScreen({ navigation }: Props) {
           <TextInput
             style={styles.input}
             placeholder="Enter your password"
-            placeholderTextColor={MUTED}
+            placeholderTextColor={colors.muted}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -84,7 +117,7 @@ export default function LoginScreen({ navigation }: Props) {
             onPress={handleLogin}
             disabled={loading}
           >
-            {loading ? <ActivityIndicator color={WHITE} /> : <Text style={styles.btnText}>Log In</Text>}
+            {loading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.btnText}>Log In</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.navigate('Register')}>
@@ -97,39 +130,3 @@ export default function LoginScreen({ navigation }: Props) {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-  logoSection: { alignItems: 'center', marginBottom: 48 },
-  logoBox: {
-    width: 72, height: 72, borderRadius: 22,
-    backgroundColor: DARK, justifyContent: 'center', alignItems: 'center',
-    marginBottom: 16, shadowColor: DARK, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15, shadowRadius: 12, elevation: 6,
-  },
-  logoText: { fontSize: 36, fontWeight: '900', color: ACCENT },
-  logoName: { fontSize: 28, fontWeight: '900', color: DARK, letterSpacing: 6 },
-  logoSub: { fontSize: 13, color: MUTED, marginTop: 6 },
-  form: {
-    backgroundColor: WHITE, borderRadius: 20, padding: 24,
-    borderWidth: 1, borderColor: BORDER,
-    shadowColor: DARK, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
-  },
-  formTitle: { fontSize: 20, fontWeight: '700', color: DARK, marginBottom: 4 },
-  formSub: { fontSize: 13, color: MUTED, marginBottom: 24 },
-  label: { fontSize: 12, color: MUTED, fontWeight: '600', marginBottom: 6, marginTop: 16 },
-  input: {
-    backgroundColor: BG, borderRadius: 12, padding: 14,
-    fontSize: 15, color: DARK, borderWidth: 1, borderColor: BORDER,
-  },
-  btn: {
-    backgroundColor: DARK, borderRadius: 12, padding: 16,
-    alignItems: 'center', marginTop: 24,
-  },
-  btnText: { color: WHITE, fontSize: 16, fontWeight: '700' },
-  linkBtn: { alignItems: 'center', marginTop: 20 },
-  linkText: { color: MUTED, fontSize: 14 },
-  linkBold: { color: ACCENT, fontWeight: '700' },
-});
