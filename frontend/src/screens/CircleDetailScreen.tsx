@@ -11,8 +11,10 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   getCircle, inviteMember, leaveCircle,
   getCircleLoans, getCircleExpenses, getCircleBalances, getCircleInsights,
+  settleExpense,
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
+import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Props = {
@@ -50,12 +52,21 @@ interface Loan {
   totalRepaymentAmount: number;
 }
 
+interface ExpenseSplit {
+  id: number;
+  userId: number;
+  amountOwed: number;
+  settled: boolean;
+}
+
 interface Expense {
   expenseId: number;
   description: string;
   totalAmount: number;
   paidBy: string;
+  paidById: number;
   category?: string;
+  splits: ExpenseSplit[];
 }
 
 interface Insights {
@@ -84,10 +95,14 @@ const WARNING = '#d97706';
 export default function CircleDetailScreen({ route, navigation }: Props) {
   const { circleId } = route.params;
   const { showAlert } = useAppAlert();
+  const { user } = useAuth();
   const [circle, setCircle] = useState<Circle | null>(null);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [balances, setBalances] = useState<Record<string, number>>({});
+  const [expandedExpense, setExpandedExpense] = useState<number | null>(null);
+  const [settlingId, setSettlingId] = useState<number | null>(null);
+  const [settleError, setSettleError] = useState<Record<number, string>>({});
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -122,6 +137,20 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   };
 
   useFocusEffect(useCallback(() => { loadData(); }, []));
+
+  const handleSettle = async (splitId: number): Promise<void> => {
+    setSettlingId(splitId);
+    setSettleError(prev => { const next = { ...prev }; delete next[splitId]; return next; });
+    try {
+      await settleExpense(splitId);
+      showAlert('success', 'Settled', 'Expense split settled successfully');
+      loadData();
+    } catch (error) {
+      setSettleError(prev => ({ ...prev, [splitId]: (error as Error).message }));
+    } finally {
+      setSettlingId(null);
+    }
+  };
 
   const handleInvite = async (): Promise<void> => {
     if (!invitePhone.trim()) { setInviteError('Enter a phone number'); return; }
@@ -303,12 +332,56 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
             ) : (
               expenses.map((expense) => (
                 <View key={expense.expenseId} style={styles.expenseCard}>
-                  <View style={styles.expenseTop}>
-                    <Text style={styles.expenseDesc}>{expense.description}</Text>
-                    <Text style={styles.expenseAmount}>GHS {expense.totalAmount}</Text>
-                  </View>
-                  <Text style={styles.expenseMeta}>Paid by {expense.paidBy}</Text>
-                  {expense.category && <Text style={styles.expenseCategory}>{expense.category}</Text>}
+                  <TouchableOpacity activeOpacity={0.7} onPress={() => setExpandedExpense(expandedExpense === expense.expenseId ? null : expense.expenseId)}>
+                    <View style={styles.expenseTop}>
+                      <Text style={styles.expenseDesc}>{expense.description}</Text>
+                      <Text style={styles.expenseAmount}>GHS {expense.totalAmount}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text style={styles.expenseMeta}>Paid by {expense.paidBy}</Text>
+                      <Ionicons name={expandedExpense === expense.expenseId ? 'chevron-up' : 'chevron-down'} size={14} color={MUTED} />
+                    </View>
+                    {expense.category && <Text style={styles.expenseCategory}>{expense.category}</Text>}
+                  </TouchableOpacity>
+                  {expandedExpense === expense.expenseId && expense.splits && (
+                    <View style={styles.splitsContainer}>
+                      {expense.splits.map((split) => {
+                        const memberInfo = circle.members.find(m => m.userId === split.userId);
+                        const name = memberInfo ? `${memberInfo.firstName} ${memberInfo.lastName}` : `User #${split.userId}`;
+                        const isMe = user?.id === split.userId;
+                        const isPayer = split.userId === expense.paidById;
+                        return (
+                          <View key={split.id} style={styles.splitRow}>
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.splitName, isMe && { fontWeight: '700' }]}>{name}{isMe ? ' (You)' : ''}</Text>
+                              <Text style={styles.splitAmount}>GHS {split.amountOwed.toFixed(2)}</Text>
+                            </View>
+                            {split.settled || isPayer ? (
+                              <View style={styles.settledBadge}>
+                                <Ionicons name="checkmark-circle" size={14} color={SUCCESS} />
+                                <Text style={styles.settledText}>Settled</Text>
+                              </View>
+                            ) : isMe ? (
+                              <View>
+                                <TouchableOpacity
+                                  style={[styles.settleBtn, settlingId === split.id && { opacity: 0.6 }]}
+                                  onPress={() => handleSettle(split.id)}
+                                  disabled={settlingId === split.id}
+                                >
+                                  {settlingId === split.id
+                                    ? <ActivityIndicator size="small" color={WHITE} />
+                                    : <Text style={styles.settleBtnText}>Settle</Text>}
+                                </TouchableOpacity>
+                                {settleError[split.id] && <Text style={{ color: DANGER, fontSize: 11, marginTop: 2 }}>{settleError[split.id]}</Text>}
+                              </View>
+                            ) : (
+                              <Text style={styles.splitPending}>Pending</Text>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
               ))
             )}
@@ -432,6 +505,15 @@ const styles = StyleSheet.create({
   expenseAmount: { fontSize: 16, fontWeight: '800', color: DANGER },
   expenseMeta: { fontSize: 12, color: MUTED },
   expenseCategory: { fontSize: 11, color: MUTED, marginTop: 2 },
+  splitsContainer: { marginTop: 10, borderTopWidth: 1, borderTopColor: BORDER, paddingTop: 10 },
+  splitRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: BORDER },
+  splitName: { fontSize: 13, color: DARK },
+  splitAmount: { fontSize: 12, color: MUTED, marginTop: 1 },
+  settledBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  settledText: { fontSize: 12, color: SUCCESS, fontWeight: '600' },
+  settleBtn: { backgroundColor: ACCENT, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 6 },
+  settleBtnText: { color: WHITE, fontSize: 12, fontWeight: '600' },
+  splitPending: { fontSize: 12, color: MUTED, fontStyle: 'italic' as const },
 
   balancesCard: { backgroundColor: WHITE, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: BORDER },
   balancesTitle: { fontSize: 13, fontWeight: '700', color: DARK, marginBottom: 10 },

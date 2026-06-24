@@ -77,7 +77,17 @@ public class SharedExpenseService {
             Map<String, Object> map = new HashMap<>();
             map.put("expenseId", expense.getId()); map.put("description", expense.getDescription());
             map.put("totalAmount", expense.getTotalAmount()); map.put("category", expense.getCategory());
-            map.put("paidBy", authServiceClient.getUserName(expense.getPaidById())); map.put("createdAt", expense.getCreatedAt());
+            map.put("paidBy", authServiceClient.getUserName(expense.getPaidById()));
+            map.put("paidById", expense.getPaidById());
+            map.put("createdAt", expense.getCreatedAt());
+            map.put("splits", expense.getSplits().stream().map(s -> {
+                Map<String, Object> sm = new HashMap<>();
+                sm.put("id", s.getId());
+                sm.put("userId", s.getUserId());
+                sm.put("amountOwed", s.getAmountOwed());
+                sm.put("settled", s.getSettled());
+                return sm;
+            }).collect(Collectors.toList()));
             return map;
         }).collect(Collectors.toList());
     }
