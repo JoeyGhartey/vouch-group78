@@ -12,6 +12,8 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
 };
 
+type LoginMethod = 'phone' | 'email';
+
 const BG = '#F8F9FA';
 const WHITE = '#FFFFFF';
 const DARK = '#0f172a';
@@ -20,19 +22,33 @@ const BORDER = '#E5E7EB';
 const ACCENT = '#C9A84C';
 
 export default function LoginScreen({ navigation }: Props) {
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>('phone');
   const [phone, setPhone] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const { signIn } = useAuth();
 
   const handleLogin = async (): Promise<void> => {
-    if (!phone || !password) { Alert.alert('Error', 'Please enter your phone number and password'); return; }
+    const identifier = loginMethod === 'phone' ? phone : email;
+
+    if (!identifier || !password) {
+      Alert.alert('Error', `Please enter your ${loginMethod === 'phone' ? 'phone number' : 'email address'} and password`);
+      return;
+    }
+
+    if (loginMethod === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await login({ phone, password }) as { token: string; [key: string]: unknown };
+      // Pass loginMethod so the backend knows which field to look up
+      const response = await login({ loginMethod, identifier, password }) as { token: string; [key: string]: unknown };
       await signIn(response);
     } catch (error) {
-      Alert.alert('Login Failed', (error as Error).message || 'Invalid phone number or password');
+      Alert.alert('Login Failed', (error as Error).message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
@@ -56,16 +72,58 @@ export default function LoginScreen({ navigation }: Props) {
           <Text style={styles.formTitle}>Welcome back</Text>
           <Text style={styles.formSub}>Log in to your account</Text>
 
-          <Text style={styles.label}>Phone Number</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 0241234567"
-            placeholderTextColor={MUTED}
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            autoCapitalize="none"
-          />
+          {/* Toggle */}
+          <View style={styles.toggle}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, loginMethod === 'phone' && styles.toggleBtnActive]}
+              onPress={() => setLoginMethod('phone')}
+            >
+              <Text style={[styles.toggleText, loginMethod === 'phone' && styles.toggleTextActive]}>
+                Phone number
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, loginMethod === 'email' && styles.toggleBtnActive]}
+              onPress={() => setLoginMethod('email')}
+            >
+              <Text style={[styles.toggleText, loginMethod === 'email' && styles.toggleTextActive]}>
+                Email address
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Phone input */}
+          {loginMethod === 'phone' && (
+            <>
+              <Text style={styles.label}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. 0241234567"
+                placeholderTextColor={MUTED}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+              />
+            </>
+          )}
+
+          {/* Email input */}
+          {loginMethod === 'email' && (
+            <>
+              <Text style={styles.label}>Email Address</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. you@example.com"
+                placeholderTextColor={MUTED}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </>
+          )}
 
           <Text style={styles.label}>Password</Text>
           <TextInput
@@ -116,7 +174,37 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
   },
   formTitle: { fontSize: 20, fontWeight: '700', color: DARK, marginBottom: 4 },
-  formSub: { fontSize: 13, color: MUTED, marginBottom: 24 },
+  formSub: { fontSize: 13, color: MUTED, marginBottom: 20 },
+
+  // Toggle
+  toggle: {
+    flexDirection: 'row',
+    backgroundColor: BG,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: BORDER,
+    padding: 3,
+    marginBottom: 4,
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  toggleBtnActive: {
+    backgroundColor: WHITE,
+    borderWidth: 1,
+    borderColor: BORDER,
+    shadowColor: DARK,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  toggleText: { fontSize: 13, fontWeight: '600', color: MUTED },
+  toggleTextActive: { color: DARK },
+
   label: { fontSize: 12, color: MUTED, fontWeight: '600', marginBottom: 6, marginTop: 16 },
   input: {
     backgroundColor: BG, borderRadius: 12, padding: 14,
