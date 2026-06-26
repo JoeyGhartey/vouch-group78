@@ -38,6 +38,10 @@ export interface ColorScheme {
   chartGreen: string;
   chartRed: string;
 
+  // Button fills
+  buttonDark: string;
+  buttonDarkText: string;
+
   // Accent variants
   accentDark: string;
   accentMuted: string;
@@ -77,26 +81,29 @@ export const lightColors: ColorScheme = {
   chartGreen: '#4ade80',
   chartRed: '#f87171',
 
+  buttonDark: '#0f172a',
+  buttonDarkText: '#FFFFFF',
+
   accentDark: '#D4A017',
   accentMuted: '#394856',
 };
 
 export const darkColors: ColorScheme = {
-  bg: '#0f172a',
-  surface: '#1e293b',
-  dark: '#f1f5f9',
-  muted: '#94a3b8',
-  border: '#334155',
+  bg: '#121212',
+  surface: '#1E1E1E',
+  dark: '#E8E8E8',
+  muted: '#9E9E9E',
+  border: '#2C2C2C',
   accent: '#C9A84C',
   danger: '#f87171',
   success: '#4ade80',
   warning: '#fbbf24',
 
-  slate300: '#475569',
-  slate400: '#64748b',
-  slate500: '#94a3b8',
-  slate700: '#e2e8f0',
-  slate800: '#f1f5f9',
+  slate300: '#424242',
+  slate400: '#757575',
+  slate500: '#9E9E9E',
+  slate700: '#E0E0E0',
+  slate800: '#EEEEEE',
 
   statusBlue: '#60a5fa',
   statusPurple: '#c084fc',
@@ -104,17 +111,20 @@ export const darkColors: ColorScheme = {
 
   successGreen: '#4ade80',
   errorRed: '#f87171',
-  alertMessageText: '#cbd5e1',
+  alertMessageText: '#BDBDBD',
 
-  successBgTint: '#052e16',
-  dangerBgTint: '#450a0a',
-  warningBgTint: '#1c1508',
-  warningBorderTint: '#3d3212',
-  goldBgTint: '#1a1806',
+  successBgTint: '#1B3726',
+  dangerBgTint: '#3B1515',
+  warningBgTint: '#2C2510',
+  warningBorderTint: '#3D3418',
+  goldBgTint: '#272310',
 
   chartGreen: '#4ade80',
   chartRed: '#f87171',
 
+  buttonDark: '#e0b83a',
+  buttonDarkText: '#121212',
+
   accentDark: '#e0b83a',
-  accentMuted: '#94a3b8',
+  accentMuted: '#9E9E9E',
 };
