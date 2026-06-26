@@ -1,9 +1,10 @@
 import * as SecureStore from 'expo-secure-store';
 
-//const API_URL = 'http://localhost:8080/api'; // Web
+// TODO: Revert to Render URL before next deployment
+// const API_URL = 'https://vouch-api-gateway.onrender.com/api';
+const API_URL = 'http://172.20.10.2:8080/api';
 // const API_URL = 'http://10.0.2.2:8080/api'; // Android emulator
 // const API_URL = 'http://YOUR_IP:8080/api'; // Physical device
-const API_URL = 'https://vouch-api-gateway.onrender.com/api';
 let token: string | null = null;
 
 export const setToken = (newToken: string): void => {

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput, Modal,
@@ -9,7 +9,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { getAdminOpenDisputes, resolveDispute } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
+import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { ColorScheme } from '../theme/colors';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList>;
@@ -28,16 +30,53 @@ interface Dispute {
   createdAt: string;
 }
 
-const BG = '#F8F9FA';
-const WHITE = '#FFFFFF';
-const DARK = '#0f172a';
-const MUTED = '#6B7280';
-const BORDER = '#E5E7EB';
-const ACCENT = '#C9A84C';
-const DANGER = '#dc2626';
-const SUCCESS = '#16a34a';
+const createStyles = (c: ColorScheme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.bg },
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: c.surface, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
+    borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  back: { color: c.accent, fontSize: 16, fontWeight: '600' },
+  title: { color: c.dark, fontSize: 16, fontWeight: '700' },
+  list: { padding: 16, gap: 12 },
+  disputeCard: { backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border },
+  disputeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  disputeBadge: { backgroundColor: c.dangerBgTint, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  disputeBadgeText: { fontSize: 10, fontWeight: '800', color: c.danger },
+  disputeDate: { fontSize: 12, color: c.muted },
+  disputeAmount: { fontSize: 20, fontWeight: '800', color: c.dark, marginBottom: 12 },
+  partiesRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  partyItem: { flex: 1 },
+  partyLabel: { fontSize: 11, color: c.muted, fontWeight: '600', marginBottom: 2 },
+  partyName: { fontSize: 14, fontWeight: '600', color: c.dark },
+  divider: { height: 1, backgroundColor: c.border, marginBottom: 12 },
+  reasonLabel: { fontSize: 11, color: c.muted, fontWeight: '600', marginBottom: 4 },
+  reasonText: { fontSize: 14, color: c.dark, marginBottom: 12, lineHeight: 20 },
+  resolveBtn: { backgroundColor: c.buttonDark, borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 8 },
+  resolveBtnText: { color: c.buttonDarkText, fontSize: 14, fontWeight: '700' },
+  emptyCard: { margin: 16, backgroundColor: c.surface, borderRadius: 14, padding: 40, alignItems: 'center', borderWidth: 1, borderColor: c.border },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: c.dark, marginTop: 12, marginBottom: 4 },
+  emptyText: { fontSize: 13, color: c.muted },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center' },
+  modal: { backgroundColor: c.surface, borderRadius: 16, padding: 24 },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: c.dark, textAlign: 'center' },
+  modalSub: { fontSize: 13, color: c.muted, textAlign: 'center', marginTop: 4, marginBottom: 16 },
+  label: { fontSize: 12, color: c.muted, fontWeight: '600', marginTop: 12, marginBottom: 6 },
+  outcomeRow: { flexDirection: 'row', gap: 10 },
+  outcomeBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1.5, borderColor: c.border, alignItems: 'center' },
+  outcomeBtnActive: { backgroundColor: c.buttonDark, borderColor: c.buttonDark },
+  outcomeBtnText: { fontSize: 13, fontWeight: '600', color: c.muted },
+  outcomeBtnTextActive: { color: c.buttonDarkText },
+  input: { backgroundColor: c.bg, borderRadius: 10, padding: 12, fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border },
+  cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
+  cancelText: { color: c.muted, fontSize: 14 },
+});
 
 export default function AdminScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { showAlert } = useAppAlert();
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -86,7 +125,7 @@ export default function AdminScreen({ navigation }: Props) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={ACCENT} />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -102,12 +141,12 @@ export default function AdminScreen({ navigation }: Props) {
       </View>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDisputes(); }} tintColor={ACCENT} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDisputes(); }} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
         {disputes.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Ionicons name="checkmark-circle-outline" size={40} color={SUCCESS} />
+            <Ionicons name="checkmark-circle-outline" size={40} color={colors.success} />
             <Text style={styles.emptyTitle}>No open disputes</Text>
             <Text style={styles.emptyText}>All disputes have been resolved</Text>
           </View>
@@ -127,7 +166,7 @@ export default function AdminScreen({ navigation }: Props) {
                     <Text style={styles.partyLabel}>Borrower</Text>
                     <Text style={styles.partyName}>{dispute.borrowerName}</Text>
                   </View>
-                  <Ionicons name="arrow-forward" size={16} color={MUTED} />
+                  <Ionicons name="arrow-forward" size={16} color={colors.muted} />
                   <View style={styles.partyItem}>
                     <Text style={styles.partyLabel}>Lender</Text>
                     <Text style={styles.partyName}>{dispute.lenderName}</Text>
@@ -192,7 +231,7 @@ export default function AdminScreen({ navigation }: Props) {
                 <TextInput
                   style={[styles.input, { height: 80 }]}
                   placeholder="Describe the resolution decision"
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={colors.muted}
                   value={resolution}
                   onChangeText={setResolution}
                   multiline
@@ -201,7 +240,7 @@ export default function AdminScreen({ navigation }: Props) {
                 <TextInput
                   style={[styles.input, { height: 60 }]}
                   placeholder="Internal notes (optional)"
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={colors.muted}
                   value={adminNotes}
                   onChangeText={setAdminNotes}
                   multiline
@@ -211,7 +250,7 @@ export default function AdminScreen({ navigation }: Props) {
                   onPress={handleResolve}
                   disabled={resolving}
                 >
-                  {resolving ? <ActivityIndicator color={WHITE} /> : <Text style={styles.resolveBtnText}>Confirm Resolution</Text>}
+                  {resolving ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.resolveBtnText}>Confirm Resolution</Text>}
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowResolve(false)}>
                   <Text style={styles.cancelText}>Cancel</Text>
@@ -224,47 +263,3 @@ export default function AdminScreen({ navigation }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: BG },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: WHITE, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
-    borderBottomWidth: 1, borderBottomColor: BORDER,
-  },
-  back: { color: ACCENT, fontSize: 16, fontWeight: '600' },
-  title: { color: DARK, fontSize: 16, fontWeight: '700' },
-  list: { padding: 16, gap: 12 },
-  disputeCard: { backgroundColor: WHITE, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: BORDER },
-  disputeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  disputeBadge: { backgroundColor: '#fef2f2', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  disputeBadgeText: { fontSize: 10, fontWeight: '800', color: DANGER },
-  disputeDate: { fontSize: 12, color: MUTED },
-  disputeAmount: { fontSize: 20, fontWeight: '800', color: DARK, marginBottom: 12 },
-  partiesRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  partyItem: { flex: 1 },
-  partyLabel: { fontSize: 11, color: MUTED, fontWeight: '600', marginBottom: 2 },
-  partyName: { fontSize: 14, fontWeight: '600', color: DARK },
-  divider: { height: 1, backgroundColor: BORDER, marginBottom: 12 },
-  reasonLabel: { fontSize: 11, color: MUTED, fontWeight: '600', marginBottom: 4 },
-  reasonText: { fontSize: 14, color: DARK, marginBottom: 12, lineHeight: 20 },
-  resolveBtn: { backgroundColor: DARK, borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 8 },
-  resolveBtnText: { color: WHITE, fontSize: 14, fontWeight: '700' },
-  emptyCard: { margin: 16, backgroundColor: WHITE, borderRadius: 14, padding: 40, alignItems: 'center', borderWidth: 1, borderColor: BORDER },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: DARK, marginTop: 12, marginBottom: 4 },
-  emptyText: { fontSize: 13, color: MUTED },
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center' },
-  modal: { backgroundColor: WHITE, borderRadius: 16, padding: 24 },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: DARK, textAlign: 'center' },
-  modalSub: { fontSize: 13, color: MUTED, textAlign: 'center', marginTop: 4, marginBottom: 16 },
-  label: { fontSize: 12, color: MUTED, fontWeight: '600', marginTop: 12, marginBottom: 6 },
-  outcomeRow: { flexDirection: 'row', gap: 10 },
-  outcomeBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1.5, borderColor: BORDER, alignItems: 'center' },
-  outcomeBtnActive: { backgroundColor: DARK, borderColor: DARK },
-  outcomeBtnText: { fontSize: 13, fontWeight: '600', color: MUTED },
-  outcomeBtnTextActive: { color: WHITE },
-  input: { backgroundColor: BG, borderRadius: 10, padding: 12, fontSize: 14, color: DARK, borderWidth: 1, borderColor: BORDER },
-  cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
-  cancelText: { color: MUTED, fontSize: 14 },
-});
