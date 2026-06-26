@@ -120,6 +120,19 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.dark, alignItems: 'center', flexDirection: 'row', justifyContent: 'center',
   },
   adminBtnText: { color: c.surface, fontSize: 14, fontWeight: '700' },
+  appearanceSection: {
+    marginHorizontal: 16, marginTop: 16, backgroundColor: c.surface,
+    borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border,
+  },
+  appearanceTitle: { fontSize: 14, fontWeight: '700', color: c.dark, marginBottom: 12 },
+  themeRow: { flexDirection: 'row', gap: 10 },
+  themeBtn: {
+    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+    borderWidth: 1.5, borderColor: c.border, backgroundColor: c.bg,
+  },
+  themeBtnActive: { backgroundColor: c.buttonDark, borderColor: c.buttonDark },
+  themeBtnText: { fontSize: 12, fontWeight: '600', color: c.muted },
+  themeBtnTextActive: { color: c.buttonDarkText },
   logoutBtn: {
     marginHorizontal: 16, marginTop: 10, padding: 14, borderRadius: 12,
     borderWidth: 1, borderColor: c.border, alignItems: 'center',
@@ -141,7 +154,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
 });
 
 export default function ProfileScreen({ navigation }: Props) {
-  const { colors } = useTheme();
+  const { colors, preference, setThemeOverride, resetToSystem } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { showAlert } = useAppAlert();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -340,6 +353,29 @@ export default function ProfileScreen({ navigation }: Props) {
             <Text style={styles.adminBtnText}>Admin Panel — Open Disputes</Text>
           </TouchableOpacity>
         )}
+
+        <View style={styles.appearanceSection}>
+          <Text style={styles.appearanceTitle}>Appearance</Text>
+          <View style={styles.themeRow}>
+            {(['system', 'light', 'dark'] as const).map((opt) => (
+              <TouchableOpacity
+                key={opt}
+                style={[styles.themeBtn, preference === opt && styles.themeBtnActive]}
+                onPress={() => opt === 'system' ? resetToSystem() : setThemeOverride(opt)}
+              >
+                <Ionicons
+                  name={opt === 'system' ? 'phone-portrait-outline' : opt === 'light' ? 'sunny-outline' : 'moon-outline'}
+                  size={16}
+                  color={preference === opt ? colors.buttonDarkText : colors.muted}
+                  style={{ marginBottom: 4 }}
+                />
+                <Text style={[styles.themeBtnText, preference === opt && styles.themeBtnTextActive]}>
+                  {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={signOut}>
           <Ionicons name="log-out-outline" size={16} color={colors.danger} style={{ marginRight: 6 }} />
