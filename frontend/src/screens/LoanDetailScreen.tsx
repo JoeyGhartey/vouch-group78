@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, TextInput, Modal,
@@ -14,7 +14,9 @@ import {
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
+import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { ColorScheme } from '../theme/colors';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'LoanDetail'>;
@@ -53,20 +55,76 @@ interface PaymentInitResponse {
   message: string;
 }
 
-const BG = '#F8F9FA';
-const WHITE = '#FFFFFF';
-const DARK = '#0f172a';
-const MUTED = '#6B7280';
-const BORDER = '#E5E7EB';
-const ACCENT = '#C9A84C';
-const SUCCESS = '#16a34a';
-const DANGER = '#dc2626';
-const WARNING = '#d97706';
+const createStyles = (c: ColorScheme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.bg },
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: 20, paddingTop: 56, backgroundColor: c.surface,
+    borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  back: { color: c.accent, fontSize: 16, fontWeight: '600' },
+  title: { color: c.dark, fontSize: 18, fontWeight: '700' },
+  amountCard: {
+    backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 16,
+    padding: 24, alignItems: 'center', marginTop: 16, marginBottom: 16,
+    borderWidth: 1, borderColor: c.border,
+  },
+  amountLabel: { color: c.muted, fontSize: 13 },
+  amount: { color: c.dark, fontSize: 40, fontWeight: '800', marginTop: 4, letterSpacing: -1 },
+  badge: { borderRadius: 8, paddingHorizontal: 16, paddingVertical: 6, marginTop: 12 },
+  badgeText: { color: c.surface, fontSize: 12, fontWeight: '700' },
+  card: {
+    backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
+    padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
+  },
+  cardTitle: { color: c.dark, fontSize: 15, fontWeight: '700', marginBottom: 12 },
+  row: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  rowLabel: { color: c.muted, fontSize: 13 },
+  rowValue: { color: c.dark, fontSize: 13, fontWeight: '600', textAlign: 'right', flex: 1, marginLeft: 16 },
+  progressBar: { height: 6, backgroundColor: c.border, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: c.success, borderRadius: 4 },
+  progressText: { color: c.muted, fontSize: 12, marginTop: 8, textAlign: 'center' },
+  remaining: { color: c.warning, fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 4 },
+  actions: { paddingHorizontal: 16, marginTop: 8 },
+  primaryBtn: {
+    backgroundColor: c.buttonDark, borderRadius: 12, padding: 16,
+    alignItems: 'center', marginBottom: 10,
+  },
+  dangerBtn: {
+    backgroundColor: c.danger, borderRadius: 12, padding: 16,
+    alignItems: 'center', marginBottom: 10,
+  },
+  outlineBtn: {
+    borderWidth: 1.5, borderColor: c.accent, borderRadius: 12,
+    padding: 16, alignItems: 'center', marginBottom: 10,
+  },
+  btnText: { color: c.buttonDarkText, fontSize: 15, fontWeight: '700' },
+  dangerBtnText: { color: c.surface, fontSize: 15, fontWeight: '700' },
+  outlineText: { color: c.accent, fontSize: 15, fontWeight: '600' },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
+  modal: { backgroundColor: c.surface, borderRadius: 16, padding: 24 },
+  modalTitle: { color: c.dark, fontSize: 20, fontWeight: '700', textAlign: 'center' },
+  modalSub: { color: c.muted, fontSize: 13, textAlign: 'center', marginTop: 4, marginBottom: 16 },
+  label: { color: c.muted, fontSize: 13, marginBottom: 6, marginTop: 12 },
+  input: {
+    backgroundColor: c.bg, borderRadius: 12, padding: 14,
+    fontSize: 15, color: c.dark, borderWidth: 1, borderColor: c.border,
+  },
+  calcText: { color: c.success, fontSize: 13, marginTop: 8, textAlign: 'center' },
+  cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
+  cancelText: { color: c.muted, fontSize: 15 },
+});
 
 export default function LoanDetailScreen({ route, navigation }: Props) {
   const { loanId } = route.params;
   const { confirm } = useConfirmModal();
   const { showAlert } = useAppAlert();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [loan, setLoan] = useState<Loan | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -74,18 +132,18 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   const [showFund, setShowFund] = useState<boolean>(false);
   const [showRepay, setShowRepay] = useState<boolean>(false);
   const [showDispute, setShowDispute] = useState<boolean>(false);
-  const [interestRate, setInterestRate] = useState<string>('5');
+  const [interestRate, setInterestRate] = useState<string>('');
   const [repayAmount, setRepayAmount] = useState<string>('');
   const [disputeReason, setDisputeReason] = useState<string>('');
   const [disputeEvidence, setDisputeEvidence] = useState<string>('');
 
   const loadData = async (): Promise<void> => {
     try {
-      const [l, p] = await Promise.all([getLoan(loanId), getProfile()]);
-      setLoan(l as Loan);
-      setProfile(p as Profile);
-    } catch (e) {
-      console.error(e);
+      const [loanData, profileData] = await Promise.all([getLoan(loanId), getProfile()]);
+      setLoan(loanData as Loan);
+      setProfile(profileData as Profile);
+    } catch (error) {
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -93,14 +151,11 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
 
   useFocusEffect(useCallback(() => { loadData(); }, []));
 
-  const isBorrower = profile && loan && profile.id === loan.borrowerId;
-  const isLender = profile && loan && profile.id === loan.lenderId;
-
   const doAction = async (action: () => Promise<void>, successMsg?: string): Promise<void> => {
     setActing(true);
     try {
       await action();
-      loadData();
+      await loadData();
       if (successMsg) showAlert('success', 'Success', successMsg);
     } catch (e) {
       showAlert('error', 'Error', (e as Error).message);
@@ -222,29 +277,24 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       setShowDispute(false);
       setDisputeReason('');
       setDisputeEvidence('');
-    }, 'Dispute opened. Admin will review.');
+    }, 'Dispute opened.');
   };
 
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>;
+  if (!loan) return <View style={styles.center}><Text style={{ color: colors.danger, fontSize: 16 }}>Loan not found</Text></View>;
+
+  const isBorrower = profile?.id === loan.borrowerId;
+  const isLender = profile?.id === loan.lenderId;
+  const totalOwed = loan.totalRepaymentAmount + loan.overdueInterestAccrued - loan.amountRepaid;
+
   const statusColor = (s: string): string => ({
-    REQUESTED: WARNING,
-    AGREEMENT_PENDING: '#FF9800',
-    AGREEMENT_SIGNED: '#2196F3',
-    ACTIVE: SUCCESS,
-    DUE: WARNING,
-    GRACE_PERIOD: DANGER,
-    REPAID: SUCCESS,
-    DEFAULTED: DANGER,
-    DISPUTED: '#9C27B0',
-    CANCELLED: MUTED,
-  }[s] || MUTED);
+    REQUESTED: colors.warning, AGREEMENT_PENDING: colors.statusOrange, AGREEMENT_SIGNED: colors.statusBlue,
+    ACTIVE: colors.success, DUE: colors.warning, GRACE_PERIOD: colors.danger,
+    REPAID: colors.success, DEFAULTED: colors.danger, DISPUTED: colors.statusPurple, CANCELLED: colors.muted,
+  }[s] || colors.muted);
 
   const fmtDate = (d?: string): string =>
-    d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A';
-
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={ACCENT} /></View>;
-  if (!loan) return <View style={styles.center}><Text style={{ color: DANGER, fontSize: 16 }}>Loan not found</Text></View>;
-
-  const totalOwed = loan.totalRepaymentAmount + loan.overdueInterestAccrued - loan.amountRepaid;
+    d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
   const details: [string, string][] = [
     ['Borrower', loan.borrowerName],
@@ -285,7 +335,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
         {details.map(([label, value], i) => (
           <View key={i} style={styles.row}>
             <Text style={styles.rowLabel}>{label}</Text>
-            <Text style={[styles.rowValue, label === 'Overdue Interest' && { color: DANGER }]}>{value}</Text>
+            <Text style={[styles.rowValue, label === 'Overdue Interest' && { color: colors.danger }]}>{value}</Text>
           </View>
         ))}
       </View>
@@ -313,7 +363,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
         )}
         {loan.status === 'AGREEMENT_PENDING' && (isBorrower || isLender) && (
           <TouchableOpacity style={styles.primaryBtn} onPress={handleSign} disabled={acting}>
-            {acting ? <ActivityIndicator color={WHITE} /> : <Text style={styles.btnText}>Sign Agreement</Text>}
+            {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Sign Agreement</Text>}
           </TouchableOpacity>
         )}
         {loan.status === 'AGREEMENT_SIGNED' && isLender && (
@@ -328,12 +378,12 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
         )}
         {loan.status === 'REQUESTED' && isBorrower && (
           <TouchableOpacity style={styles.dangerBtn} onPress={handleCancel}>
-            <Text style={styles.btnText}>Cancel Request</Text>
+            <Text style={styles.dangerBtnText}>Cancel Request</Text>
           </TouchableOpacity>
         )}
         {loan.status === 'GRACE_PERIOD' && isLender && (
           <TouchableOpacity style={styles.dangerBtn} onPress={handleDefault}>
-            <Text style={styles.btnText}>Mark as Defaulted</Text>
+            <Text style={styles.dangerBtnText}>Mark as Defaulted</Text>
           </TouchableOpacity>
         )}
         {['ACTIVE', 'DUE', 'GRACE_PERIOD', 'REPAID'].includes(loan.status) && (isBorrower || isLender) && (
@@ -353,7 +403,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             <TextInput
               style={styles.input}
               placeholder="e.g. 5"
-              placeholderTextColor={MUTED}
+              placeholderTextColor={colors.muted}
               value={interestRate}
               onChangeText={setInterestRate}
               keyboardType="numeric"
@@ -364,7 +414,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               </Text>
             )}
             <TouchableOpacity style={styles.primaryBtn} onPress={handleFund} disabled={acting}>
-              {acting ? <ActivityIndicator color={WHITE} /> : <Text style={styles.btnText}>Confirm & Fund</Text>}
+              {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Confirm & Fund</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowFund(false)}>
               <Text style={styles.cancelText}>Cancel</Text>
@@ -383,13 +433,13 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             <TextInput
               style={styles.input}
               placeholder={totalOwed.toFixed(2)}
-              placeholderTextColor={MUTED}
+              placeholderTextColor={colors.muted}
               value={repayAmount}
               onChangeText={setRepayAmount}
               keyboardType="numeric"
             />
             <TouchableOpacity style={styles.primaryBtn} onPress={handleRepay} disabled={acting}>
-              {acting ? <ActivityIndicator color={WHITE} /> : <Text style={styles.btnText}>Confirm Repayment</Text>}
+              {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Confirm Repayment</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowRepay(false)}>
               <Text style={styles.cancelText}>Cancel</Text>
@@ -407,7 +457,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             <TextInput
               style={[styles.input, { height: 80 }]}
               placeholder="Why are you disputing?"
-              placeholderTextColor={MUTED}
+              placeholderTextColor={colors.muted}
               value={disputeReason}
               onChangeText={setDisputeReason}
               multiline
@@ -416,13 +466,13 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             <TextInput
               style={[styles.input, { height: 80 }]}
               placeholder="Any supporting evidence"
-              placeholderTextColor={MUTED}
+              placeholderTextColor={colors.muted}
               value={disputeEvidence}
               onChangeText={setDisputeEvidence}
               multiline
             />
             <TouchableOpacity style={styles.primaryBtn} onPress={handleDispute} disabled={acting}>
-              {acting ? <ActivityIndicator color={WHITE} /> : <Text style={styles.btnText}>Submit Dispute</Text>}
+              {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Submit Dispute</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowDispute(false)}>
               <Text style={styles.cancelText}>Cancel</Text>
@@ -435,65 +485,3 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: BG },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 20, paddingTop: 56, backgroundColor: WHITE,
-    borderBottomWidth: 1, borderBottomColor: BORDER,
-  },
-  back: { color: ACCENT, fontSize: 16, fontWeight: '600' },
-  title: { color: DARK, fontSize: 18, fontWeight: '700' },
-  amountCard: {
-    backgroundColor: DARK, marginHorizontal: 16, borderRadius: 16,
-    padding: 24, alignItems: 'center', marginTop: 16, marginBottom: 16,
-  },
-  amountLabel: { color: '#94a3b8', fontSize: 13 },
-  amount: { color: WHITE, fontSize: 40, fontWeight: '800', marginTop: 4, letterSpacing: -1 },
-  badge: { borderRadius: 8, paddingHorizontal: 16, paddingVertical: 6, marginTop: 12 },
-  badgeText: { color: WHITE, fontSize: 12, fontWeight: '700' },
-  card: {
-    backgroundColor: WHITE, marginHorizontal: 16, borderRadius: 14,
-    padding: 16, marginBottom: 12, borderWidth: 1, borderColor: BORDER,
-  },
-  cardTitle: { color: DARK, fontSize: 15, fontWeight: '700', marginBottom: 12 },
-  row: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: BORDER,
-  },
-  rowLabel: { color: MUTED, fontSize: 13 },
-  rowValue: { color: DARK, fontSize: 13, fontWeight: '600', textAlign: 'right', flex: 1, marginLeft: 16 },
-  progressBar: { height: 6, backgroundColor: BORDER, borderRadius: 4, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: SUCCESS, borderRadius: 4 },
-  progressText: { color: MUTED, fontSize: 12, marginTop: 8, textAlign: 'center' },
-  remaining: { color: WARNING, fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 4 },
-  actions: { paddingHorizontal: 16, marginTop: 8 },
-  primaryBtn: {
-    backgroundColor: DARK, borderRadius: 12, padding: 16,
-    alignItems: 'center', marginBottom: 10,
-  },
-  dangerBtn: {
-    backgroundColor: DANGER, borderRadius: 12, padding: 16,
-    alignItems: 'center', marginBottom: 10,
-  },
-  outlineBtn: {
-    borderWidth: 1.5, borderColor: ACCENT, borderRadius: 12,
-    padding: 16, alignItems: 'center', marginBottom: 10,
-  },
-  btnText: { color: WHITE, fontSize: 15, fontWeight: '700' },
-  outlineText: { color: ACCENT, fontSize: 15, fontWeight: '600' },
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
-  modal: { backgroundColor: WHITE, borderRadius: 16, padding: 24 },
-  modalTitle: { color: DARK, fontSize: 20, fontWeight: '700', textAlign: 'center' },
-  modalSub: { color: MUTED, fontSize: 13, textAlign: 'center', marginTop: 4, marginBottom: 16 },
-  label: { color: MUTED, fontSize: 13, marginBottom: 6, marginTop: 12 },
-  input: {
-    backgroundColor: BG, borderRadius: 12, padding: 14,
-    fontSize: 15, color: DARK, borderWidth: 1, borderColor: BORDER,
-  },
-  calcText: { color: SUCCESS, fontSize: 13, marginTop: 8, textAlign: 'center' },
-  cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
-  cancelText: { color: MUTED, fontSize: 15 },
-});
