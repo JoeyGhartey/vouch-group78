@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
@@ -6,26 +6,65 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { register } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { ColorScheme } from '../theme/colors';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Register'>;
 };
 
-const BG = '#F8F9FA';
-const WHITE = '#FFFFFF';
-const DARK = '#0f172a';
-const MUTED = '#6B7280';
-const BORDER = '#E5E7EB';
-const ACCENT = '#C9A84C';
-
+// MoMo provider brand colors — nothing to do with theming, always fixed
 const PROVIDER_STYLES: Record<string, { bg: string; text: string }> = {
   MTN:        { bg: '#FFC300', text: '#1a1a1a' },
   Telecel:    { bg: '#CC0000', text: '#FFFFFF' },
   AirtelTigo: { bg: '#005DAA', text: '#FFFFFF' },
 };
 
+const createStyles = (c: ColorScheme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
+  scroll: { flexGrow: 1, padding: 24, paddingTop: 60 },
+  logoSection: { alignItems: 'center', marginBottom: 32 },
+  logoBox: {
+    width: 64, height: 64, borderRadius: 20,
+    backgroundColor: c.dark, justifyContent: 'center', alignItems: 'center', marginBottom: 12,
+  },
+  logoText: { fontSize: 32, fontWeight: '900', color: c.accent },
+  logoName: { fontSize: 24, fontWeight: '900', color: c.dark, letterSpacing: 6 },
+  logoSub: { fontSize: 12, color: c.muted, marginTop: 4 },
+  form: { backgroundColor: c.surface, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: c.border },
+  formTitle: { fontSize: 20, fontWeight: '700', color: c.dark, marginBottom: 4 },
+  formSub: { fontSize: 13, color: c.muted, marginBottom: 16 },
+  row: { flexDirection: 'row', gap: 10 },
+  half: { flex: 1 },
+  label: { fontSize: 12, color: c.muted, fontWeight: '600', marginBottom: 6, marginTop: 14 },
+  input: { backgroundColor: c.bg, borderRadius: 10, padding: 14, fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border },
+  providerRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  providerBtn: {
+    flex: 1, padding: 13, borderRadius: 10,
+    alignItems: 'center', borderWidth: 0,
+    opacity: 0.75,
+  },
+  providerSelected: {
+    opacity: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  providerText: { fontSize: 13, fontWeight: '700' },
+  btn: { backgroundColor: c.dark, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
+  btnText: { color: c.surface, fontSize: 16, fontWeight: '700' },
+  linkBtn: { alignItems: 'center', marginTop: 20 },
+  linkText: { color: c.muted, fontSize: 14 },
+  linkBold: { color: c.accent, fontWeight: '700' },
+});
+
 export default function RegisterScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [firstName, setFirstName] = useState<string>('');
   const [lastName, setLastName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
@@ -78,52 +117,52 @@ export default function RegisterScreen({ navigation }: Props) {
           <View style={styles.row}>
             <View style={styles.half}>
               <Text style={styles.label}>First Name *</Text>
-              <TextInput style={styles.input} placeholder="First name" placeholderTextColor={MUTED} value={firstName} onChangeText={setFirstName} />
+              <TextInput style={styles.input} placeholder="First name" placeholderTextColor={colors.muted} value={firstName} onChangeText={setFirstName} />
             </View>
             <View style={styles.half}>
               <Text style={styles.label}>Last Name *</Text>
-              <TextInput style={styles.input} placeholder="Last name" placeholderTextColor={MUTED} value={lastName} onChangeText={setLastName} />
+              <TextInput style={styles.input} placeholder="Last name" placeholderTextColor={colors.muted} value={lastName} onChangeText={setLastName} />
             </View>
           </View>
 
           <Text style={styles.label}>Phone Number *</Text>
-          <TextInput style={styles.input} placeholder="e.g. 0241234567" placeholderTextColor={MUTED} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+          <TextInput style={styles.input} placeholder="e.g. 0241234567" placeholderTextColor={colors.muted} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
 
           <Text style={styles.label}>Email</Text>
-          <TextInput style={styles.input} placeholder="your@email.com" placeholderTextColor={MUTED} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          <TextInput style={styles.input} placeholder="your@email.com" placeholderTextColor={colors.muted} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
 
           <Text style={styles.label}>MoMo Provider</Text>
           <View style={styles.providerRow}>
             {providers.map((p) => {
-              const colors = PROVIDER_STYLES[p];
+              const providerColors = PROVIDER_STYLES[p];
               const isSelected = momoProvider === p;
               return (
                 <TouchableOpacity
                   key={p}
                   style={[
                     styles.providerBtn,
-                    { backgroundColor: colors.bg },
+                    { backgroundColor: providerColors.bg },
                     isSelected && styles.providerSelected,
                   ]}
                   onPress={() => setMomoProvider(p)}
                 >
-                  <Text style={[styles.providerText, { color: colors.text }]}>{p}</Text>
+                  <Text style={[styles.providerText, { color: providerColors.text }]}>{p}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
 
           <Text style={styles.label}>MoMo Number</Text>
-          <TextInput style={styles.input} placeholder="Same as phone if left empty" placeholderTextColor={MUTED} value={momoNumber} onChangeText={setMomoNumber} keyboardType="phone-pad" />
+          <TextInput style={styles.input} placeholder="Same as phone if left empty" placeholderTextColor={colors.muted} value={momoNumber} onChangeText={setMomoNumber} keyboardType="phone-pad" />
 
           <Text style={styles.label}>Password *</Text>
-          <TextInput style={styles.input} placeholder="At least 6 characters" placeholderTextColor={MUTED} value={password} onChangeText={setPassword} secureTextEntry />
+          <TextInput style={styles.input} placeholder="At least 6 characters" placeholderTextColor={colors.muted} value={password} onChangeText={setPassword} secureTextEntry />
 
           <Text style={styles.label}>Confirm Password *</Text>
-          <TextInput style={styles.input} placeholder="Confirm your password" placeholderTextColor={MUTED} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
+          <TextInput style={styles.input} placeholder="Confirm your password" placeholderTextColor={colors.muted} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
 
           <TouchableOpacity style={[styles.btn, loading && { opacity: 0.6 }]} onPress={handleRegister} disabled={loading}>
-            {loading ? <ActivityIndicator color={WHITE} /> : <Text style={styles.btnText}>Create Account</Text>}
+            {loading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.btnText}>Create Account</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.navigate('Login')}>
@@ -136,43 +175,3 @@ export default function RegisterScreen({ navigation }: Props) {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
-  scroll: { flexGrow: 1, padding: 24, paddingTop: 60 },
-  logoSection: { alignItems: 'center', marginBottom: 32 },
-  logoBox: {
-    width: 64, height: 64, borderRadius: 20,
-    backgroundColor: DARK, justifyContent: 'center', alignItems: 'center', marginBottom: 12,
-  },
-  logoText: { fontSize: 32, fontWeight: '900', color: ACCENT },
-  logoName: { fontSize: 24, fontWeight: '900', color: DARK, letterSpacing: 6 },
-  logoSub: { fontSize: 12, color: MUTED, marginTop: 4 },
-  form: { backgroundColor: WHITE, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: BORDER },
-  formTitle: { fontSize: 20, fontWeight: '700', color: DARK, marginBottom: 4 },
-  formSub: { fontSize: 13, color: MUTED, marginBottom: 16 },
-  row: { flexDirection: 'row', gap: 10 },
-  half: { flex: 1 },
-  label: { fontSize: 12, color: MUTED, fontWeight: '600', marginBottom: 6, marginTop: 14 },
-  input: { backgroundColor: BG, borderRadius: 10, padding: 14, fontSize: 14, color: DARK, borderWidth: 1, borderColor: BORDER },
-  providerRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  providerBtn: {
-    flex: 1, padding: 13, borderRadius: 10,
-    alignItems: 'center', borderWidth: 0,
-    opacity: 0.75,
-  },
-  providerSelected: {
-    opacity: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  providerText: { fontSize: 13, fontWeight: '700' },
-  btn: { backgroundColor: DARK, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
-  btnText: { color: WHITE, fontSize: 16, fontWeight: '700' },
-  linkBtn: { alignItems: 'center', marginTop: 20 },
-  linkText: { color: MUTED, fontSize: 14 },
-  linkBold: { color: ACCENT, fontWeight: '700' },
-});
