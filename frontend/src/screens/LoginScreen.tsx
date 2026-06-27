@@ -15,6 +15,8 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
 };
 
+type LoginMethod = 'phone' | 'email';
+
 const createStyles = (c: ColorScheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
@@ -35,7 +37,35 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
   },
   formTitle: { fontSize: 20, fontWeight: '700', color: c.dark, marginBottom: 4 },
-  formSub: { fontSize: 13, color: c.muted, marginBottom: 24 },
+  formSub: { fontSize: 13, color: c.muted, marginBottom: 20 },
+  // Toggle
+  toggle: {
+    flexDirection: 'row',
+    backgroundColor: c.bg,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: c.border,
+    padding: 3,
+    marginBottom: 4,
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  toggleBtnActive: {
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.border,
+    shadowColor: c.dark,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  toggleText: { fontSize: 13, fontWeight: '600', color: c.muted },
+  toggleTextActive: { color: c.dark },
   label: { fontSize: 12, color: c.muted, fontWeight: '600', marginBottom: 6, marginTop: 16 },
   input: {
     backgroundColor: c.bg, borderRadius: 12, padding: 14,
@@ -54,20 +84,34 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
 export default function LoginScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const [loginMethod, setLoginMethod] = useState<LoginMethod>('phone');
   const [phone, setPhone] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const { signIn } = useAuth();
   const { showAlert } = useAppAlert();
 
   const handleLogin = async (): Promise<void> => {
-    if (!phone || !password) { showAlert('error', 'Error', 'Please enter your phone number and password'); return; }
+    const identifier = loginMethod === 'phone' ? phone : email;
+
+    if (!identifier || !password) {
+      showAlert('error', 'Error', `Please enter your ${loginMethod === 'phone' ? 'phone number' : 'email address'} and password`);
+      return;
+    }
+
+    if (loginMethod === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showAlert('error', 'Error', 'Please enter a valid email address');
+      return;
+    }
+
     setLoading(true);
     try {
-      const response = await login({ phone, password }) as { token: string; [key: string]: unknown };
+      const response = await login({ loginMethod, identifier, password }) as { token: string; [key: string]: unknown };
       await signIn(response);
     } catch (error) {
-      showAlert('error', 'Login Failed', (error as Error).message || 'Invalid phone number or password');
+      showAlert('error', 'Login Failed', (error as Error).message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
@@ -91,16 +135,58 @@ export default function LoginScreen({ navigation }: Props) {
           <Text style={styles.formTitle}>Welcome back</Text>
           <Text style={styles.formSub}>Log in to your account</Text>
 
-          <Text style={styles.label}>Phone Number</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 0241234567"
-            placeholderTextColor={colors.muted}
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-            autoCapitalize="none"
-          />
+          {/* Toggle */}
+          <View style={styles.toggle}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, loginMethod === 'phone' && styles.toggleBtnActive]}
+              onPress={() => setLoginMethod('phone')}
+            >
+              <Text style={[styles.toggleText, loginMethod === 'phone' && styles.toggleTextActive]}>
+                Phone number
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, loginMethod === 'email' && styles.toggleBtnActive]}
+              onPress={() => setLoginMethod('email')}
+            >
+              <Text style={[styles.toggleText, loginMethod === 'email' && styles.toggleTextActive]}>
+                Email address
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Phone input */}
+          {loginMethod === 'phone' && (
+            <>
+              <Text style={styles.label}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. 0241234567"
+                placeholderTextColor={colors.muted}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+              />
+            </>
+          )}
+
+          {/* Email input */}
+          {loginMethod === 'email' && (
+            <>
+              <Text style={styles.label}>Email Address</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. you@example.com"
+                placeholderTextColor={colors.muted}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </>
+          )}
 
           <Text style={styles.label}>Password</Text>
           <TextInput
