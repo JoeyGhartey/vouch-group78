@@ -1,8 +1,4 @@
-
-
-
-
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, ActivityIndicator, RefreshControl, LayoutAnimation,
@@ -17,7 +13,9 @@ import {
   getProfile, getMyCircles, getUnreadCount,
   getMyBorrowedLoans, getMyLentLoans,
 } from '../services/api';
+import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { ColorScheme } from '../theme/colors';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -57,21 +55,145 @@ interface Loan {
   createdAt: string;
 }
 
-const BG = '#EDEEF2';
-const WHITE = '#FFFFFF';
-const DARK = '#0f172a';
-const CARD = '#0f172a';
-const MUTED = '#6B7280';
-const BORDER = '#E5E7EB';
-const GOLD = '#D4A017'; // trust score ring only
-const ACCENT = '#C9A84C';
+// Hero card colors (always dark regardless of theme)
+const HERO_BG = '#0f172a';
+const HERO_BORDER = '#1e293b';
+const HERO_MUTED = '#64748b';
+const HERO_SUBTLE = '#94a3b8';
 const RING_BG = '#394856';
-const SUCCESS = '#16a34a';
-const DANGER = '#dc2626';
-const WARNING = '#d97706';
+const GOLD = '#D4A017';
+
 const ACTIVE_STATUSES = ['ACTIVE', 'DUE', 'GRACE_PERIOD'];
 
+const getTrustColor = (s: number) => s >= 75 ? '#16a34a' : s >= 50 ? GOLD : '#dc2626';
+const getTrustLabel = (s: number) => s >= 75 ? 'Excellent' : s >= 50 ? 'Neutral' : 'Low';
+
+const createStyles = (c: ColorScheme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.bg },
+
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: c.surface, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
+    borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  greeting: { fontSize: 13, color: c.muted },
+  name: { fontSize: 22, fontWeight: '700', color: c.dark, letterSpacing: -0.3, marginTop: 2 },
+  bellBtn: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: c.bg, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: c.border,
+  },
+  badge: {
+    position: 'absolute', top: -2, right: -2,
+    width: 16, height: 16, backgroundColor: c.danger,
+    borderRadius: 8, borderWidth: 2, borderColor: c.surface,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  badgeText: { fontSize: 8, color: c.surface, fontWeight: '800' },
+
+  // Hero card styles — hardcoded, always dark regardless of theme
+  heroCard: {
+    backgroundColor: HERO_BG, marginHorizontal: 16, marginTop: 16,
+    borderRadius: 20, overflow: 'hidden',
+  },
+  eyeBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 20, paddingTop: 18, paddingBottom: 4,
+  },
+  eyeText: { fontSize: 12, color: HERO_SUBTLE, fontWeight: '500' },
+  amountsRow: {
+    flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 16,
+  },
+  amountItem: { flex: 1 },
+  amountLabel: { fontSize: 12, color: HERO_MUTED, fontWeight: '500', marginBottom: 6 },
+  amountValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+  amountSub: { fontSize: 11, color: HERO_MUTED, marginTop: 4 },
+  amountDivider: { width: 1, backgroundColor: HERO_BORDER, marginHorizontal: 16 },
+  trustSection: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    borderTopWidth: 1, borderTopColor: HERO_BORDER,
+    paddingHorizontal: 20, paddingVertical: 16,
+  },
+  trustTextCol: { flex: 1, marginRight: 16 },
+  trustHeading: { fontSize: 11, color: HERO_MUTED, fontWeight: '700', letterSpacing: 0.8, marginBottom: 6 },
+  trustPill: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 },
+  pillDot: { width: 7, height: 7, borderRadius: 4 },
+  pillText: { fontSize: 13, fontWeight: '700' },
+  progressBg: { height: 4, backgroundColor: RING_BG, borderRadius: 4, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 4 },
+  ringWrapper: { width: 64, height: 64, justifyContent: 'center', alignItems: 'center' },
+  ringText: { position: 'absolute', fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  statsRow: {
+    flexDirection: 'row', borderTopWidth: 1, borderTopColor: HERO_BORDER,
+  },
+  statItem: { flex: 1, paddingVertical: 14, alignItems: 'center' },
+  statDivider: { borderRightWidth: 1, borderRightColor: HERO_BORDER },
+  statVal: { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
+  statLbl: { fontSize: 10, color: HERO_MUTED, fontWeight: '600', marginTop: 2 },
+
+  // Themed styles continued
+  activityHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginHorizontal: 16, marginTop: 24, marginBottom: 10,
+    backgroundColor: c.surface, borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: c.border,
+  },
+  activityToggle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  activityBadge: {
+    backgroundColor: c.accent, borderRadius: 10, width: 20, height: 20,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  activityBadgeText: { fontSize: 10, fontWeight: '800', color: c.surface },
+
+  activityList: { marginHorizontal: 16, gap: 8, marginBottom: 8 },
+  activityCard: {
+    backgroundColor: c.surface, borderRadius: 14, padding: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderWidth: 1, borderColor: c.border,
+  },
+  activityIconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  activityInfo: { flex: 1 },
+  activityTitle: { fontSize: 14, fontWeight: '600', color: c.dark },
+  activitySub: { fontSize: 11, color: c.muted, marginTop: 2 },
+  activityRight: { alignItems: 'flex-end', gap: 4 },
+  activityAmount: { fontSize: 14, fontWeight: '700' },
+  statusPill: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  statusText: { fontSize: 10, fontWeight: '700' },
+
+  sectionRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginHorizontal: 16, marginTop: 20, marginBottom: 10,
+  },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.muted, letterSpacing: 0.8 },
+  seeAll: { fontSize: 12, color: c.accent, fontWeight: '700' },
+
+  circleList: { marginHorizontal: 16, gap: 8 },
+  circleCard: {
+    backgroundColor: c.surface, borderRadius: 14, padding: 14,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    borderWidth: 1, borderColor: c.border,
+  },
+  circleLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  circleIconBox: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: c.bg, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: c.border,
+  },
+  circleName: { fontSize: 14, fontWeight: '600', color: c.dark },
+  circleMeta: { fontSize: 11, color: c.muted, marginTop: 2 },
+
+  emptyCard: {
+    backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
+    padding: 24, alignItems: 'center', borderWidth: 1, borderColor: c.border,
+  },
+  emptyText: { fontSize: 14, fontWeight: '600', color: c.dark, marginTop: 10, marginBottom: 4 },
+  emptySubText: { fontSize: 12, color: c.muted, textAlign: 'center' },
+});
+
 export default function HomeScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [circles, setCircles] = useState<Circle[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
@@ -113,7 +235,7 @@ export default function HomeScreen({ navigation }: Props) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={ACCENT} />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -122,9 +244,6 @@ export default function HomeScreen({ navigation }: Props) {
   const radius = 22;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (score / 100) * circumference;
-
-  const getTrustColor = (s: number) => s >= 75 ? SUCCESS : s >= 50 ? GOLD : DANGER;
-  const getTrustLabel = (s: number) => s >= 75 ? 'Excellent' : s >= 50 ? 'Neutral' : 'Low';
 
   const totalOwed = borrowedLoans
     .filter(l => ACTIVE_STATUSES.includes(l.status))
@@ -143,13 +262,13 @@ export default function HomeScreen({ navigation }: Props) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'ACTIVE': return SUCCESS;
-      case 'DUE': return WARNING;
-      case 'GRACE_PERIOD': return DANGER;
-      case 'REPAID': return SUCCESS;
-      case 'DEFAULTED': return DANGER;
-      case 'REQUESTED': return GOLD;
-      default: return MUTED;
+      case 'ACTIVE': return colors.success;
+      case 'DUE': return colors.warning;
+      case 'GRACE_PERIOD': return colors.danger;
+      case 'REPAID': return colors.success;
+      case 'DEFAULTED': return colors.danger;
+      case 'REQUESTED': return colors.warning;
+      default: return colors.muted;
     }
   };
 
@@ -173,7 +292,7 @@ export default function HomeScreen({ navigation }: Props) {
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={ACCENT} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={colors.accent} />}
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
@@ -183,7 +302,7 @@ export default function HomeScreen({ navigation }: Props) {
           <Text style={styles.name}>{profile?.firstName} {profile?.lastName}</Text>
         </View>
         <TouchableOpacity style={styles.bellBtn} onPress={() => navigation.navigate('Notifications')}>
-          <Ionicons name="notifications-outline" size={20} color={DARK} />
+          <Ionicons name="notifications-outline" size={20} color={colors.dark} />
           {unreadCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{unreadCount}</Text>
@@ -192,7 +311,7 @@ export default function HomeScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      {/* Dark Financial Card */}
+      {/* Dark Financial Card — hardcoded, not themed */}
       <View style={styles.heroCard}>
 
         {/* Eye toggle */}
@@ -294,7 +413,7 @@ export default function HomeScreen({ navigation }: Props) {
           <Ionicons
             name={activityExpanded ? 'chevron-up' : 'chevron-down'}
             size={16}
-            color={MUTED}
+            color={colors.muted}
           />
         </View>
       </TouchableOpacity>
@@ -303,7 +422,7 @@ export default function HomeScreen({ navigation }: Props) {
         <View style={styles.activityList}>
           {recentActivity.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Ionicons name="receipt-outline" size={28} color={MUTED} />
+              <Ionicons name="receipt-outline" size={28} color={colors.muted} />
               <Text style={styles.emptyText}>No activity yet</Text>
             </View>
           ) : (
@@ -314,12 +433,12 @@ export default function HomeScreen({ navigation }: Props) {
                 onPress={() => navigation.navigate('LoanDetail', { loanId: loan.id })}
               >
                 <View style={[styles.activityIconBox, {
-                  backgroundColor: loan.role === 'lender' ? '#f0fdf4' : '#fef2f2'
+                  backgroundColor: loan.role === 'lender' ? colors.successBgTint : colors.dangerBgTint
                 }]}>
                   <Ionicons
                     name={loan.role === 'lender' ? 'arrow-up-outline' : 'arrow-down-outline'}
                     size={18}
-                    color={loan.role === 'lender' ? SUCCESS : DANGER}
+                    color={loan.role === 'lender' ? colors.success : colors.danger}
                   />
                 </View>
                 <View style={styles.activityInfo}>
@@ -334,7 +453,7 @@ export default function HomeScreen({ navigation }: Props) {
                 </View>
                 <View style={styles.activityRight}>
                   <Text style={[styles.activityAmount, {
-                    color: loan.role === 'lender' ? SUCCESS : DANGER
+                    color: loan.role === 'lender' ? colors.success : colors.danger
                   }]}>
                     {loan.role === 'lender' ? '+' : '-'}GHS {loan.amount}
                   </Text>
@@ -362,7 +481,7 @@ export default function HomeScreen({ navigation }: Props) {
 
       {circles.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Ionicons name="people-outline" size={28} color={MUTED} />
+          <Ionicons name="people-outline" size={28} color={colors.muted} />
           <Text style={styles.emptyText}>No circles yet</Text>
           <Text style={styles.emptySubText}>Create a circle to start lending</Text>
         </View>
@@ -376,7 +495,7 @@ export default function HomeScreen({ navigation }: Props) {
             >
               <View style={styles.circleLeft}>
                 <View style={styles.circleIconBox}>
-                  <Ionicons name="people-outline" size={18} color={ACCENT} />
+                  <Ionicons name="people-outline" size={18} color={colors.accent} />
                 </View>
                 <View>
                   <Text style={styles.circleName}>{circle.name}</Text>
@@ -385,7 +504,7 @@ export default function HomeScreen({ navigation }: Props) {
                   </Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={15} color={MUTED} />
+              <Ionicons name="chevron-forward" size={15} color={colors.muted} />
             </TouchableOpacity>
           ))}
         </View>
@@ -395,128 +514,3 @@ export default function HomeScreen({ navigation }: Props) {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: BG },
-
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: WHITE, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
-    borderBottomWidth: 1, borderBottomColor: BORDER,
-  },
-  greeting: { fontSize: 13, color: MUTED },
-  name: { fontSize: 22, fontWeight: '700', color: DARK, letterSpacing: -0.3, marginTop: 2 },
-  bellBtn: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: BG, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: BORDER,
-  },
-  badge: {
-    position: 'absolute', top: -2, right: -2,
-    width: 16, height: 16, backgroundColor: DANGER,
-    borderRadius: 8, borderWidth: 2, borderColor: WHITE,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  badgeText: { fontSize: 8, color: WHITE, fontWeight: '800' },
-
-  heroCard: {
-    backgroundColor: CARD, marginHorizontal: 16, marginTop: 16,
-    borderRadius: 20, overflow: 'hidden',
-  },
-  eyeBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 20, paddingTop: 18, paddingBottom: 4,
-  },
-  eyeText: { fontSize: 12, color: '#94a3b8', fontWeight: '500' },
-
-  amountsRow: {
-    flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 16,
-  },
-  amountItem: { flex: 1 },
-  amountLabel: { fontSize: 12, color: '#64748b', fontWeight: '500', marginBottom: 6 },
-  amountValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
-  amountSub: { fontSize: 11, color: '#64748b', marginTop: 4 },
-  amountDivider: { width: 1, backgroundColor: '#1e293b', marginHorizontal: 16 },
-
-  trustSection: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    borderTopWidth: 1, borderTopColor: '#1e293b',
-    paddingHorizontal: 20, paddingVertical: 16,
-  },
-  trustTextCol: { flex: 1, marginRight: 16 },
-  trustHeading: { fontSize: 11, color: '#64748b', fontWeight: '700', letterSpacing: 0.8, marginBottom: 6 },
-  trustPill: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 },
-  pillDot: { width: 7, height: 7, borderRadius: 4 },
-  pillText: { fontSize: 13, fontWeight: '700' },
-  progressBg: { height: 4, backgroundColor: RING_BG, borderRadius: 4, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 4 },
-  ringWrapper: { width: 64, height: 64, justifyContent: 'center', alignItems: 'center' },
-  ringText: { position: 'absolute', fontSize: 13, fontWeight: '800', color: WHITE },
-
-  statsRow: {
-    flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#1e293b',
-  },
-  statItem: { flex: 1, paddingVertical: 14, alignItems: 'center' },
-  statDivider: { borderRightWidth: 1, borderRightColor: '#1e293b' },
-  statVal: { fontSize: 17, fontWeight: '800', color: WHITE },
-  statLbl: { fontSize: 10, color: '#64748b', fontWeight: '600', marginTop: 2 },
-
-  activityHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginHorizontal: 16, marginTop: 24, marginBottom: 10,
-    backgroundColor: WHITE, borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: BORDER,
-  },
-  activityToggle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  activityBadge: {
-    backgroundColor: ACCENT, borderRadius: 10, width: 20, height: 20,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  activityBadgeText: { fontSize: 10, fontWeight: '800', color: WHITE },
-
-  activityList: { marginHorizontal: 16, gap: 8, marginBottom: 8 },
-  activityCard: {
-    backgroundColor: WHITE, borderRadius: 14, padding: 14,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderWidth: 1, borderColor: BORDER,
-  },
-  activityIconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  activityInfo: { flex: 1 },
-  activityTitle: { fontSize: 14, fontWeight: '600', color: DARK },
-  activitySub: { fontSize: 11, color: MUTED, marginTop: 2 },
-  activityRight: { alignItems: 'flex-end', gap: 4 },
-  activityAmount: { fontSize: 14, fontWeight: '700' },
-  statusPill: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  statusText: { fontSize: 10, fontWeight: '700' },
-
-  sectionRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginHorizontal: 16, marginTop: 20, marginBottom: 10,
-  },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: MUTED, letterSpacing: 0.8 },
-  seeAll: { fontSize: 12, color: ACCENT, fontWeight: '700' },
-
-  circleList: { marginHorizontal: 16, gap: 8 },
-  circleCard: {
-    backgroundColor: WHITE, borderRadius: 14, padding: 14,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    borderWidth: 1, borderColor: BORDER,
-  },
-  circleLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  circleIconBox: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: BG, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: BORDER,
-  },
-  circleName: { fontSize: 14, fontWeight: '600', color: DARK },
-  circleMeta: { fontSize: 11, color: MUTED, marginTop: 2 },
-
-  emptyCard: {
-    backgroundColor: WHITE, marginHorizontal: 16, borderRadius: 14,
-    padding: 24, alignItems: 'center', borderWidth: 1, borderColor: BORDER,
-  },
-  emptyText: { fontSize: 14, fontWeight: '600', color: DARK, marginTop: 10, marginBottom: 4 },
-  emptySubText: { fontSize: 12, color: MUTED, textAlign: 'center' },
-
-});
