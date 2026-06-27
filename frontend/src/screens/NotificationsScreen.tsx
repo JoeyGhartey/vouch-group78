@@ -4,11 +4,17 @@ import {
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { getNotifications, markNotificationRead, markAllNotificationsRead, acceptInvite } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useTheme } from '../context/ThemeContext';
+import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+
+type Props = {
+  navigation: NativeStackNavigationProp<RootStackParamList>;
+};
 
 interface Notification {
   id: number;
@@ -52,7 +58,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   acceptBtnText: { color: c.surface, fontSize: 13, fontWeight: '600' },
 });
 
-export default function NotificationsScreen() {
+export default function NotificationsScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { showAlert } = useAppAlert();
@@ -180,7 +186,13 @@ export default function NotificationsScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[styles.notifCard, !item.read && styles.unread]}
-              onPress={() => !item.read && handleMarkRead(item.id)}
+              onPress={() => {
+                if (!item.read) handleMarkRead(item.id);
+                if (item.referenceId) {
+                  if (item.type.startsWith('CIRCLE_')) navigation.navigate('CircleDetail', { circleId: item.referenceId });
+                  else if (item.type.startsWith('LOAN_')) navigation.navigate('LoanDetail', { loanId: item.referenceId });
+                }
+              }}
               activeOpacity={0.7}
             >
               <View style={[styles.iconBox, { backgroundColor: `${getIconColor(item.type)}15` }]}>

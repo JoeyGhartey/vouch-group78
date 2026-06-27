@@ -248,7 +248,7 @@ export default function CirclesScreen({ navigation }: Props) {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={styles.modalBg}>
             <View style={styles.modal}>
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 <Text style={styles.modalTitle}>Create a Circle</Text>
 
                 <Text style={styles.label}>Circle Name *</Text>

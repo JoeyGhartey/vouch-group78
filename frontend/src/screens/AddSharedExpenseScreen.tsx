@@ -124,7 +124,7 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
         <View style={{ width: 50 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.form}>
 
           <Text style={styles.label}>Total Amount (GHS) *</Text>
@@ -147,7 +147,7 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
           />
 
           <Text style={styles.label}>Category</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4, marginBottom: 4 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 4, marginBottom: 4 }}>
             {CATEGORIES.map((cat) => (
               <TouchableOpacity
                 key={cat}

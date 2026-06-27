@@ -357,7 +357,7 @@ export default function ExpensesScreen() {
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <View style={styles.modalBg}>
             <View style={styles.modal}>
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 <Text style={styles.modalTitle}>Add Transaction</Text>
                 <View style={styles.typeRow}>
                   {['EXPENSE', 'INCOME'].map((t) => (
@@ -377,7 +377,7 @@ export default function ExpensesScreen() {
                 <Text style={styles.label}>Description *</Text>
                 <TextInput style={styles.input} placeholder="What was this for?" placeholderTextColor={colors.muted} value={newExpense.description} onChangeText={(t) => setNewExpense({ ...newExpense, description: t })} />
                 <Text style={styles.label}>Category</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4, marginBottom: 8 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 4, marginBottom: 8 }}>
                   {CATEGORIES.map((cat) => (
                     <TouchableOpacity key={cat} style={[styles.catChip, newExpense.category === cat && styles.catChipSel]} onPress={() => setNewExpense({ ...newExpense, category: cat })}>
                       <Text style={[styles.catChipText, newExpense.category === cat && styles.catChipTextSel]}>{cat}</Text>
@@ -403,7 +403,7 @@ export default function ExpensesScreen() {
             <View style={styles.modal}>
               <Text style={styles.modalTitle}>Set Spending Limit</Text>
               <Text style={styles.label}>Category</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 4, marginBottom: 8 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 4, marginBottom: 8 }}>
                 {CATEGORIES.map((cat) => (
                   <TouchableOpacity key={cat} style={[styles.catChip, newLimit.category === cat && styles.catChipSel]} onPress={() => setNewLimit({ ...newLimit, category: cat })}>
                     <Text style={[styles.catChipText, newLimit.category === cat && styles.catChipTextSel]}>{cat}</Text>

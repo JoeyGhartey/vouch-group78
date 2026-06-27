@@ -94,7 +94,7 @@ export default function RequestLoanScreen({ route, navigation }: Props) {
         <View style={{ width: 50 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.form}>
 
           <Text style={styles.label}>Amount (GHS) *</Text>

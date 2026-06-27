@@ -200,7 +200,7 @@ export default function AdminScreen({ navigation }: Props) {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.modalBg}>
-            <ScrollView style={{ width: '100%' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }}>
+            <ScrollView style={{ width: '100%' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }} keyboardShouldPersistTaps="handled">
               <View style={styles.modal}>
                 <Text style={styles.modalTitle}>Resolve Dispute</Text>
                 {selectedDispute && (
