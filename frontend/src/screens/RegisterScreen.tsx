@@ -19,6 +19,12 @@ const MUTED = '#6B7280';
 const BORDER = '#E5E7EB';
 const ACCENT = '#C9A84C';
 
+const PROVIDER_STYLES: Record<string, { bg: string; text: string }> = {
+  MTN:        { bg: '#FFC300', text: '#1a1a1a' },
+  Telecel:    { bg: '#CC0000', text: '#FFFFFF' },
+  AirtelTigo: { bg: '#005DAA', text: '#FFFFFF' },
+};
+
 export default function RegisterScreen({ navigation }: Props) {
   const [firstName, setFirstName] = useState<string>('');
   const [lastName, setLastName] = useState<string>('');
@@ -88,11 +94,23 @@ export default function RegisterScreen({ navigation }: Props) {
 
           <Text style={styles.label}>MoMo Provider</Text>
           <View style={styles.providerRow}>
-            {providers.map((p) => (
-              <TouchableOpacity key={p} style={[styles.providerBtn, momoProvider === p && styles.providerSel]} onPress={() => setMomoProvider(p)}>
-                <Text style={[styles.providerText, momoProvider === p && styles.providerTextSel]}>{p}</Text>
-              </TouchableOpacity>
-            ))}
+            {providers.map((p) => {
+              const colors = PROVIDER_STYLES[p];
+              const isSelected = momoProvider === p;
+              return (
+                <TouchableOpacity
+                  key={p}
+                  style={[
+                    styles.providerBtn,
+                    { backgroundColor: colors.bg },
+                    isSelected && styles.providerSelected,
+                  ]}
+                  onPress={() => setMomoProvider(p)}
+                >
+                  <Text style={[styles.providerText, { color: colors.text }]}>{p}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           <Text style={styles.label}>MoMo Number</Text>
@@ -138,10 +156,20 @@ const styles = StyleSheet.create({
   label: { fontSize: 12, color: MUTED, fontWeight: '600', marginBottom: 6, marginTop: 14 },
   input: { backgroundColor: BG, borderRadius: 10, padding: 14, fontSize: 14, color: DARK, borderWidth: 1, borderColor: BORDER },
   providerRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  providerBtn: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: BG, alignItems: 'center', borderWidth: 1.5, borderColor: BORDER },
-  providerSel: { backgroundColor: DARK, borderColor: DARK },
-  providerText: { color: MUTED, fontSize: 13, fontWeight: '600' },
-  providerTextSel: { color: WHITE },
+  providerBtn: {
+    flex: 1, padding: 13, borderRadius: 10,
+    alignItems: 'center', borderWidth: 0,
+    opacity: 0.75,
+  },
+  providerSelected: {
+    opacity: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  providerText: { fontSize: 13, fontWeight: '700' },
   btn: { backgroundColor: DARK, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
   btnText: { color: WHITE, fontSize: 16, fontWeight: '700' },
   linkBtn: { alignItems: 'center', marginTop: 20 },
