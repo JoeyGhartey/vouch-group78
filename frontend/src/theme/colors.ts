@@ -45,6 +45,7 @@ export interface ColorScheme {
   // Accent variants
   accentDark: string;
   accentMuted: string;
+  heroCardBg: string;
 }
 
 export const lightColors: ColorScheme = {
@@ -86,6 +87,7 @@ export const lightColors: ColorScheme = {
 
   accentDark: '#D4A017',
   accentMuted: '#394856',
+  heroCardBg: '#0f172a',
 };
 
 export const darkColors: ColorScheme = {
@@ -127,4 +129,5 @@ export const darkColors: ColorScheme = {
 
   accentDark: '#e0b83a',
   accentMuted: '#9E9E9E',
+  heroCardBg: '#1E1E1E',
 };

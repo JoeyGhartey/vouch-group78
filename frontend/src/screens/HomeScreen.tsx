@@ -94,7 +94,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
 
   // Hero card styles — hardcoded, always dark regardless of theme
   heroCard: {
-    backgroundColor: HERO_BG, marginHorizontal: 16, marginTop: 16,
+    backgroundColor: c.heroCardBg, marginHorizontal: 16, marginTop: 16,
     borderRadius: 20, overflow: 'hidden',
   },
   eyeBtn: {
