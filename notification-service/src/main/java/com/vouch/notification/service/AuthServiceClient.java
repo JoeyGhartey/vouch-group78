@@ -25,4 +25,13 @@ public class AuthServiceClient {
         }
         return ((Number) response.get("id")).longValue();
     }
+
+    @SuppressWarnings("unchecked")
+    public String getPushToken(Long userId) {
+        Map<String, Object> response = restTemplate.getForObject(
+                authServiceUrl + "/api/internal/users/" + userId + "/push-token", Map.class);
+        if (response == null) return null;
+        String token = (String) response.get("pushToken");
+        return (token != null && !token.isEmpty()) ? token : null;
+    }
 }

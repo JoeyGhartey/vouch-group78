@@ -3,17 +3,22 @@ package com.vouch.notification.service;
 import com.vouch.notification.entity.Notification;
 import com.vouch.notification.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final AuthServiceClient authServiceClient;
+    private final RestTemplate restTemplate;
 
     public Map<String, Object> send(Long userId, String title, String message, String type, Long referenceId) {
         Notification notification = Notification.builder()
@@ -24,6 +29,28 @@ public class NotificationService {
                 .referenceId(referenceId)
                 .build();
         Notification saved = notificationRepository.save(notification);
+
+        try {
+            String pushToken = authServiceClient.getPushToken(userId);
+            if (pushToken != null) {
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                Map<String, Object> pushBody = Map.of(
+                    "to", pushToken,
+                    "title", title,
+                    "body", message,
+                    "data", Map.of("type", type, "referenceId", referenceId != null ? referenceId : 0)
+                );
+                restTemplate.postForObject(
+                    "https://exp.host/--/api/v2/push/send",
+                    new HttpEntity<>(pushBody, headers),
+                    Map.class
+                );
+            }
+        } catch (Exception e) {
+            log.warn("Push delivery failed for user {}: {}", userId, e.getMessage());
+        }
+
         return mapToResponse(saved);
     }
 

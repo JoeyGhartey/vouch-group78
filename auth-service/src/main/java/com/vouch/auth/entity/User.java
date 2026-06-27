@@ -71,6 +71,8 @@ public class User {
 
     private LocalDateTime lastActive;
 
+    private String pushToken;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

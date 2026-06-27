@@ -77,4 +77,11 @@ public class AuthService {
                 .message("Login successful")
                 .build();
     }
+
+    public void savePushToken(String phone, String pushToken) {
+        User user = userRepository.findByPhone(phone)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setPushToken(pushToken);
+        userRepository.save(user);
+    }
 }

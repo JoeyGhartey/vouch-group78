@@ -81,6 +81,7 @@ const request = async <T = unknown>(
 // Auth
 export const register = (data: unknown) => request('/auth/register', 'POST', data);
 export const login = (data: unknown) => request('/auth/login', 'POST', data);
+export const registerPushToken = (token: string) => request('/auth/push-token', 'POST', { token });
 
 // Profile
 export const getProfile = () => request('/profile');

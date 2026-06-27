@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/internal/users")
 @RequiredArgsConstructor
@@ -28,6 +30,13 @@ public class InternalUserController {
         User user = userRepository.findByPhone(phone)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return ResponseEntity.ok(buildResponse(user));
+    }
+
+    @GetMapping("/{userId}/push-token")
+    public ResponseEntity<Map<String, String>> getPushToken(@PathVariable Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return ResponseEntity.ok(Map.of("pushToken", user.getPushToken() != null ? user.getPushToken() : ""));
     }
 
     private UserProfileResponse buildResponse(User u) {

@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { loadToken, saveToken, clearToken, getProfile } from '../services/api';
+import { loadToken, saveToken, clearToken, getProfile, registerPushToken } from '../services/api';
+import { registerForPushNotifications } from '../utils/pushNotifications';
 
 interface UserProfile {
   id: number;
@@ -24,6 +25,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
+  const syncPushToken = async (): Promise<void> => {
+    try {
+      const pushToken = await registerForPushNotifications();
+      if (pushToken) await registerPushToken(pushToken);
+    } catch (e) {
+      console.warn('Push token sync failed:', e);
+    }
+  };
+
   const fetchProfile = async (): Promise<void> => {
     try {
       const profile = await getProfile() as UserProfile;
@@ -39,6 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const token = await loadToken();
       if (token) {
         await fetchProfile();
+        syncPushToken();
       }
       setLoading(false);
     };
@@ -48,6 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signIn = async (loginResponse: { token: string; [key: string]: unknown }): Promise<void> => {
     await saveToken(loginResponse.token);
     await fetchProfile();
+    syncPushToken();
   };
 
   const signOut = async (): Promise<void> => {

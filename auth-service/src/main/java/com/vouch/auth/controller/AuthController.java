@@ -8,6 +8,7 @@ import com.vouch.auth.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -41,6 +42,15 @@ public class AuthController {
             return ResponseEntity.ok(Map.of("valid", true, "phone", phone));
         }
         return ResponseEntity.status(401).body(Map.of("valid", false, "message", "Token expired or invalid"));
+    }
+
+    @PostMapping("/push-token")
+    public ResponseEntity<Map<String, String>> registerPushToken(
+            Authentication auth,
+            @RequestBody Map<String, String> body) {
+        if (auth == null) return ResponseEntity.status(401).body(Map.of("message", "Unauthorized"));
+        authService.savePushToken(auth.getName(), body.get("token"));
+        return ResponseEntity.ok(Map.of("message", "Push token saved"));
     }
 
     @GetMapping("/health")
