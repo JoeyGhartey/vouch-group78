@@ -1,11 +1,17 @@
 package com.vouch.auth.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
 public class LoginRequest {
-    // Can be either a phone number or email address
+
+    @NotBlank(message = "Please enter your phone number or email address")
     private String identifier;
-    private String loginMethod; // "phone" or "email"
+
+    // "phone" or "email"
+    private String loginMethod;
+
+    @NotBlank(message = "Please enter your password")
     private String password;
 }
