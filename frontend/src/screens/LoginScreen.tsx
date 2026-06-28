@@ -17,6 +17,26 @@ type Props = {
 
 type LoginMethod = 'phone' | 'email';
 
+// Maps backend error messages to friendly user-facing messages
+const getFriendlyError = (message: string, loginMethod: LoginMethod): string => {
+  const msg = message.toLowerCase();
+  if (msg.includes('no account found') || msg.includes('user not found')) {
+    return loginMethod === 'email'
+      ? 'No account found with this email address. Please check or sign up.'
+      : 'No account found with this phone number. Please check or sign up.';
+  }
+  if (msg.includes('invalid password') || msg.includes('bad credentials') || msg.includes('unauthorized')) {
+    return 'Incorrect password. Please try again.';
+  }
+  if (msg.includes('banned') || msg.includes('permanent ban')) {
+    return 'Your account has been suspended. Please contact support.';
+  }
+  if (msg.includes('network') || msg.includes('failed to fetch') || msg.includes('connection')) {
+    return 'Connection error. Please check your internet and try again.';
+  }
+  return message || 'Something went wrong. Please try again.';
+};
+
 const createStyles = (c: ColorScheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
@@ -38,7 +58,6 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   },
   formTitle: { fontSize: 20, fontWeight: '700', color: c.dark, marginBottom: 4 },
   formSub: { fontSize: 13, color: c.muted, marginBottom: 20 },
-  // Toggle
   toggle: {
     flexDirection: 'row',
     backgroundColor: c.bg,
@@ -71,6 +90,12 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.bg, borderRadius: 12, padding: 14,
     fontSize: 15, color: c.dark, borderWidth: 1, borderColor: c.border,
   },
+  inputError: {
+    borderColor: '#dc2626',
+  },
+  errorText: {
+    fontSize: 11, color: '#dc2626', marginTop: 4, fontWeight: '500',
+  },
   btn: {
     backgroundColor: c.dark, borderRadius: 12, padding: 16,
     alignItems: 'center', marginTop: 24,
@@ -79,6 +104,8 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   linkBtn: { alignItems: 'center', marginTop: 20 },
   linkText: { color: c.muted, fontSize: 14 },
   linkBold: { color: c.accent, fontWeight: '700' },
+  forgotBtn: { alignItems: 'flex-end', marginTop: 6 },
+  forgotText: { fontSize: 12, color: c.accent, fontWeight: '600' },
 });
 
 export default function LoginScreen({ navigation }: Props) {
@@ -89,20 +116,31 @@ export default function LoginScreen({ navigation }: Props) {
   const [phone, setPhone] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [passwordError, setPasswordError] = useState<string>('');
+  const [identifierError, setIdentifierError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const { signIn } = useAuth();
   const { showAlert } = useAppAlert();
 
   const handleLogin = async (): Promise<void> => {
+    // Reset errors
+    setPasswordError('');
+    setIdentifierError('');
+
     const identifier = loginMethod === 'phone' ? phone : email;
 
-    if (!identifier || !password) {
-      showAlert('error', 'Error', `Please enter your ${loginMethod === 'phone' ? 'phone number' : 'email address'} and password`);
+    if (!identifier) {
+      setIdentifierError(loginMethod === 'phone' ? 'Please enter your phone number' : 'Please enter your email address');
       return;
     }
 
     if (loginMethod === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      showAlert('error', 'Error', 'Please enter a valid email address');
+      setIdentifierError('Please enter a valid email address');
+      return;
+    }
+
+    if (!password) {
+      setPasswordError('Please enter your password');
       return;
     }
 
@@ -111,7 +149,17 @@ export default function LoginScreen({ navigation }: Props) {
       const response = await login({ loginMethod, identifier, password }) as { token: string; [key: string]: unknown };
       await signIn(response);
     } catch (error) {
-      showAlert('error', 'Login Failed', (error as Error).message || 'Invalid credentials');
+      const raw = (error as Error).message || '';
+      const friendly = getFriendlyError(raw, loginMethod);
+
+      // Show inline error under password field for wrong password
+      if (raw.toLowerCase().includes('invalid password') || raw.toLowerCase().includes('bad credentials') || raw.toLowerCase().includes('unauthorized')) {
+        setPasswordError('Incorrect password. Please try again.');
+      } else if (raw.toLowerCase().includes('no account') || raw.toLowerCase().includes('user not found')) {
+        setIdentifierError(friendly);
+      } else {
+        showAlert('error', 'Login Failed', friendly);
+      }
     } finally {
       setLoading(false);
     }
@@ -139,7 +187,7 @@ export default function LoginScreen({ navigation }: Props) {
           <View style={styles.toggle}>
             <TouchableOpacity
               style={[styles.toggleBtn, loginMethod === 'phone' && styles.toggleBtnActive]}
-              onPress={() => setLoginMethod('phone')}
+              onPress={() => { setLoginMethod('phone'); setIdentifierError(''); }}
             >
               <Text style={[styles.toggleText, loginMethod === 'phone' && styles.toggleTextActive]}>
                 Phone number
@@ -147,7 +195,7 @@ export default function LoginScreen({ navigation }: Props) {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.toggleBtn, loginMethod === 'email' && styles.toggleBtnActive]}
-              onPress={() => setLoginMethod('email')}
+              onPress={() => { setLoginMethod('email'); setIdentifierError(''); }}
             >
               <Text style={[styles.toggleText, loginMethod === 'email' && styles.toggleTextActive]}>
                 Email address
@@ -160,14 +208,15 @@ export default function LoginScreen({ navigation }: Props) {
             <>
               <Text style={styles.label}>Phone Number</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, identifierError ? styles.inputError : null]}
                 placeholder="e.g. 0241234567"
                 placeholderTextColor={colors.muted}
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(t) => { setPhone(t); setIdentifierError(''); }}
                 keyboardType="phone-pad"
                 autoCapitalize="none"
               />
+              {identifierError ? <Text style={styles.errorText}>{identifierError}</Text> : null}
             </>
           )}
 
@@ -176,27 +225,29 @@ export default function LoginScreen({ navigation }: Props) {
             <>
               <Text style={styles.label}>Email Address</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, identifierError ? styles.inputError : null]}
                 placeholder="e.g. you@example.com"
                 placeholderTextColor={colors.muted}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => { setEmail(t); setIdentifierError(''); }}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
               />
+              {identifierError ? <Text style={styles.errorText}>{identifierError}</Text> : null}
             </>
           )}
 
           <Text style={styles.label}>Password</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, passwordError ? styles.inputError : null]}
             placeholder="Enter your password"
             placeholderTextColor={colors.muted}
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(t) => { setPassword(t); setPasswordError(''); }}
             secureTextEntry
           />
+          {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
           <TouchableOpacity
             style={[styles.btn, loading && { opacity: 0.6 }]}
