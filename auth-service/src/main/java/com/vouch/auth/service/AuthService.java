@@ -59,12 +59,24 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getPhone(), request.getPassword())
-        );
+        User user;
 
-        User user = userRepository.findByPhone(request.getPhone())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        if ("email".equals(request.getLoginMethod())) {
+            // Look up by email, then verify password manually
+            user = userRepository.findByEmail(request.getIdentifier())
+                    .orElseThrow(() -> new RuntimeException("No account found with this email address"));
+
+            if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+                throw new RuntimeException("Invalid password");
+            }
+        } else {
+            // Default: login by phone (original behaviour unchanged)
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())
+            );
+            user = userRepository.findByPhone(request.getIdentifier())
+                    .orElseThrow(() -> new RuntimeException("No account found with this phone number"));
+        }
 
         String token = jwtUtil.generateToken(user.getPhone());
 

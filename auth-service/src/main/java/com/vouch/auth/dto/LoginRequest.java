@@ -6,9 +6,12 @@ import lombok.*;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
 public class LoginRequest {
 
-    @NotBlank(message = "Phone number is required")
-    private String phone;
+    @NotBlank(message = "Please enter your phone number or email address")
+    private String identifier;
 
-    @NotBlank(message = "Password is required")
+    // "phone" or "email"
+    private String loginMethod;
+
+    @NotBlank(message = "Please enter your password")
     private String password;
 }
