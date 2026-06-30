@@ -14,4 +14,5 @@ public class PersonalExpenseRequest {
     private String category;
     private String type;
     private String transactionDate;
+    private Boolean overrideLimit;
 }
