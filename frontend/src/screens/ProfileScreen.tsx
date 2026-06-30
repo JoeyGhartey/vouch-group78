@@ -1,14 +1,17 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, TextInput, Modal, Alert,
+  ActivityIndicator, RefreshControl, TextInput, Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { getProfile, updateProfile, getBorrowerInsights, getLenderInsights } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { ColorScheme } from '../theme/colors';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList>;
@@ -61,16 +64,99 @@ interface LenderInsights {
   recommendations?: string[];
 }
 
-const BG = '#F8F9FA';
-const WHITE = '#FFFFFF';
-const DARK = '#0f172a';
-const MUTED = '#6B7280';
-const BORDER = '#E5E7EB';
-const ACCENT = '#C9A84C';
-const DANGER = '#dc2626';
-const SUCCESS = '#16a34a';
+const createStyles = (c: ColorScheme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.bg },
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: 20, paddingTop: 56, backgroundColor: c.surface,
+    borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  title: { color: c.dark, fontSize: 22, fontWeight: '700' },
+  editBtn: { color: c.accent, fontSize: 15, fontWeight: '600' },
+  profileCard: {
+    backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 16,
+    padding: 24, alignItems: 'center', marginTop: 16, marginBottom: 12,
+    borderWidth: 1, borderColor: c.border,
+  },
+  avatar: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: c.accent, justifyContent: 'center', alignItems: 'center', marginBottom: 12,
+  },
+  avatarText: { color: c.surface, fontSize: 26, fontWeight: '800' },
+  name: { color: c.dark, fontSize: 20, fontWeight: '700' },
+  phone: { color: c.muted, fontSize: 13, marginTop: 4 },
+  scoreContainer: { alignItems: 'center', marginTop: 12 },
+  score: { fontSize: 32, fontWeight: '800' },
+  scoreLabel: { color: c.slate400, fontSize: 12, marginTop: 2 },
+  statsCard: {
+    flexDirection: 'row', justifyContent: 'space-around',
+    backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
+    padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
+  },
+  statItem: { alignItems: 'center' },
+  statValue: { color: c.dark, fontSize: 20, fontWeight: '800' },
+  statLabel: { color: c.muted, fontSize: 11, marginTop: 4, textAlign: 'center' },
+  card: {
+    backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
+    padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
+  },
+  cardTitle: { color: c.dark, fontSize: 15, fontWeight: '700', marginBottom: 12 },
+  detailRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  detailLabel: { color: c.muted, fontSize: 13 },
+  detailValue: { color: c.dark, fontSize: 13, fontWeight: '600' },
+  tabRow: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 12 },
+  tab: { flex: 1, padding: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  activeTab: { borderBottomColor: c.accent },
+  tabText: { color: c.muted, fontSize: 13, fontWeight: '600' },
+  activeTabText: { color: c.accent },
+  recTitle: { color: c.accent, fontSize: 13, fontWeight: '700', marginBottom: 8 },
+  recText: { color: c.muted, fontSize: 13, marginBottom: 4 },
+  adminBtn: {
+    marginHorizontal: 16, marginTop: 8, padding: 16, borderRadius: 12,
+    backgroundColor: c.dark, alignItems: 'center', flexDirection: 'row', justifyContent: 'center',
+  },
+  adminBtnText: { color: c.surface, fontSize: 14, fontWeight: '700' },
+  appearanceSection: {
+    marginHorizontal: 16, marginTop: 16, backgroundColor: c.surface,
+    borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border,
+  },
+  appearanceTitle: { fontSize: 14, fontWeight: '700', color: c.dark, marginBottom: 12 },
+  themeRow: { flexDirection: 'row', gap: 10 },
+  themeBtn: {
+    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+    borderWidth: 1.5, borderColor: c.border, backgroundColor: c.bg,
+  },
+  themeBtnActive: { backgroundColor: c.buttonDark, borderColor: c.buttonDark },
+  themeBtnText: { fontSize: 12, fontWeight: '600', color: c.muted },
+  themeBtnTextActive: { color: c.buttonDarkText },
+  logoutBtn: {
+    marginHorizontal: 16, marginTop: 10, padding: 14, borderRadius: 12,
+    borderWidth: 1, borderColor: c.border, alignItems: 'center',
+    backgroundColor: c.surface, flexDirection: 'row', justifyContent: 'center',
+  },
+  logoutText: { color: c.danger, fontSize: 14, fontWeight: '700' },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
+  modal: { backgroundColor: c.surface, borderRadius: 16, padding: 24, maxHeight: '80%' as const },
+  modalTitle: { color: c.dark, fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 16 },
+  label: { color: c.muted, fontSize: 13, marginBottom: 6, marginTop: 12 },
+  input: {
+    backgroundColor: c.bg, borderRadius: 10, padding: 12,
+    fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border,
+  },
+  primaryBtn: { backgroundColor: c.dark, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 20 },
+  btnText: { color: c.surface, fontSize: 15, fontWeight: '700' },
+  cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
+  cancelText: { color: c.muted, fontSize: 14 },
+});
 
 export default function ProfileScreen({ navigation }: Props) {
+  const { colors, preference, setThemeOverride, resetToSystem } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { showAlert } = useAppAlert();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [borrowerInsights, setBorrowerInsights] = useState<BorrowerInsights | null>(null);
   const [lenderInsights, setLenderInsights] = useState<LenderInsights | null>(null);
@@ -108,9 +194,9 @@ export default function ProfileScreen({ navigation }: Props) {
       const updated = await updateProfile(editData);
       setProfile(updated as Profile);
       setShowEdit(false);
-      Alert.alert('Success', 'Profile updated');
+      showAlert('success', 'Success', 'Profile updated');
     } catch (e) {
-      Alert.alert('Error', (e as Error).message);
+      showAlert('error', 'Error', (e as Error).message);
     } finally {
       setSaving(false);
     }
@@ -128,9 +214,9 @@ export default function ProfileScreen({ navigation }: Props) {
     setShowEdit(true);
   };
 
-  const getTrustColor = (s: number): string => s >= 70 ? SUCCESS : s >= 40 ? ACCENT : DANGER;
+  const getTrustColor = (s: number): string => s >= 70 ? colors.success : s >= 40 ? colors.accent : colors.danger;
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={ACCENT} /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>;
 
   const editFields: [string, keyof EditData][] = [
     ['First Name', 'firstName'],
@@ -142,7 +228,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={ACCENT} />}>
+      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={colors.accent} />}>
         <View style={styles.header}>
           <Text style={styles.title}>Profile</Text>
           <TouchableOpacity onPress={openEdit}>
@@ -189,7 +275,7 @@ export default function ProfileScreen({ navigation }: Props) {
           ] as [string, string][]).map(([label, value], i) => (
             <View key={i} style={styles.detailRow}>
               <Text style={styles.detailLabel}>{label}</Text>
-              <Text style={[styles.detailValue, label === 'Borrowing Status' && value !== 'Active' && { color: DANGER }]}>
+              <Text style={[styles.detailValue, label === 'Borrowing Status' && value !== 'Active' && { color: colors.danger }]}>
                 {value}
               </Text>
             </View>
@@ -263,13 +349,36 @@ export default function ProfileScreen({ navigation }: Props) {
             style={styles.adminBtn}
             onPress={() => navigation.navigate('Admin')}
           >
-            <Ionicons name="shield-checkmark-outline" size={18} color={WHITE} style={{ marginRight: 8 }} />
+            <Ionicons name="shield-checkmark-outline" size={18} color={colors.surface} style={{ marginRight: 8 }} />
             <Text style={styles.adminBtnText}>Admin Panel — Open Disputes</Text>
           </TouchableOpacity>
         )}
 
+        <View style={styles.appearanceSection}>
+          <Text style={styles.appearanceTitle}>Appearance</Text>
+          <View style={styles.themeRow}>
+            {(['system', 'light', 'dark'] as const).map((opt) => (
+              <TouchableOpacity
+                key={opt}
+                style={[styles.themeBtn, preference === opt && styles.themeBtnActive]}
+                onPress={() => opt === 'system' ? resetToSystem() : setThemeOverride(opt)}
+              >
+                <Ionicons
+                  name={opt === 'system' ? 'phone-portrait-outline' : opt === 'light' ? 'sunny-outline' : 'moon-outline'}
+                  size={16}
+                  color={preference === opt ? colors.buttonDarkText : colors.muted}
+                  style={{ marginBottom: 4 }}
+                />
+                <Text style={[styles.themeBtnText, preference === opt && styles.themeBtnTextActive]}>
+                  {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
         <TouchableOpacity style={styles.logoutBtn} onPress={signOut}>
-          <Ionicons name="log-out-outline" size={16} color={DANGER} style={{ marginRight: 6 }} />
+          <Ionicons name="log-out-outline" size={16} color={colors.danger} style={{ marginRight: 6 }} />
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
@@ -287,12 +396,12 @@ export default function ProfileScreen({ navigation }: Props) {
                   style={styles.input}
                   value={editData[key]}
                   onChangeText={(t) => setEditData({ ...editData, [key]: t })}
-                  placeholderTextColor={MUTED}
+                  placeholderTextColor={colors.muted}
                 />
               </View>
             ))}
             <TouchableOpacity style={[styles.primaryBtn, saving && { opacity: 0.6 }]} onPress={handleEdit} disabled={saving}>
-              {saving ? <ActivityIndicator color={WHITE} /> : <Text style={styles.btnText}>Save Changes</Text>}
+              {saving ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.btnText}>Save Changes</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowEdit(false)}>
               <Text style={styles.cancelText}>Cancel</Text>
@@ -303,78 +412,3 @@ export default function ProfileScreen({ navigation }: Props) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: BG },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 20, paddingTop: 56, backgroundColor: WHITE,
-    borderBottomWidth: 1, borderBottomColor: BORDER,
-  },
-  title: { color: DARK, fontSize: 22, fontWeight: '700' },
-  editBtn: { color: ACCENT, fontSize: 15, fontWeight: '600' },
-  profileCard: {
-    backgroundColor: DARK, marginHorizontal: 16, borderRadius: 16,
-    padding: 24, alignItems: 'center', marginTop: 16, marginBottom: 12,
-  },
-  avatar: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: ACCENT, justifyContent: 'center', alignItems: 'center', marginBottom: 12,
-  },
-  avatarText: { color: WHITE, fontSize: 26, fontWeight: '800' },
-  name: { color: WHITE, fontSize: 20, fontWeight: '700' },
-  phone: { color: '#94a3b8', fontSize: 13, marginTop: 4 },
-  scoreContainer: { alignItems: 'center', marginTop: 12 },
-  score: { fontSize: 32, fontWeight: '800' },
-  scoreLabel: { color: '#94a3b8', fontSize: 12, marginTop: 2 },
-  statsCard: {
-    flexDirection: 'row', justifyContent: 'space-around',
-    backgroundColor: WHITE, marginHorizontal: 16, borderRadius: 14,
-    padding: 16, marginBottom: 12, borderWidth: 1, borderColor: BORDER,
-  },
-  statItem: { alignItems: 'center' },
-  statValue: { color: DARK, fontSize: 20, fontWeight: '800' },
-  statLabel: { color: MUTED, fontSize: 11, marginTop: 4, textAlign: 'center' },
-  card: {
-    backgroundColor: WHITE, marginHorizontal: 16, borderRadius: 14,
-    padding: 16, marginBottom: 12, borderWidth: 1, borderColor: BORDER,
-  },
-  cardTitle: { color: DARK, fontSize: 15, fontWeight: '700', marginBottom: 12 },
-  detailRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: BORDER,
-  },
-  detailLabel: { color: MUTED, fontSize: 13 },
-  detailValue: { color: DARK, fontSize: 13, fontWeight: '600' },
-  tabRow: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 12 },
-  tab: { flex: 1, padding: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  activeTab: { borderBottomColor: ACCENT },
-  tabText: { color: MUTED, fontSize: 13, fontWeight: '600' },
-  activeTabText: { color: ACCENT },
-  recTitle: { color: ACCENT, fontSize: 13, fontWeight: '700', marginBottom: 8 },
-  recText: { color: MUTED, fontSize: 13, marginBottom: 4 },
-  adminBtn: {
-    marginHorizontal: 16, marginTop: 8, padding: 16, borderRadius: 12,
-    backgroundColor: DARK, alignItems: 'center', flexDirection: 'row', justifyContent: 'center',
-  },
-  adminBtnText: { color: WHITE, fontSize: 14, fontWeight: '700' },
-  logoutBtn: {
-    marginHorizontal: 16, marginTop: 10, padding: 14, borderRadius: 12,
-    borderWidth: 1, borderColor: BORDER, alignItems: 'center',
-    backgroundColor: WHITE, flexDirection: 'row', justifyContent: 'center',
-  },
-  logoutText: { color: DANGER, fontSize: 14, fontWeight: '700' },
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
-  modal: { backgroundColor: WHITE, borderRadius: 16, padding: 24, maxHeight: '80%' as const },
-  modalTitle: { color: DARK, fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 16 },
-  label: { color: MUTED, fontSize: 13, marginBottom: 6, marginTop: 12 },
-  input: {
-    backgroundColor: BG, borderRadius: 10, padding: 12,
-    fontSize: 14, color: DARK, borderWidth: 1, borderColor: BORDER,
-  },
-  primaryBtn: { backgroundColor: DARK, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 20 },
-  btnText: { color: WHITE, fontSize: 15, fontWeight: '700' },
-  cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
-  cancelText: { color: MUTED, fontSize: 14 },
-});

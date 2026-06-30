@@ -1,9 +1,10 @@
 import * as SecureStore from 'expo-secure-store';
 
-//const API_URL = 'http://localhost:8080/api'; // Web
+// TODO: Revert to Render URL before next deployment
+// const API_URL = 'https://vouch-api-gateway.onrender.com/api';
+const API_URL = 'http://172.20.10.2:8080/api';
 // const API_URL = 'http://10.0.2.2:8080/api'; // Android emulator
 // const API_URL = 'http://YOUR_IP:8080/api'; // Physical device
-const API_URL = 'http://confidential.local:8080/api';
 let token: string | null = null;
 
 export const setToken = (newToken: string): void => {
@@ -80,6 +81,7 @@ const request = async <T = unknown>(
 // Auth
 export const register = (data: unknown) => request('/auth/register', 'POST', data);
 export const login = (data: unknown) => request('/auth/login', 'POST', data);
+export const registerPushToken = (token: string) => request('/auth/push-token', 'POST', { token });
 
 // Profile
 export const getProfile = () => request('/profile');
@@ -88,6 +90,7 @@ export const getUserProfile = (userId: number) => request(`/profile/${userId}`);
 
 // Circles
 export const getMyCircles = () => request('/circles');
+export const getPendingInvites = () => request('/circles/pending');
 export const getCircle = (circleId: number) => request(`/circles/${circleId}`);
 export const createCircle = (data: unknown) => request('/circles', 'POST', data);
 export const updateCircle = (circleId: number, data: unknown) => request(`/circles/${circleId}`, 'PUT', data);
@@ -95,6 +98,7 @@ export const inviteMember = (circleId: number, phone: string) => request(`/circl
 export const approveMember = (circleId: number, memberId: number) => request(`/circles/${circleId}/approve/${memberId}`, 'POST');
 export const removeMember = (circleId: number, userId: number) => request(`/circles/${circleId}/remove/${userId}`, 'POST');
 export const leaveCircle = (circleId: number) => request(`/circles/${circleId}/leave`, 'POST');
+export const acceptInvite = (circleId: number) => request(`/circles/${circleId}/accept`, 'POST');
 
 // Loans
 export const requestLoan = (data: unknown) => request('/loans/request', 'POST', data);

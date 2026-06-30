@@ -1,0 +1,69 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: GET,POST,PUT,DELETE,OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+
+      routes:
+        # Auth Service
+        - id: auth-service
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/auth/**
+        - id: auth-profile
+          uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/profile/**
+
+        # Notification Service
+        - id: notification-service
+          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/notifications/**
+
+        # Loan Service (circles + loans)
+        - id: loan-circles
+          uri: ${LOAN_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/circles/**
+        - id: loan-loans
+          uri: ${LOAN_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/loans/**
+
+        # Payment Service
+        - id: payment-service
+          uri: ${PAYMENT_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/payments/**
+
+        # Dispute Service
+        - id: dispute-service
+          uri: ${DISPUTE_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/disputes/**
+
+        # Expense Service
+        - id: expense-service
+          uri: ${EXPENSE_SERVICE_URL:http://localhost:8086}
+          predicates:
+            - Path=/api/expenses/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,gateway
+  endpoint:
+    gateway:
+      enabled: true

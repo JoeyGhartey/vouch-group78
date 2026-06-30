@@ -1,39 +1,65 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { loadToken, saveToken, clearToken } from '../services/api';
+import { loadToken, saveToken, clearToken, getProfile, registerPushToken } from '../services/api';
+import { registerForPushNotifications } from '../utils/pushNotifications';
 
-interface User {
-  token: string;
-  [key: string]: unknown;
+interface UserProfile {
+  id: number;
+  phone: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  trustScore: number;
+  role: string;
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: UserProfile | null;
   loading: boolean;
-  signIn: (userData: User) => Promise<void>;
+  signIn: (loginResponse: { token: string; [key: string]: unknown }) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
+  const syncPushToken = async (): Promise<void> => {
+    try {
+      const pushToken = await registerForPushNotifications();
+      if (pushToken) await registerPushToken(pushToken);
+    } catch (e) {
+      console.warn('Push token sync failed:', e);
+    }
+  };
+
+  const fetchProfile = async (): Promise<void> => {
+    try {
+      const profile = await getProfile() as UserProfile;
+      setUser(profile);
+    } catch {
+      await clearToken();
+      setUser(null);
+    }
+  };
+
   useEffect(() => {
+    const checkAuth = async (): Promise<void> => {
+      const token = await loadToken();
+      if (token) {
+        await fetchProfile();
+        syncPushToken();
+      }
+      setLoading(false);
+    };
     checkAuth();
   }, []);
 
-  const checkAuth = async (): Promise<void> => {
-    const token = await loadToken();
-    if (token) {
-      setUser({ token });
-    }
-    setLoading(false);
-  };
-
-  const signIn = async (userData: User): Promise<void> => {
-    await saveToken(userData.token);
-    setUser(userData);
+  const signIn = async (loginResponse: { token: string; [key: string]: unknown }): Promise<void> => {
+    await saveToken(loginResponse.token);
+    await fetchProfile();
+    syncPushToken();
   };
 
   const signOut = async (): Promise<void> => {

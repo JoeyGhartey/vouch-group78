@@ -1,25 +1,94 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { register } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { ColorScheme } from '../theme/colors';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Register'>;
 };
 
-const BG = '#F8F9FA';
-const WHITE = '#FFFFFF';
-const DARK = '#0f172a';
-const MUTED = '#6B7280';
-const BORDER = '#E5E7EB';
-const ACCENT = '#C9A84C';
+// MoMo provider brand colors — fixed, not themed
+const PROVIDER_STYLES: Record<string, { bg: string; text: string }> = {
+  MTN:        { bg: '#FFC300', text: '#1a1a1a' },
+  Telecel:    { bg: '#CC0000', text: '#FFFFFF' },
+  AirtelTigo: { bg: '#005DAA', text: '#FFFFFF' },
+};
+
+// Password strength checker
+const getPasswordStrength = (pwd: string): { score: number; label: string; color: string } => {
+  let score = 0;
+  if (pwd.length >= 8) score++;
+  if (/[A-Z]/.test(pwd)) score++;
+  if (/[0-9]/.test(pwd)) score++;
+  if (/[^A-Za-z0-9]/.test(pwd)) score++;
+
+  if (score === 0 || pwd.length === 0) return { score: 0, label: '', color: 'transparent' };
+  if (score === 1) return { score: 1, label: 'Weak', color: '#dc2626' };
+  if (score === 2) return { score: 2, label: 'Fair', color: '#d97706' };
+  if (score === 3) return { score: 3, label: 'Good', color: '#2563eb' };
+  return { score: 4, label: 'Strong', color: '#16a34a' };
+};
+
+const createStyles = (c: ColorScheme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
+  scroll: { flexGrow: 1, padding: 24, paddingTop: 60 },
+  logoSection: { alignItems: 'center', marginBottom: 32 },
+  logoBox: {
+    width: 64, height: 64, borderRadius: 20,
+    backgroundColor: c.dark, justifyContent: 'center', alignItems: 'center', marginBottom: 12,
+  },
+  logoText: { fontSize: 32, fontWeight: '900', color: c.accent },
+  logoName: { fontSize: 24, fontWeight: '900', color: c.dark, letterSpacing: 6 },
+  logoSub: { fontSize: 12, color: c.muted, marginTop: 4 },
+  form: { backgroundColor: c.surface, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: c.border },
+  formTitle: { fontSize: 20, fontWeight: '700', color: c.dark, marginBottom: 4 },
+  formSub: { fontSize: 13, color: c.muted, marginBottom: 16 },
+  row: { flexDirection: 'row', gap: 10 },
+  half: { flex: 1 },
+  label: { fontSize: 12, color: c.muted, fontWeight: '600', marginBottom: 6, marginTop: 14 },
+  input: { backgroundColor: c.bg, borderRadius: 10, padding: 14, fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border },
+  providerRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  providerBtn: {
+    flex: 1, padding: 13, borderRadius: 10,
+    alignItems: 'center', borderWidth: 0, opacity: 0.75,
+  },
+  providerSelected: {
+    opacity: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  providerText: { fontSize: 13, fontWeight: '700' },
+
+  // Password strength
+  strengthRow: { flexDirection: 'row', gap: 4, marginTop: 8 },
+  strengthBar: { flex: 1, height: 4, borderRadius: 4, backgroundColor: c.border },
+  strengthLabel: { fontSize: 11, fontWeight: '600', marginTop: 4 },
+  rulesBox: { marginTop: 8, gap: 3 },
+  ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ruleDot: { width: 6, height: 6, borderRadius: 3 },
+  ruleText: { fontSize: 11 },
+
+  btn: { backgroundColor: c.dark, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
+  btnText: { color: c.surface, fontSize: 16, fontWeight: '700' },
+  linkBtn: { alignItems: 'center', marginTop: 20 },
+  linkText: { color: c.muted, fontSize: 14 },
+  linkBold: { color: c.accent, fontWeight: '700' },
+});
 
 export default function RegisterScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [firstName, setFirstName] = useState<string>('');
   const [lastName, setLastName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
@@ -30,11 +99,36 @@ export default function RegisterScreen({ navigation }: Props) {
   const [momoNumber, setMomoNumber] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const { signIn } = useAuth();
+  const { showAlert } = useAppAlert();
+
+  const strength = getPasswordStrength(password);
+
+  const rules = [
+    { label: 'At least 6 characters', met: password.length >= 6 },
+    { label: 'One uppercase letter (A-Z)', met: /[A-Z]/.test(password) },
+    { label: 'One number (0-9)', met: /[0-9]/.test(password) },
+    { label: 'One special character (!@#$...)', met: /[^A-Za-z0-9]/.test(password) },
+  ];
 
   const handleRegister = async (): Promise<void> => {
-    if (!firstName || !lastName || !phone || !password) { Alert.alert('Error', 'Please fill in all required fields'); return; }
-    if (password.length < 6) { Alert.alert('Error', 'Password must be at least 6 characters'); return; }
-    if (password !== confirmPassword) { Alert.alert('Error', 'Passwords do not match'); return; }
+    if (!firstName || !lastName || !phone || !password) {
+      showAlert('error', 'Error', 'Please fill in all required fields'); return;
+    }
+    if (password.length < 6) {
+      showAlert('error', 'Weak Password', 'Password must be at least 8 characters'); return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      showAlert('error', 'Weak Password', 'Password must contain at least one uppercase letter'); return;
+    }
+    if (!/[0-9]/.test(password)) {
+      showAlert('error', 'Weak Password', 'Password must contain at least one number'); return;
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      showAlert('error', 'Weak Password', 'Password must contain at least one special character e.g. !@#$'); return;
+    }
+    if (password !== confirmPassword) {
+      showAlert('error', 'Error', 'Passwords do not match'); return;
+    }
     setLoading(true);
     try {
       const response = await register({
@@ -43,7 +137,7 @@ export default function RegisterScreen({ navigation }: Props) {
       }) as { token: string; [key: string]: unknown };
       await signIn(response);
     } catch (error) {
-      Alert.alert('Registration Failed', (error as Error).message || 'Could not create account');
+      showAlert('error', 'Registration Failed', (error as Error).message || 'Could not create account');
     } finally {
       setLoading(false);
     }
@@ -53,7 +147,7 @@ export default function RegisterScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
         {/* Logo */}
         <View style={styles.logoSection}>
@@ -72,40 +166,98 @@ export default function RegisterScreen({ navigation }: Props) {
           <View style={styles.row}>
             <View style={styles.half}>
               <Text style={styles.label}>First Name *</Text>
-              <TextInput style={styles.input} placeholder="First name" placeholderTextColor={MUTED} value={firstName} onChangeText={setFirstName} />
+              <TextInput style={styles.input} placeholder="First name" placeholderTextColor={colors.muted} value={firstName} onChangeText={setFirstName} />
             </View>
             <View style={styles.half}>
               <Text style={styles.label}>Last Name *</Text>
-              <TextInput style={styles.input} placeholder="Last name" placeholderTextColor={MUTED} value={lastName} onChangeText={setLastName} />
+              <TextInput style={styles.input} placeholder="Last name" placeholderTextColor={colors.muted} value={lastName} onChangeText={setLastName} />
             </View>
           </View>
 
           <Text style={styles.label}>Phone Number *</Text>
-          <TextInput style={styles.input} placeholder="e.g. 0241234567" placeholderTextColor={MUTED} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+          <TextInput style={styles.input} placeholder="e.g. 0241234567" placeholderTextColor={colors.muted} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
 
           <Text style={styles.label}>Email</Text>
-          <TextInput style={styles.input} placeholder="your@email.com" placeholderTextColor={MUTED} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          <TextInput style={styles.input} placeholder="your@email.com" placeholderTextColor={colors.muted} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
 
           <Text style={styles.label}>MoMo Provider</Text>
           <View style={styles.providerRow}>
-            {providers.map((p) => (
-              <TouchableOpacity key={p} style={[styles.providerBtn, momoProvider === p && styles.providerSel]} onPress={() => setMomoProvider(p)}>
-                <Text style={[styles.providerText, momoProvider === p && styles.providerTextSel]}>{p}</Text>
-              </TouchableOpacity>
-            ))}
+            {providers.map((p) => {
+              const providerColors = PROVIDER_STYLES[p];
+              const isSelected = momoProvider === p;
+              return (
+                <TouchableOpacity
+                  key={p}
+                  style={[
+                    styles.providerBtn,
+                    { backgroundColor: providerColors.bg },
+                    isSelected && styles.providerSelected,
+                  ]}
+                  onPress={() => setMomoProvider(p)}
+                >
+                  <Text style={[styles.providerText, { color: providerColors.text }]}>{p}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           <Text style={styles.label}>MoMo Number</Text>
-          <TextInput style={styles.input} placeholder="Same as phone if left empty" placeholderTextColor={MUTED} value={momoNumber} onChangeText={setMomoNumber} keyboardType="phone-pad" />
+          <TextInput style={styles.input} placeholder="Same as phone if left empty" placeholderTextColor={colors.muted} value={momoNumber} onChangeText={setMomoNumber} keyboardType="phone-pad" />
 
           <Text style={styles.label}>Password *</Text>
-          <TextInput style={styles.input} placeholder="At least 6 characters" placeholderTextColor={MUTED} value={password} onChangeText={setPassword} secureTextEntry />
+          <TextInput
+            style={styles.input}
+            placeholder="At least 6 characters"
+            placeholderTextColor={colors.muted}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          {/* Strength bars */}
+          {password.length > 0 && (
+            <>
+              <View style={styles.strengthRow}>
+                {[1, 2, 3, 4].map((i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.strengthBar,
+                      { backgroundColor: i <= strength.score ? strength.color : colors.border },
+                    ]}
+                  />
+                ))}
+              </View>
+              <Text style={[styles.strengthLabel, { color: strength.color }]}>
+                {strength.label}
+              </Text>
+
+              {/* Rules checklist */}
+              <View style={styles.rulesBox}>
+                {rules.map((rule, i) => (
+                  <View key={i} style={styles.ruleRow}>
+                    <View style={[styles.ruleDot, { backgroundColor: rule.met ? '#16a34a' : colors.muted }]} />
+                    <Text style={[styles.ruleText, { color: rule.met ? '#16a34a' : colors.muted }]}>
+                      {rule.label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
 
           <Text style={styles.label}>Confirm Password *</Text>
-          <TextInput style={styles.input} placeholder="Confirm your password" placeholderTextColor={MUTED} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
+          <TextInput
+            style={styles.input}
+            placeholder="Confirm your password"
+            placeholderTextColor={colors.muted}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+          />
 
           <TouchableOpacity style={[styles.btn, loading && { opacity: 0.6 }]} onPress={handleRegister} disabled={loading}>
-            {loading ? <ActivityIndicator color={WHITE} /> : <Text style={styles.btnText}>Create Account</Text>}
+            {loading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.btnText}>Create Account</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.navigate('Login')}>
@@ -118,33 +270,3 @@ export default function RegisterScreen({ navigation }: Props) {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
-  scroll: { flexGrow: 1, padding: 24, paddingTop: 60 },
-  logoSection: { alignItems: 'center', marginBottom: 32 },
-  logoBox: {
-    width: 64, height: 64, borderRadius: 20,
-    backgroundColor: DARK, justifyContent: 'center', alignItems: 'center', marginBottom: 12,
-  },
-  logoText: { fontSize: 32, fontWeight: '900', color: ACCENT },
-  logoName: { fontSize: 24, fontWeight: '900', color: DARK, letterSpacing: 6 },
-  logoSub: { fontSize: 12, color: MUTED, marginTop: 4 },
-  form: { backgroundColor: WHITE, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: BORDER },
-  formTitle: { fontSize: 20, fontWeight: '700', color: DARK, marginBottom: 4 },
-  formSub: { fontSize: 13, color: MUTED, marginBottom: 16 },
-  row: { flexDirection: 'row', gap: 10 },
-  half: { flex: 1 },
-  label: { fontSize: 12, color: MUTED, fontWeight: '600', marginBottom: 6, marginTop: 14 },
-  input: { backgroundColor: BG, borderRadius: 10, padding: 14, fontSize: 14, color: DARK, borderWidth: 1, borderColor: BORDER },
-  providerRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  providerBtn: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: BG, alignItems: 'center', borderWidth: 1.5, borderColor: BORDER },
-  providerSel: { backgroundColor: DARK, borderColor: DARK },
-  providerText: { color: MUTED, fontSize: 13, fontWeight: '600' },
-  providerTextSel: { color: WHITE },
-  btn: { backgroundColor: DARK, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
-  btnText: { color: WHITE, fontSize: 16, fontWeight: '700' },
-  linkBtn: { alignItems: 'center', marginTop: 20 },
-  linkText: { color: MUTED, fontSize: 14 },
-  linkBold: { color: ACCENT, fontWeight: '700' },
-});

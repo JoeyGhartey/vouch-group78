@@ -1,34 +1,72 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { getNotifications, markNotificationRead, markAllNotificationsRead } from '../services/api';
+import { getNotifications, markNotificationRead, markAllNotificationsRead, acceptInvite } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
+import { useTheme } from '../context/ThemeContext';
+import { RootStackParamList } from '../navigation/AppNavigator';
+import { ColorScheme } from '../theme/colors';
+
+type Props = {
+  navigation: NativeStackNavigationProp<RootStackParamList>;
+};
 
 interface Notification {
   id: number;
   title: string;
   message: string;
   type: string;
+  referenceId: number | null;
   read: boolean;
   createdAt: string;
 }
 
-const BG = '#F8F9FA';
-const WHITE = '#FFFFFF';
-const DARK = '#0f172a';
-const MUTED = '#6B7280';
-const BORDER = '#E5E7EB';
-const ACCENT = '#C9A84C';
-const DANGER = '#dc2626';
-const SUCCESS = '#16a34a';
+const createStyles = (c: ColorScheme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.bg },
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: c.surface, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
+    borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  title: { fontSize: 22, fontWeight: '700', color: c.dark },
+  markAllBtn: { backgroundColor: c.bg, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: c.border },
+  markAllText: { color: c.accent, fontSize: 12, fontWeight: '600' },
+  unreadBanner: { backgroundColor: c.warningBgTint, paddingHorizontal: 20, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.warningBorderTint },
+  unreadBannerText: { fontSize: 12, color: c.accent, fontWeight: '600' },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  emptyTitle: { fontSize: 17, fontWeight: '700', color: c.dark, marginTop: 12, marginBottom: 6 },
+  emptyText: { fontSize: 13, color: c.muted, textAlign: 'center' },
+  notifCard: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    backgroundColor: c.surface, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: c.border,
+  },
+  unread: { borderLeftWidth: 3, borderLeftColor: c.accent, backgroundColor: c.goldBgTint },
+  iconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  notifContent: { flex: 1 },
+  notifTitle: { fontSize: 14, fontWeight: '700', color: c.dark },
+  notifMessage: { fontSize: 13, color: c.muted, marginTop: 3, lineHeight: 18 },
+  notifTime: { fontSize: 11, color: c.muted, marginTop: 6 },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.accent, marginTop: 4 },
+  acceptBtn: { backgroundColor: c.accent, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, alignSelf: 'flex-start' },
+  acceptBtnText: { color: c.surface, fontSize: 13, fontWeight: '600' },
+});
 
-export default function NotificationsScreen() {
+export default function NotificationsScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { showAlert } = useAppAlert();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [acceptingId, setAcceptingId] = useState<number | null>(null);
+  const [acceptError, setAcceptError] = useState<Record<number, string>>({});
 
   const loadNotifications = async (): Promise<void> => {
     try {
@@ -62,33 +100,40 @@ export default function NotificationsScreen() {
     }
   };
 
+  const handleAcceptInvite = async (notifId: number, circleId: number): Promise<void> => {
+    setAcceptingId(notifId);
+    setAcceptError(prev => { const next = { ...prev }; delete next[notifId]; return next; });
+    try {
+      const result = await acceptInvite(circleId) as { message: string };
+      showAlert('success', 'Circle Joined', result.message);
+      markNotificationRead(notifId).catch(() => {});
+      setNotifications(prev => prev.filter(n => n.id !== notifId));
+    } catch (error) {
+      setAcceptError(prev => ({ ...prev, [notifId]: (error as Error).message }));
+    } finally {
+      setAcceptingId(null);
+    }
+  };
+
   const getIconName = (type: string): keyof typeof Ionicons.glyphMap => {
     const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
-      LOAN_REQUESTED: 'document-text-outline',
-      LOAN_FUNDED: 'cash-outline',
-      LOAN_AGREEMENT_READY: 'create-outline',
-      LOAN_AGREEMENT_SIGNED: 'checkmark-circle-outline',
-      LOAN_DISBURSED: 'arrow-up-circle-outline',
-      LOAN_REPAID: 'checkmark-done-outline',
-      LOAN_OVERDUE: 'warning-outline',
-      LOAN_GRACE_PERIOD: 'time-outline',
-      LOAN_DEFAULTED: 'alert-circle-outline',
-      CIRCLE_INVITE: 'people-outline',
-      CIRCLE_MEMBER_APPROVED: 'person-add-outline',
-      CIRCLE_MEMBER_REMOVED: 'person-remove-outline',
-      SHARED_EXPENSE_CREATED: 'receipt-outline',
-      DISPUTE_OPENED: 'scale-outline',
-      DISPUTE_RESOLVED: 'shield-checkmark-outline',
-      SPENDING_LIMIT_WARNING: 'warning-outline',
+      LOAN_REQUESTED: 'document-text-outline', LOAN_FUNDED: 'cash-outline',
+      LOAN_AGREEMENT_READY: 'create-outline', LOAN_AGREEMENT_SIGNED: 'checkmark-circle-outline',
+      LOAN_DISBURSED: 'arrow-up-circle-outline', LOAN_REPAID: 'checkmark-done-outline',
+      LOAN_OVERDUE: 'warning-outline', LOAN_GRACE_PERIOD: 'time-outline',
+      LOAN_DEFAULTED: 'alert-circle-outline', CIRCLE_INVITE: 'people-outline',
+      CIRCLE_MEMBER_APPROVED: 'person-add-outline', CIRCLE_MEMBER_REMOVED: 'person-remove-outline',
+      SHARED_EXPENSE_CREATED: 'receipt-outline', DISPUTE_OPENED: 'scale-outline',
+      DISPUTE_RESOLVED: 'shield-checkmark-outline', SPENDING_LIMIT_WARNING: 'warning-outline',
     };
     return icons[type] || 'notifications-outline';
   };
 
   const getIconColor = (type: string): string => {
-    if (['LOAN_DEFAULTED', 'LOAN_OVERDUE', 'DISPUTE_OPENED', 'CIRCLE_MEMBER_REMOVED'].includes(type)) return DANGER;
-    if (['LOAN_REPAID', 'LOAN_AGREEMENT_SIGNED', 'CIRCLE_MEMBER_APPROVED', 'DISPUTE_RESOLVED'].includes(type)) return SUCCESS;
-    if (['LOAN_DISBURSED', 'LOAN_FUNDED'].includes(type)) return ACCENT;
-    return MUTED;
+    if (['LOAN_DEFAULTED', 'LOAN_OVERDUE', 'DISPUTE_OPENED', 'CIRCLE_MEMBER_REMOVED'].includes(type)) return colors.danger;
+    if (['LOAN_REPAID', 'LOAN_AGREEMENT_SIGNED', 'CIRCLE_MEMBER_APPROVED', 'DISPUTE_RESOLVED'].includes(type)) return colors.success;
+    if (['LOAN_DISBURSED', 'LOAN_FUNDED'].includes(type)) return colors.accent;
+    return colors.muted;
   };
 
   const formatDate = (dateString: string): string => {
@@ -105,7 +150,7 @@ export default function NotificationsScreen() {
     return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   };
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={ACCENT} /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>;
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -128,7 +173,7 @@ export default function NotificationsScreen() {
 
       {notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="notifications-outline" size={48} color={MUTED} />
+          <Ionicons name="notifications-outline" size={48} color={colors.muted} />
           <Text style={styles.emptyTitle}>No notifications yet</Text>
           <Text style={styles.emptyText}>You'll see loan updates and circle activity here</Text>
         </View>
@@ -137,11 +182,17 @@ export default function NotificationsScreen() {
           data={notifications}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={{ padding: 16, gap: 8 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadNotifications(); }} tintColor={ACCENT} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadNotifications(); }} tintColor={colors.accent} />}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[styles.notifCard, !item.read && styles.unread]}
-              onPress={() => !item.read && handleMarkRead(item.id)}
+              onPress={() => {
+                if (!item.read) handleMarkRead(item.id);
+                if (item.referenceId) {
+                  if (item.type.startsWith('CIRCLE_')) navigation.navigate('CircleDetail', { circleId: item.referenceId });
+                  else if (item.type.startsWith('LOAN_')) navigation.navigate('LoanDetail', { loanId: item.referenceId });
+                }
+              }}
               activeOpacity={0.7}
             >
               <View style={[styles.iconBox, { backgroundColor: `${getIconColor(item.type)}15` }]}>
@@ -150,6 +201,22 @@ export default function NotificationsScreen() {
               <View style={styles.notifContent}>
                 <Text style={styles.notifTitle}>{item.title}</Text>
                 <Text style={styles.notifMessage}>{item.message}</Text>
+                {item.type === 'CIRCLE_INVITE' && item.referenceId != null && (
+                  <View style={{ marginTop: 8 }}>
+                    <TouchableOpacity
+                      style={[styles.acceptBtn, acceptingId === item.id && { opacity: 0.6 }]}
+                      onPress={() => handleAcceptInvite(item.id, item.referenceId!)}
+                      disabled={acceptingId === item.id}
+                    >
+                      {acceptingId === item.id
+                        ? <ActivityIndicator size="small" color={colors.surface} />
+                        : <Text style={styles.acceptBtnText}>Accept Invite</Text>}
+                    </TouchableOpacity>
+                    {acceptError[item.id] && (
+                      <Text style={{ color: colors.errorRed, fontSize: 12, marginTop: 4 }}>{acceptError[item.id]}</Text>
+                    )}
+                  </View>
+                )}
                 <Text style={styles.notifTime}>{formatDate(item.createdAt)}</Text>
               </View>
               {!item.read && <View style={styles.unreadDot} />}
@@ -160,33 +227,3 @@ export default function NotificationsScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: BG },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: WHITE, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
-    borderBottomWidth: 1, borderBottomColor: BORDER,
-  },
-  title: { fontSize: 22, fontWeight: '700', color: DARK },
-  markAllBtn: { backgroundColor: BG, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: BORDER },
-  markAllText: { color: ACCENT, fontSize: 12, fontWeight: '600' },
-  unreadBanner: { backgroundColor: '#FDF6E3', paddingHorizontal: 20, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F0E6C0' },
-  unreadBannerText: { fontSize: 12, color: ACCENT, fontWeight: '600' },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: DARK, marginTop: 12, marginBottom: 6 },
-  emptyText: { fontSize: 13, color: MUTED, textAlign: 'center' },
-  notifCard: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
-    backgroundColor: WHITE, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: BORDER,
-  },
-  unread: { borderLeftWidth: 3, borderLeftColor: ACCENT, backgroundColor: '#FFFDF5' },
-  iconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  notifContent: { flex: 1 },
-  notifTitle: { fontSize: 14, fontWeight: '700', color: DARK },
-  notifMessage: { fontSize: 13, color: MUTED, marginTop: 3, lineHeight: 18 },
-  notifTime: { fontSize: 11, color: MUTED, marginTop: 6 },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: ACCENT, marginTop: 4 },
-});
