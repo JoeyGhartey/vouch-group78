@@ -26,6 +26,10 @@ public class AuthService {
             throw new RuntimeException("Phone number already registered");
         }
 
+        if (request.getEmail() != null && !request.getEmail().isBlank() && userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Email already in use");
+        }
+
         User user = User.builder()
                 .phone(request.getPhone())
                 .password(passwordEncoder.encode(request.getPassword()))

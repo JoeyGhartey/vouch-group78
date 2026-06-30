@@ -110,7 +110,8 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryDivider: { width: 1, height: 40, backgroundColor: c.border },
   summaryLabel: { fontSize: 11, color: c.muted, fontWeight: '600', marginBottom: 4 },
-  summaryValue: { fontSize: 16, fontWeight: '800' },
+  summaryValue: { fontSize: 13, fontWeight: '800' },
+  summaryCurrency: { fontSize: 10, fontWeight: '500', color: c.muted },
   card: { backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border },
   cardTitle: { fontSize: 14, fontWeight: '700', color: c.dark, marginBottom: 12 },
   catRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border },
@@ -301,18 +302,22 @@ export default function ExpensesScreen() {
               <View style={styles.summaryRow}>
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryLabel}>Income</Text>
-                  <Text style={[styles.summaryValue, { color: colors.success }]}>GHS {summary.totalIncome?.toFixed(2)}</Text>
+                  <Text style={[styles.summaryValue, { color: colors.success }]} numberOfLines={2} adjustsFontSizeToFit>
+                    <Text style={styles.summaryCurrency}>GHS </Text>{summary.totalIncome?.toFixed(2)}
+                  </Text>
                 </View>
                 <View style={styles.summaryDivider} />
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryLabel}>Expenses</Text>
-                  <Text style={[styles.summaryValue, { color: colors.danger }]}>GHS {summary.totalExpenses?.toFixed(2)}</Text>
+                  <Text style={[styles.summaryValue, { color: colors.danger }]} numberOfLines={2} adjustsFontSizeToFit>
+                    <Text style={styles.summaryCurrency}>GHS </Text>{summary.totalExpenses?.toFixed(2)}
+                  </Text>
                 </View>
                 <View style={styles.summaryDivider} />
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryLabel}>Net</Text>
-                  <Text style={[styles.summaryValue, { color: (summary.netBalance ?? 0) >= 0 ? colors.success : colors.danger }]}>
-                    GHS {summary.netBalance?.toFixed(2)}
+                  <Text style={[styles.summaryValue, { color: (summary.netBalance ?? 0) >= 0 ? colors.success : colors.danger }]} numberOfLines={2} adjustsFontSizeToFit>
+                    <Text style={styles.summaryCurrency}>GHS </Text>{summary.netBalance?.toFixed(2)}
                   </Text>
                 </View>
               </View>
