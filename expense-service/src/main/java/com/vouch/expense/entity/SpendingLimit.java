@@ -2,6 +2,7 @@ package com.vouch.expense.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "spending_limits", uniqueConstraints = {
@@ -22,4 +23,16 @@ public class SpendingLimit {
 
     @Column(nullable = false)
     private Double monthlyLimit;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Integer lastNotifiedThreshold = 0;
+
+    @Column(nullable = false)
+    private LocalDateTime periodStart;
+
+    @PrePersist
+    protected void onCreate() {
+        if (periodStart == null) periodStart = LocalDateTime.now();
+    }
 }

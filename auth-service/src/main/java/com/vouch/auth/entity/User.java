@@ -25,6 +25,7 @@ public class User {
     @Column(nullable = false)
     private String lastName;
 
+    @Column(unique = true)
     private String email;
 
     private String momoProvider;

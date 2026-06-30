@@ -11,6 +11,7 @@ C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\entity\Expen
 C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\entity\PersonalExpense.java
 C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\entity\SharedExpense.java
 C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\entity\SpendingLimit.java
+C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\exception\SpendingLimitExceededException.java
 C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\ExpenseServiceApplication.java
 C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\repository\ExpenseSplitRepository.java
 C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\repository\PersonalExpenseRepository.java

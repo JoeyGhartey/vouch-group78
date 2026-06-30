@@ -2,12 +2,15 @@ import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput, Modal, ScrollView,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Dimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { LineChart } from 'react-native-chart-kit';
 import { getPersonalTransactions, addPersonalExpense, getMonthlySummary, getSpendingLimits, setSpendingLimit } from '../services/api';
+import { aggregateTransactions, ChartPeriod } from '../utils/chartData';
 import { useAppAlert } from '../components/AppAlert';
+import { useConfirmModal } from '../components/ConfirmModal';
 import { useTheme } from '../context/ThemeContext';
 import { ColorScheme } from '../theme/colors';
 
@@ -72,6 +75,32 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: '600', color: c.muted },
   activeTabText: { color: c.accent },
   section: { padding: 16, gap: 12 },
+  periodToggle: {
+    flexDirection: 'row', backgroundColor: c.bg, borderRadius: 10,
+    borderWidth: 1, borderColor: c.border, padding: 3,
+  },
+  periodBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
+  periodBtnActive: {
+    backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+    shadowColor: c.dark, shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06, shadowRadius: 2, elevation: 1,
+  },
+  periodText: { fontSize: 13, fontWeight: '600', color: c.muted },
+  periodTextActive: { color: c.dark },
+  chartCard: {
+    backgroundColor: c.surface, borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: c.border,
+  },
+  chartLabel: { fontSize: 13, fontWeight: '700', marginBottom: 4 },
+  tappedPoint: { fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 6 },
+  customBtn: { paddingVertical: 8, paddingHorizontal: 14, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: c.border, marginTop: 8 },
+  customBtnActive: { backgroundColor: c.surface, borderColor: c.accent },
+  customBtnText: { fontSize: 12, fontWeight: '600', color: c.muted },
+  customBtnTextActive: { color: c.accent },
+  customRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  customInput: { flex: 1, backgroundColor: c.bg, borderRadius: 8, padding: 10, fontSize: 13, color: c.dark, borderWidth: 1, borderColor: c.border, textAlign: 'center' },
+  customEmptyState: { paddingVertical: 40, alignItems: 'center', justifyContent: 'center' },
+  customEmptyText: { fontSize: 13, color: c.muted, textAlign: 'center' },
   summaryCard: {
     backgroundColor: c.surface, borderRadius: 16, padding: 20,
     borderWidth: 1, borderColor: c.border,
@@ -81,7 +110,8 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   summaryItem: { flex: 1, alignItems: 'center' },
   summaryDivider: { width: 1, height: 40, backgroundColor: c.border },
   summaryLabel: { fontSize: 11, color: c.muted, fontWeight: '600', marginBottom: 4 },
-  summaryValue: { fontSize: 16, fontWeight: '800' },
+  summaryValue: { fontSize: 13, fontWeight: '800' },
+  summaryCurrency: { fontSize: 10, fontWeight: '500', color: c.muted },
   card: { backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border },
   cardTitle: { fontSize: 14, fontWeight: '700', color: c.dark, marginBottom: 12 },
   catRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border },
@@ -126,6 +156,7 @@ export default function ExpensesScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { showAlert } = useAppAlert();
+  const { confirm } = useConfirmModal();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [limits, setLimits] = useState<LimitRecord[]>([]);
@@ -137,6 +168,11 @@ export default function ExpensesScreen() {
   const [adding, setAdding] = useState<boolean>(false);
   const [newExpense, setNewExpense] = useState<NewExpense>({ amount: '', description: '', category: 'Food', type: 'EXPENSE' });
   const [newLimit, setNewLimit] = useState<NewLimit>({ category: '', monthlyLimit: '' });
+  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('week');
+  const [tappedPoint, setTappedPoint] = useState<{ label: string; value: number; type: string } | null>(null);
+  const [customFrom, setCustomFrom] = useState<string>('');
+  const [customTo, setCustomTo] = useState<string>('');
+  const [showCustomRange, setShowCustomRange] = useState<boolean>(false);
 
   const now = new Date();
   const [year] = useState<number>(now.getFullYear());
@@ -162,6 +198,9 @@ export default function ExpensesScreen() {
 
   useFocusEffect(useCallback(() => { loadData(); }, []));
 
+  const chartData = useMemo(() => aggregateTransactions(transactions, chartPeriod, customFrom || undefined, customTo || undefined), [transactions, chartPeriod, customFrom, customTo]);
+  const screenWidth = Dimensions.get('window').width;
+
   const handleAdd = async (): Promise<void> => {
     if (!newExpense.amount || parseFloat(newExpense.amount) <= 0) { showAlert('error', 'Error', 'Enter a valid amount'); return; }
     if (!newExpense.description.trim()) { showAlert('error', 'Error', 'Enter a description'); return; }
@@ -177,7 +216,32 @@ export default function ExpensesScreen() {
       setNewExpense({ amount: '', description: '', category: 'Food', type: 'EXPENSE' });
       loadData();
     } catch (e) {
-      showAlert('error', 'Error', (e as Error).message);
+      const msg = (e as Error).message;
+      if (msg.includes('Spending limit exceeded')) {
+        setAdding(false);
+        const ok = await confirm('Limit Exceeded', msg, 'Add Anyway');
+        if (ok) {
+          setAdding(true);
+          try {
+            await addPersonalExpense({
+              amount: parseFloat(newExpense.amount),
+              description: newExpense.description,
+              category: newExpense.category,
+              type: newExpense.type,
+              overrideLimit: true,
+            });
+            setShowAdd(false);
+            setNewExpense({ amount: '', description: '', category: 'Food', type: 'EXPENSE' });
+            loadData();
+          } catch (retryError) {
+            showAlert('error', 'Error', (retryError as Error).message);
+          } finally {
+            setAdding(false);
+          }
+        }
+        return;
+      }
+      showAlert('error', 'Error', msg);
     } finally {
       setAdding(false);
     }
@@ -238,21 +302,84 @@ export default function ExpensesScreen() {
               <View style={styles.summaryRow}>
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryLabel}>Income</Text>
-                  <Text style={[styles.summaryValue, { color: colors.success }]}>GHS {summary.totalIncome?.toFixed(2)}</Text>
+                  <Text style={[styles.summaryValue, { color: colors.success }]} numberOfLines={2} adjustsFontSizeToFit>
+                    <Text style={styles.summaryCurrency}>GHS </Text>{summary.totalIncome?.toFixed(2)}
+                  </Text>
                 </View>
                 <View style={styles.summaryDivider} />
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryLabel}>Expenses</Text>
-                  <Text style={[styles.summaryValue, { color: colors.danger }]}>GHS {summary.totalExpenses?.toFixed(2)}</Text>
+                  <Text style={[styles.summaryValue, { color: colors.danger }]} numberOfLines={2} adjustsFontSizeToFit>
+                    <Text style={styles.summaryCurrency}>GHS </Text>{summary.totalExpenses?.toFixed(2)}
+                  </Text>
                 </View>
                 <View style={styles.summaryDivider} />
                 <View style={styles.summaryItem}>
                   <Text style={styles.summaryLabel}>Net</Text>
-                  <Text style={[styles.summaryValue, { color: (summary.netBalance ?? 0) >= 0 ? colors.success : colors.danger }]}>
-                    GHS {summary.netBalance?.toFixed(2)}
+                  <Text style={[styles.summaryValue, { color: (summary.netBalance ?? 0) >= 0 ? colors.success : colors.danger }]} numberOfLines={2} adjustsFontSizeToFit>
+                    <Text style={styles.summaryCurrency}>GHS </Text>{summary.netBalance?.toFixed(2)}
                   </Text>
                 </View>
               </View>
+            </View>
+
+            <View style={styles.chartCard}>
+              <View style={styles.periodToggle}>
+                {(['day', 'week', 'month', 'year'] as const).map((p) => (
+                  <TouchableOpacity key={p} style={[styles.periodBtn, chartPeriod === p && styles.periodBtnActive]} onPress={() => { setChartPeriod(p); setShowCustomRange(false); }}>
+                    <Text style={[styles.periodText, chartPeriod === p && styles.periodTextActive]}>
+                      {({ day: 'Day', week: 'Week', month: 'Month', year: 'Year' } as const)[p]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity
+                style={[styles.customBtn, chartPeriod === 'custom' && styles.customBtnActive]}
+                onPress={() => { setChartPeriod('custom'); setShowCustomRange(true); }}
+              >
+                <Text style={[styles.customBtnText, chartPeriod === 'custom' && styles.customBtnTextActive]}>Custom Range</Text>
+              </TouchableOpacity>
+              {showCustomRange && (
+                <View style={styles.customRow}>
+                  <TextInput style={styles.customInput} placeholder="From (YYYY-MM-DD)" placeholderTextColor={colors.muted} value={customFrom} onChangeText={setCustomFrom} />
+                  <TextInput style={styles.customInput} placeholder="To (YYYY-MM-DD)" placeholderTextColor={colors.muted} value={customTo} onChangeText={setCustomTo} />
+                </View>
+              )}
+
+              {chartPeriod === 'custom' && (!customFrom || !customTo) ? (
+                <View style={styles.customEmptyState}>
+                  <Text style={styles.customEmptyText}>Enter a date range above to view your expenses</Text>
+                </View>
+              ) : (
+                <LineChart
+                  data={{ labels: chartData.labels, datasets: [{ data: chartData.datasets[1].data }] }}
+                  width={screenWidth - 72}
+                  height={180}
+                  fromZero
+                  bezier
+                  withInnerLines={false}
+                  yAxisLabel="GHS "
+                  yAxisSuffix=""
+                  onDataPointClick={({ value, index }: { value: number; index: number }) => setTappedPoint({ label: chartData.labels[index], value, type: 'Expenses' })}
+                  chartConfig={{
+                    backgroundColor: colors.surface,
+                    backgroundGradientFrom: colors.surface,
+                    backgroundGradientTo: colors.surface,
+                    decimalPlaces: 0,
+                    color: () => colors.danger,
+                    labelColor: () => colors.muted,
+                    propsForDots: { r: '4', strokeWidth: '2', stroke: colors.danger },
+                    propsForLabels: { fontSize: 9 },
+                  }}
+                  style={{ borderRadius: 10, paddingBottom: 4 }}
+                />
+              )}
+
+              {tappedPoint && (
+                <Text style={[styles.tappedPoint, { color: colors.danger }]}>
+                  GHS {tappedPoint.value.toFixed(2)} on {tappedPoint.label}
+                </Text>
+              )}
             </View>
 
             {summary.categoryBreakdown && Object.keys(summary.categoryBreakdown).length > 0 && (

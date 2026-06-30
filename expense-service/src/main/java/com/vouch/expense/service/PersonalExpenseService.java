@@ -4,6 +4,7 @@ import com.vouch.expense.dto.PersonalExpenseRequest;
 import com.vouch.expense.dto.SpendingLimitRequest;
 import com.vouch.expense.entity.PersonalExpense;
 import com.vouch.expense.entity.SpendingLimit;
+import com.vouch.expense.exception.SpendingLimitExceededException;
 import com.vouch.expense.repository.PersonalExpenseRepository;
 import com.vouch.expense.repository.SpendingLimitRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,12 +31,15 @@ public class PersonalExpenseService {
         LocalDateTime txDate = request.getTransactionDate() != null
                 ? LocalDateTime.parse(request.getTransactionDate(), DateTimeFormatter.ISO_DATE_TIME) : LocalDateTime.now();
 
+        boolean override = request.getOverrideLimit() != null && request.getOverrideLimit();
+        if (type == PersonalExpense.TransactionType.EXPENSE) {
+            checkSpendingLimit(userId, request.getCategory(), request.getAmount(), override);
+        }
+
         PersonalExpense expense = PersonalExpense.builder()
                 .userId(userId).amount(request.getAmount()).description(request.getDescription())
                 .category(request.getCategory()).type(type).transactionDate(txDate).build();
         expense = personalExpenseRepository.save(expense);
-
-        if (type == PersonalExpense.TransactionType.EXPENSE) checkSpendingLimit(userId, request.getCategory());
 
         Map<String, Object> r = new HashMap<>();
         r.put("id", expense.getId()); r.put("amount", expense.getAmount()); r.put("description", expense.getDescription());
@@ -109,15 +113,48 @@ public class PersonalExpenseService {
         return "Spending limit deleted";
     }
 
-    private void checkSpendingLimit(Long userId, String category) {
+    private void checkSpendingLimit(Long userId, String category, double newAmount, boolean overrideLimit) {
         SpendingLimit limit = spendingLimitRepository.findByUserIdAndCategory(userId, category).orElse(null);
         if (limit == null) return;
-        LocalDateTime start = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
-        double spent = personalExpenseRepository.findByUserIdAndTransactionDateBetween(userId, start, start.plusMonths(1)).stream()
-                .filter(t -> t.getType() == PersonalExpense.TransactionType.EXPENSE && t.getCategory().equals(category))
-                .mapToDouble(PersonalExpense::getAmount).sum();
-        double pct = spent / limit.getMonthlyLimit() * 100;
-        if (pct >= 100) notificationServiceClient.send(userId, "Limit Exceeded", "You exceeded your GHS " + limit.getMonthlyLimit() + " limit for " + category, "SPENDING_LIMIT_WARNING", limit.getId());
-        else if (pct >= 90) notificationServiceClient.send(userId, "Limit Warning", Math.round(pct) + "% of your " + category + " limit used", "SPENDING_LIMIT_WARNING", limit.getId());
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if (limit.getPeriodStart() == null || now.isAfter(limit.getPeriodStart().plusDays(30))) {
+            limit.setPeriodStart(now);
+            limit.setLastNotifiedThreshold(0);
+            spendingLimitRepository.save(limit);
+        }
+
+        LocalDateTime periodEnd = limit.getPeriodStart().plusDays(30);
+        double currentSpent = personalExpenseRepository
+                .findByUserIdAndCategoryAndCreatedAtBetween(userId, category, limit.getPeriodStart(), periodEnd)
+                .stream()
+                .filter(t -> t.getType() == PersonalExpense.TransactionType.EXPENSE)
+                .mapToDouble(PersonalExpense::getAmount)
+                .sum();
+        double projectedSpent = currentSpent + newAmount;
+
+        double pct = (projectedSpent / limit.getMonthlyLimit()) * 100;
+
+        int[] thresholds = {50, 80, 90, 100};
+        int highest = 0;
+        for (int t : thresholds) {
+            if (pct >= t && t > limit.getLastNotifiedThreshold()) highest = t;
+        }
+
+        if (highest > 0) {
+            String title = highest >= 100 ? "Limit Reached" : "Limit Warning";
+            String msg = highest >= 100
+                    ? "You have reached your GHS " + limit.getMonthlyLimit().intValue() + " limit for " + category
+                    : highest + "% of your " + category + " limit used (GHS " + String.format("%.0f", projectedSpent) + " / " + limit.getMonthlyLimit().intValue() + ")";
+            notificationServiceClient.send(userId, title, msg, "SPENDING_LIMIT_WARNING", limit.getId());
+            limit.setLastNotifiedThreshold(highest);
+            spendingLimitRepository.save(limit);
+        }
+
+        if (pct >= 100 && !overrideLimit) {
+            throw new SpendingLimitExceededException(
+                    "Spending limit exceeded for " + category + " (GHS " + String.format("%.0f", projectedSpent) + " / " + limit.getMonthlyLimit().intValue() + ")");
+        }
     }
 }

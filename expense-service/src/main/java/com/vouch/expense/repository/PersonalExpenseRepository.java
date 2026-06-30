@@ -9,4 +9,5 @@ public interface PersonalExpenseRepository extends JpaRepository<PersonalExpense
     List<PersonalExpense> findByUserId(Long userId);
     List<PersonalExpense> findByUserIdAndCategory(Long userId, String category);
     List<PersonalExpense> findByUserIdAndTransactionDateBetween(Long userId, LocalDateTime start, LocalDateTime end);
+    List<PersonalExpense> findByUserIdAndCategoryAndCreatedAtBetween(Long userId, String category, LocalDateTime start, LocalDateTime end);
 }
