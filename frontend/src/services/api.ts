@@ -68,7 +68,19 @@ const request = async <T = unknown>(
     config.body = JSON.stringify(body);
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, config);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${endpoint}`, { ...config, signal: controller.signal });
+  } catch (e) {
+    if ((e as Error).name === 'AbortError') throw new Error('Request timed out — please try again');
+    throw e;
+  } finally {
+    clearTimeout(timeout);
+  }
+
   const data = await response.json();
 
   if (!response.ok) {
@@ -108,6 +120,9 @@ export const disburseLoan = (loanId: number) => request(`/loans/${loanId}/disbur
 export const repayLoan = (loanId: number, amount?: number) => request(`/loans/${loanId}/repay`, 'POST', amount ? { amount } : null);
 export const defaultLoan = (loanId: number) => request(`/loans/${loanId}/default`, 'POST');
 export const cancelLoan = (loanId: number) => request(`/loans/${loanId}/cancel`, 'POST');
+export const rejectAgreement = (loanId: number) => request(`/loans/${loanId}/reject`, 'POST');
+export const proposeCounterOffer = (loanId: number, newRate: number) => request(`/loans/${loanId}/counter-offer`, 'POST', { newRate });
+export const respondToCounterOffer = (loanId: number, accept: boolean) => request(`/loans/${loanId}/counter-offer/respond`, 'POST', { accept });
 export const getCircleLoans = (circleId: number) => request(`/loans/circle/${circleId}`);
 export const getCircleLoanRequests = (circleId: number) => request(`/loans/circle/${circleId}/requests`);
 export const getMyBorrowedLoans = () => request('/loans/borrowed');

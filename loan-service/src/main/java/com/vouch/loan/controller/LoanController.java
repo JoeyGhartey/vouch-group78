@@ -56,6 +56,22 @@ public class LoanController {
         return ResponseEntity.ok(loanService.cancelLoan(auth.getName(), loanId));
     }
 
+    @PostMapping("/{loanId}/reject")
+    public ResponseEntity<LoanResponse> rejectAgreement(Authentication auth, @PathVariable Long loanId) {
+        return ResponseEntity.ok(loanService.rejectAgreement(loanId, auth.getName()));
+    }
+
+    @PostMapping("/{loanId}/counter-offer")
+    public ResponseEntity<LoanResponse> proposeCounterOffer(Authentication auth, @PathVariable Long loanId, @RequestBody Map<String, Double> body) {
+        return ResponseEntity.ok(loanService.proposeCounterOffer(loanId, auth.getName(), body.get("newRate")));
+    }
+
+    @PostMapping("/{loanId}/counter-offer/respond")
+    public ResponseEntity<LoanResponse> respondToCounterOffer(Authentication auth, @PathVariable Long loanId, @RequestBody Map<String, Boolean> body) {
+        boolean accept = Boolean.TRUE.equals(body.get("accept"));
+        return ResponseEntity.ok(loanService.respondToCounterOffer(loanId, auth.getName(), accept));
+    }
+
     @GetMapping("/circle/{circleId}")
     public ResponseEntity<List<LoanResponse>> getCircleLoans(Authentication auth, @PathVariable Long circleId) {
         return ResponseEntity.ok(loanService.getCircleLoans(auth.getName(), circleId));

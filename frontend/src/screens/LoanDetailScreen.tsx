@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, TextInput, Modal,
@@ -11,6 +11,7 @@ import {
   getLoan, fundLoan, signAgreement, disburseLoan, repayLoan,
   cancelLoan, defaultLoan, openDispute, getProfile,
   initializeDisbursement, initializeRepayment, verifyPayment,
+  rejectAgreement, proposeCounterOffer, respondToCounterOffer,
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
@@ -34,6 +35,7 @@ interface Loan {
   lenderId?: number;
   circleName: string;
   interestRate: number;
+  counterOfferRate?: number | null;
   totalRepaymentAmount: number;
   amountRepaid: number;
   overdueInterestAccrued: number;
@@ -117,6 +119,17 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   calcText: { color: c.success, fontSize: 13, marginTop: 8, textAlign: 'center' },
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
   cancelText: { color: c.muted, fontSize: 15 },
+  actionRow: { flexDirection: 'row', gap: 10 },
+  counterCard: {
+    backgroundColor: c.warningBgTint, marginHorizontal: 16, borderRadius: 14,
+    padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.warningBorderTint,
+  },
+  counterTitle: { color: c.dark, fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  counterText: { color: c.muted, fontSize: 13, marginBottom: 12 },
+  counterRow: { flexDirection: 'row', gap: 10 },
+  counterAcceptBtn: { flex: 1, backgroundColor: c.success, borderRadius: 10, padding: 12, alignItems: 'center' },
+  counterDeclineBtn: { flex: 1, backgroundColor: c.danger, borderRadius: 10, padding: 12, alignItems: 'center' },
+  counterBtnText: { color: c.surface, fontSize: 14, fontWeight: '700' },
 });
 
 export default function LoanDetailScreen({ route, navigation }: Props) {
@@ -132,10 +145,13 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   const [showFund, setShowFund] = useState<boolean>(false);
   const [showRepay, setShowRepay] = useState<boolean>(false);
   const [showDispute, setShowDispute] = useState<boolean>(false);
+  const [showCounterOffer, setShowCounterOffer] = useState<boolean>(false);
+  const [counterRate, setCounterRate] = useState<string>('');
   const [interestRate, setInterestRate] = useState<string>('');
   const [repayAmount, setRepayAmount] = useState<string>('');
   const [disputeReason, setDisputeReason] = useState<string>('');
   const [disputeEvidence, setDisputeEvidence] = useState<string>('');
+  const confirmingRef = useRef(false);
 
   const loadData = async (): Promise<void> => {
     try {
@@ -181,6 +197,33 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     doAction(async () => { await signAgreement(loan!.id); }, 'Agreement signed.');
   };
 
+  const handleReject = async (): Promise<void> => {
+    const ok = await confirm('Reject Agreement', 'Reject this funding offer? The loan will be open for another lender to fund.', 'Reject');
+    if (!ok) return;
+    doAction(async () => { await rejectAgreement(loan!.id); }, 'Agreement rejected.');
+  };
+
+  const handleProposeCounterOffer = (): void => {
+    if (!counterRate || parseFloat(counterRate) < 0) {
+      showAlert('error', 'Error', 'Enter a valid interest rate');
+      return;
+    }
+    doAction(async () => {
+      await proposeCounterOffer(loan!.id, parseFloat(counterRate));
+      setShowCounterOffer(false);
+      setCounterRate('');
+    }, 'Counter-offer sent to lender.');
+  };
+
+  const handleRespondToCounterOffer = async (accept: boolean): Promise<void> => {
+    if (accept) {
+      const ok = await confirm('Accept Counter-Offer', `Accept the borrower's proposed rate of ${loan!.counterOfferRate}%?`, 'Accept');
+      if (!ok) return;
+    }
+    doAction(async () => { await respondToCounterOffer(loan!.id, accept); },
+      accept ? 'Counter-offer accepted. Both parties must re-sign.' : 'Counter-offer declined.');
+  };
+
   const handleDisburse = async (): Promise<void> => {
     const ok = await confirm('Disburse Loan', `You will be taken to Paystack to send GHS ${loan!.amount} to ${loan!.borrowerName}. Continue?`, 'Continue to Payment');
     if (!ok) return;
@@ -219,11 +262,13 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   };
 
   const handleRepay = async (): Promise<void> => {
+    if (confirmingRef.current) return;
+    confirmingRef.current = true;
     const amt = repayAmount ? parseFloat(repayAmount) : undefined;
-    const ok = await confirm('Confirm Repayment', `You will be taken to Paystack to repay GHS ${amt?.toFixed(2) || totalOwed.toFixed(2)}. Continue?`, 'Continue to Payment');
-    if (!ok) return;
-    setActing(true);
     setShowRepay(false);
+    const ok = await confirm('Confirm Repayment', `You will be taken to Paystack to repay GHS ${amt?.toFixed(2) || totalOwed.toFixed(2)}. Continue?`, 'Continue to Payment');
+    if (!ok) { setShowRepay(true); return; }
+    setActing(true);
     try {
       const response = await initializeRepayment(loan!.id, amt) as PaymentInitResponse;
       if (response.authorizationUrl) {
@@ -255,6 +300,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     } finally {
       setActing(false);
       setRepayAmount('');
+      confirmingRef.current = false;
     }
   };
 
@@ -361,10 +407,36 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             <Text style={styles.btnText}>Fund This Loan</Text>
           </TouchableOpacity>
         )}
+        {loan.status === 'AGREEMENT_PENDING' && isLender && loan.counterOfferRate != null && (
+          <View style={styles.counterCard}>
+            <Text style={styles.counterTitle}>Counter-Offer Received</Text>
+            <Text style={styles.counterText}>
+              Borrower proposed {loan.counterOfferRate}% instead of {loan.interestRate}%
+            </Text>
+            <View style={styles.counterRow}>
+              <TouchableOpacity style={styles.counterAcceptBtn} onPress={() => handleRespondToCounterOffer(true)} disabled={acting}>
+                <Text style={styles.counterBtnText}>Accept</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.counterDeclineBtn} onPress={() => handleRespondToCounterOffer(false)} disabled={acting}>
+                <Text style={styles.counterBtnText}>Decline</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
         {loan.status === 'AGREEMENT_PENDING' && (isBorrower || isLender) && (
           <TouchableOpacity style={styles.primaryBtn} onPress={handleSign} disabled={acting}>
             {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Sign Agreement</Text>}
           </TouchableOpacity>
+        )}
+        {loan.status === 'AGREEMENT_PENDING' && isBorrower && (
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={[styles.outlineBtn, { flex: 1 }]} onPress={() => setShowCounterOffer(true)}>
+              <Text style={styles.outlineText}>Propose Different Rate</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.dangerBtn, { flex: 1 }]} onPress={handleReject} disabled={acting}>
+              <Text style={styles.dangerBtnText}>Reject</Text>
+            </TouchableOpacity>
+          </View>
         )}
         {loan.status === 'AGREEMENT_SIGNED' && isLender && (
           <TouchableOpacity style={styles.primaryBtn} onPress={handleDisburse} disabled={acting}>
@@ -372,7 +444,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
           </TouchableOpacity>
         )}
         {['ACTIVE', 'DUE', 'GRACE_PERIOD'].includes(loan.status) && isBorrower && (
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => { setRepayAmount(totalOwed.toFixed(2)); setShowRepay(true); }}>
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => { setActing(false); setRepayAmount(totalOwed.toFixed(2)); setShowRepay(true); }}>
             <Text style={styles.btnText}>Repay via Paystack</Text>
           </TouchableOpacity>
         )}
@@ -417,6 +489,31 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Confirm & Fund</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowFund(false)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Counter-Offer Modal */}
+      <Modal visible={showCounterOffer} animationType="slide" transparent>
+        <View style={styles.modalBg}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Propose Different Rate</Text>
+            <Text style={styles.modalSub}>Current rate: {loan.interestRate}%</Text>
+            <Text style={styles.label}>New Interest Rate (%)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 3"
+              placeholderTextColor={colors.muted}
+              value={counterRate}
+              onChangeText={setCounterRate}
+              keyboardType="numeric"
+            />
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleProposeCounterOffer} disabled={acting}>
+              {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Send Counter-Offer</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowCounterOffer(false)}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
