@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -57,5 +58,17 @@ public class AuthServiceClient {
 
     public Double getUserTrustScore(Long userId) {
         return ((Number) getUserInfo(userId).get("trustScore")).doubleValue();
+    }
+
+    public void updateUserStats(Long userId, Double trustScore, Integer loansRepaidOnTime, Integer defaults) {
+        Map<String, Object> body = new HashMap<>();
+        if (trustScore != null)        body.put("trustScore", trustScore);
+        if (loansRepaidOnTime != null) body.put("loansRepaidOnTime", loansRepaidOnTime);
+        if (defaults != null)          body.put("defaults", defaults);
+        try {
+            restTemplate.put(authServiceUrl + "/api/internal/users/" + userId + "/stats", body);
+        } catch (Exception e) {
+            log.warn("Failed to update user stats for userId {}: {}", userId, e.getMessage());
+        }
     }
 }

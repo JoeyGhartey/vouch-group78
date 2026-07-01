@@ -332,6 +332,135 @@ public class LoanService {
         return mapToLoanResponse(loan, "Loan request cancelled.");
     }
 
+    @Transactional
+    public LoanResponse rejectAgreement(Long loanId, String borrowerPhone) {
+        Long borrowerId = authServiceClient.getUserIdByPhone(borrowerPhone);
+        Loan loan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        if (!borrowerId.equals(loan.getBorrowerId())) {
+            throw new RuntimeException("Only the borrower can reject this agreement");
+        }
+        if (loan.getStatus() != Loan.LoanStatus.AGREEMENT_PENDING) {
+            throw new RuntimeException("This loan is not awaiting agreement (current status: " + loan.getStatus() + ")");
+        }
+
+        Long rejectedLenderId = loan.getLenderId();
+        String borrowerName = authServiceClient.getUserName(borrowerId);
+
+        loanAgreementRepository.findByLoan(loan).ifPresent(loanAgreementRepository::delete);
+
+        loan.setLenderId(null);
+        loan.setInterestRate(0.0);
+        loan.setTotalRepaymentAmount(0.0);
+        loan.setCounterOfferRate(null);
+        loan.setStatus(Loan.LoanStatus.REQUESTED);
+        loan = loanRepository.save(loan);
+
+        if (rejectedLenderId != null) {
+            notificationServiceClient.send(rejectedLenderId, "Agreement Rejected",
+                    borrowerName + " rejected your funding offer for a GHS " + loan.getAmount() + " loan. The request is open again.",
+                    "LOAN_AGREEMENT_READY", loan.getId());
+        }
+
+        return mapToLoanResponse(loan, "Agreement rejected. Loan request is open for funding again.");
+    }
+
+    @Transactional
+    public LoanResponse proposeCounterOffer(Long loanId, String borrowerPhone, Double newRate) {
+        Long borrowerId = authServiceClient.getUserIdByPhone(borrowerPhone);
+        Loan loan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        if (!borrowerId.equals(loan.getBorrowerId())) {
+            throw new RuntimeException("Only the borrower can propose a counter-offer");
+        }
+        if (loan.getStatus() != Loan.LoanStatus.AGREEMENT_PENDING) {
+            throw new RuntimeException("This loan is not awaiting agreement (current status: " + loan.getStatus() + ")");
+        }
+        if (newRate == null || newRate < 0) {
+            throw new RuntimeException("Counter-offer rate cannot be negative");
+        }
+        if (newRate > 50) {
+            throw new RuntimeException("Counter-offer rate cannot exceed 50% to prevent predatory lending");
+        }
+        if (newRate.equals(loan.getInterestRate())) {
+            throw new RuntimeException("Counter-offer rate must differ from the current rate of " + loan.getInterestRate() + "%");
+        }
+
+        LoanAgreement agreement = loanAgreementRepository.findByLoan(loan)
+                .orElseThrow(() -> new RuntimeException("Agreement not found"));
+        if (agreement.getBorrowerSigned() || agreement.getLenderSigned()) {
+            throw new RuntimeException("Cannot counter-offer after either party has signed the agreement");
+        }
+
+        loan.setCounterOfferRate(newRate);
+        loan = loanRepository.save(loan);
+
+        String borrowerName = authServiceClient.getUserName(borrowerId);
+        notificationServiceClient.send(loan.getLenderId(), "Counter-Offer Received",
+                borrowerName + " proposed " + newRate + "% interest instead of " + agreement.getInterestRate() +
+                        "% for a GHS " + loan.getAmount() + " loan.",
+                "LOAN_AGREEMENT_READY", loan.getId());
+
+        return mapToLoanResponse(loan, "Counter-offer of " + newRate + "% sent to lender.");
+    }
+
+    @Transactional
+    public LoanResponse respondToCounterOffer(Long loanId, String lenderPhone, boolean accept) {
+        Long lenderId = authServiceClient.getUserIdByPhone(lenderPhone);
+        Loan loan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        if (loan.getLenderId() == null || !lenderId.equals(loan.getLenderId())) {
+            throw new RuntimeException("Only the lender can respond to this counter-offer");
+        }
+        if (loan.getStatus() != Loan.LoanStatus.AGREEMENT_PENDING) {
+            throw new RuntimeException("This loan is not awaiting agreement (current status: " + loan.getStatus() + ")");
+        }
+        if (loan.getCounterOfferRate() == null) {
+            throw new RuntimeException("There is no pending counter-offer for this loan");
+        }
+
+        LoanAgreement agreement = loanAgreementRepository.findByLoan(loan)
+                .orElseThrow(() -> new RuntimeException("Agreement not found"));
+
+        double proposedRate = loan.getCounterOfferRate();
+
+        if (accept) {
+            double totalRepayment = loan.getAmount() * (1 + proposedRate / 100);
+            loan.setInterestRate(proposedRate);
+            loan.setTotalRepaymentAmount(Math.round(totalRepayment * 100.0) / 100.0);
+            loan.setCounterOfferRate(null);
+
+            agreement.setInterestRate(loan.getInterestRate());
+            agreement.setTotalRepaymentAmount(loan.getTotalRepaymentAmount());
+            agreement.setBorrowerSigned(false);
+            agreement.setBorrowerSignedAt(null);
+            agreement.setLenderSigned(false);
+            agreement.setLenderSignedAt(null);
+            loanAgreementRepository.save(agreement);
+
+            loan = loanRepository.save(loan);
+
+            notificationServiceClient.send(loan.getBorrowerId(), "Counter-Offer Accepted",
+                    "Your lender accepted your " + proposedRate + "% counter-offer. Please sign the updated agreement.",
+                    "LOAN_AGREEMENT_READY", loan.getId());
+
+            return mapToLoanResponse(loan, "Counter-offer accepted. Both parties must re-sign the updated agreement.");
+        } else {
+            loan.setCounterOfferRate(null);
+            loan = loanRepository.save(loan);
+
+            notificationServiceClient.send(loan.getBorrowerId(), "Counter-Offer Declined",
+                    "Your lender declined your " + proposedRate + "% counter-offer. The original rate of " +
+                            loan.getInterestRate() + "% still applies. You can sign as-is or reject the agreement.",
+                    "LOAN_AGREEMENT_READY", loan.getId());
+
+            return mapToLoanResponse(loan, "Counter-offer declined. Original terms remain.");
+        }
+    }
+
     public List<LoanResponse> getCircleLoans(String phone, Long circleId) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
         Circle circle = circleRepository.findById(circleId)
@@ -525,6 +654,7 @@ public class LoanService {
                 .amount(loan.getAmount())
                 .reason(loan.getReason())
                 .interestRate(loan.getInterestRate())
+                .counterOfferRate(loan.getCounterOfferRate())
                 .totalRepaymentAmount(loan.getTotalRepaymentAmount())
                 .amountRepaid(loan.getAmountRepaid())
                 .overdueInterestAccrued(loan.getOverdueInterestAccrued())

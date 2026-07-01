@@ -6,7 +6,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { getProfile, updateProfile, getBorrowerInsights, getLenderInsights } from '../services/api';
+import { getProfile, updateProfile, getBorrowerInsights, getLenderInsights, getBadges } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -33,6 +33,14 @@ interface Profile {
   borrowingSuspended?: boolean;
   createdAt?: string;
   role?: string;
+}
+
+interface Badge {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  earned: boolean;
 }
 
 interface EditData {
@@ -97,6 +105,28 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   statItem: { alignItems: 'center' },
   statValue: { color: c.dark, fontSize: 20, fontWeight: '800' },
   statLabel: { color: c.muted, fontSize: 11, marginTop: 4, textAlign: 'center' },
+
+  // Badges
+  badgesCard: {
+    backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
+    padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
+  },
+  badgesTitle: { color: c.dark, fontSize: 15, fontWeight: '700', marginBottom: 12 },
+  badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  badgeItem: {
+    width: '30%', alignItems: 'center', padding: 12,
+    borderRadius: 12, borderWidth: 1, borderColor: c.border,
+    backgroundColor: c.bg,
+  },
+  badgeItemEarned: {
+    borderColor: c.accent,
+    backgroundColor: c.goldBgTint,
+  },
+  badgeIcon: { fontSize: 28, marginBottom: 6 },
+  badgeName: { fontSize: 10, fontWeight: '700', color: c.muted, textAlign: 'center' },
+  badgeNameEarned: { color: c.accent },
+  badgeLocked: { fontSize: 18, marginBottom: 6 },
+
   card: {
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
@@ -158,6 +188,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { showAlert } = useAppAlert();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [badges, setBadges] = useState<Badge[]>([]);
   const [borrowerInsights, setBorrowerInsights] = useState<BorrowerInsights | null>(null);
   const [lenderInsights, setLenderInsights] = useState<LenderInsights | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -170,14 +201,16 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const loadData = async (): Promise<void> => {
     try {
-      const [p, bi, li] = await Promise.all([
+      const [p, bi, li, badgesData] = await Promise.all([
         getProfile(),
         getBorrowerInsights().catch(() => null),
         getLenderInsights().catch(() => null),
+        getBadges().catch(() => []),
       ]);
       setProfile(p as Profile);
       setBorrowerInsights(bi as BorrowerInsights | null);
       setLenderInsights(li as LenderInsights | null);
+      setBadges(badgesData as Badge[]);
     } catch (e) {
       console.error(e);
     } finally {
@@ -215,6 +248,7 @@ export default function ProfileScreen({ navigation }: Props) {
   };
 
   const getTrustColor = (s: number): string => s >= 70 ? colors.success : s >= 40 ? colors.accent : colors.danger;
+  const earnedCount = badges.filter(b => b.earned).length;
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>;
 
@@ -263,6 +297,30 @@ export default function ProfileScreen({ navigation }: Props) {
             </View>
           ))}
         </View>
+
+        {/* Badges Section */}
+        {badges.length > 0 && (
+          <View style={styles.badgesCard}>
+            <Text style={styles.badgesTitle}>
+              🏅 Reputation Badges — {earnedCount}/{badges.length} earned
+            </Text>
+            <View style={styles.badgesGrid}>
+              {badges.map((badge) => (
+                <View
+                  key={badge.id}
+                  style={[styles.badgeItem, badge.earned && styles.badgeItemEarned]}
+                >
+                  <Text style={badge.earned ? styles.badgeIcon : styles.badgeLocked}>
+                    {badge.earned ? badge.icon : '🔒'}
+                  </Text>
+                  <Text style={[styles.badgeName, badge.earned && styles.badgeNameEarned]}>
+                    {badge.name}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Account Details</Text>
@@ -345,10 +403,7 @@ export default function ProfileScreen({ navigation }: Props) {
         )}
 
         {profile?.role === 'ADMIN' && (
-          <TouchableOpacity
-            style={styles.adminBtn}
-            onPress={() => navigation.navigate('Admin')}
-          >
+          <TouchableOpacity style={styles.adminBtn} onPress={() => navigation.navigate('Admin')}>
             <Ionicons name="shield-checkmark-outline" size={18} color={colors.surface} style={{ marginRight: 8 }} />
             <Text style={styles.adminBtnText}>Admin Panel — Open Disputes</Text>
           </TouchableOpacity>

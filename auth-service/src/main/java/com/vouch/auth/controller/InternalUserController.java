@@ -1,5 +1,6 @@
 package com.vouch.auth.controller;
 
+import com.vouch.auth.dto.UpdateUserStatsRequest;
 import com.vouch.auth.dto.UserProfileResponse;
 import com.vouch.auth.entity.User;
 import com.vouch.auth.repository.UserRepository;
@@ -37,6 +38,21 @@ public class InternalUserController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return ResponseEntity.ok(Map.of("pushToken", user.getPushToken() != null ? user.getPushToken() : ""));
+    }
+
+    @PutMapping("/{userId}/stats")
+    public ResponseEntity<Void> updateUserStats(
+            @PathVariable Long userId,
+            @RequestBody UpdateUserStatsRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        if (request.getTrustScore() != null)         user.setTrustScore(request.getTrustScore());
+        if (request.getLoansRepaidOnTime() != null)  user.setLoansRepaidOnTime(request.getLoansRepaidOnTime());
+        if (request.getTotalLoansGiven() != null)    user.setTotalLoansGiven(request.getTotalLoansGiven());
+        if (request.getTotalLoansReceived() != null) user.setTotalLoansReceived(request.getTotalLoansReceived());
+        if (request.getDefaults() != null)           user.setDefaults(request.getDefaults());
+        userRepository.save(user);
+        return ResponseEntity.ok().build();
     }
 
     private UserProfileResponse buildResponse(User u) {

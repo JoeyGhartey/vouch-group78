@@ -96,10 +96,10 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   back: { color: c.accent, fontSize: 16, fontWeight: '600' },
   title: { flex: 1, fontSize: 18, fontWeight: '700', color: c.dark, textAlign: 'center', marginHorizontal: 12 },
   inviteBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: c.buttonDark, justifyContent: 'center', alignItems: 'center' },
-  infoBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: c.surface, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: c.border },
-  infoItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  infoText: { fontSize: 12, color: c.muted },
-  infoDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: c.border },
+  infoBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, backgroundColor: c.surface, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: c.border },
+  infoItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  infoText: { fontSize: 15, fontWeight: '600', color: c.dark },
+  infoDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: c.border },
   tabRow: { flexDirection: 'row', backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.border },
   tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   activeTab: { borderBottomColor: c.accent },
@@ -289,12 +289,12 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
       {/* Info bar */}
       <View style={styles.infoBar}>
         <View style={styles.infoItem}>
-          <Ionicons name="people-outline" size={14} color={colors.muted} />
+          <Ionicons name="people-outline" size={18} color={colors.muted} />
           <Text style={styles.infoText}>{circle.memberCount} members</Text>
         </View>
         <View style={styles.infoDot} />
         <View style={styles.infoItem}>
-          <Ionicons name="cash-outline" size={14} color={colors.muted} />
+          <Ionicons name="cash-outline" size={18} color={colors.muted} />
           <Text style={styles.infoText}>Max GHS {circle.maxLoanAmount?.toLocaleString()}</Text>
         </View>
       </View>

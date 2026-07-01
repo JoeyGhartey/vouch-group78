@@ -15,6 +15,7 @@ public class LoanResponse {
     private Double amount;
     private String reason;
     private Double interestRate;
+    private Double counterOfferRate;
     private Double totalRepaymentAmount;
     private Double amountRepaid;
     private Double overdueInterestAccrued;
