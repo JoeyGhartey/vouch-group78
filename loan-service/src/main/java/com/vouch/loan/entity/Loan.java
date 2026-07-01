@@ -35,6 +35,8 @@ public class Loan {
     @Column(nullable = false)
     private Double interestRate = 0.0;
 
+    private Double counterOfferRate;
+
     @Builder.Default
     @Column(nullable = false)
     private Double totalRepaymentAmount = 0.0;

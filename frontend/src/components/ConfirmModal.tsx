@@ -42,13 +42,13 @@ export const ConfirmModalHost: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [fadeAnim, scaleAnim]);
 
   const animateOut = useCallback((result: boolean) => {
+    resolveRef.current?.(result);
+    resolveRef.current = null;
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
       Animated.timing(scaleAnim, { toValue: 0.9, duration: 200, useNativeDriver: true }),
     ]).start(() => {
       setState(prev => ({ ...prev, visible: false }));
-      resolveRef.current?.(result);
-      resolveRef.current = null;
     });
   }, [fadeAnim, scaleAnim]);
 
