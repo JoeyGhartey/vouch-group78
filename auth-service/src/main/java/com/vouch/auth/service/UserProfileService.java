@@ -8,12 +8,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class UserProfileService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final BadgeService badgeService;
 
     public UserProfileResponse getMyProfile(String phone) {
         return mapToResponse(getUserByPhone(phone));
@@ -43,6 +46,10 @@ public class UserProfileService {
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
         return "Password changed successfully";
+    }
+
+    public List<BadgeService.Badge> getMyBadges(String phone) {
+        return badgeService.getBadgesForUser(phone);
     }
 
     public User getUserByPhone(String phone) {

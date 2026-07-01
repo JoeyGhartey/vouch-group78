@@ -2,12 +2,14 @@ package com.vouch.auth.controller;
 
 import com.vouch.auth.dto.UpdateProfileRequest;
 import com.vouch.auth.dto.UserProfileResponse;
+import com.vouch.auth.service.BadgeService;
 import com.vouch.auth.service.UserProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -41,5 +43,10 @@ public class UserProfileController {
         }
         String result = userProfileService.changePassword(auth.getName(), oldPassword, newPassword);
         return ResponseEntity.ok(Map.of("message", result));
+    }
+
+    @GetMapping("/badges")
+    public ResponseEntity<List<BadgeService.Badge>> getMyBadges(Authentication auth) {
+        return ResponseEntity.ok(userProfileService.getMyBadges(auth.getName()));
     }
 }
