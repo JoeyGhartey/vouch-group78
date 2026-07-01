@@ -119,12 +119,12 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.bg,
   },
   badgeItemEarned: {
-    borderColor: '#C9A84C',
-    backgroundColor: '#FEF9C3',
+    borderColor: c.accent,
+    backgroundColor: c.goldBgTint,
   },
   badgeIcon: { fontSize: 28, marginBottom: 6 },
   badgeName: { fontSize: 10, fontWeight: '700', color: c.muted, textAlign: 'center' },
-  badgeNameEarned: { color: '#92400e' },
+  badgeNameEarned: { color: c.accent },
   badgeLocked: { fontSize: 18, marginBottom: 6 },
 
   card: {
