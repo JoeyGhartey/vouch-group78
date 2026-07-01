@@ -8,11 +8,13 @@ C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\dto\AuthResponse.j
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\dto\LoginRequest.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\dto\RegisterRequest.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\dto\UpdateProfileRequest.java
+C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\dto\UpdateUserStatsRequest.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\dto\UserProfileResponse.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\entity\User.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\repository\UserRepository.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\security\JwtAuthenticationFilter.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\security\JwtUtil.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\service\AuthService.java
+C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\service\BadgeService.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\service\CustomUserDetailsService.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\service\UserProfileService.java
