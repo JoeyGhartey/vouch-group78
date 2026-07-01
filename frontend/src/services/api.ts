@@ -85,6 +85,7 @@ export const registerPushToken = (token: string) => request('/auth/push-token', 
 
 // Profile
 export const getProfile = () => request('/profile');
+export const getBadges = () => request('/profile/badges');
 export const updateProfile = (data: unknown) => request('/profile', 'PUT', data);
 export const getUserProfile = (userId: number) => request(`/profile/${userId}`);
 
