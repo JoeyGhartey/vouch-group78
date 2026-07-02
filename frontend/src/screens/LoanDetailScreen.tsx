@@ -242,7 +242,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               showAlert('success', 'Success', 'Payment successful. Loan is now active.');
               loadData();
             } else {
-              showAlert('error', 'Payment Pending', 'Payment not confirmed yet. Pull down to refresh.');
+              showAlert('error', 'Payment Pending', verification.message);
               loadData();
             }
           } catch (e) {
@@ -283,7 +283,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               showAlert('success', 'Success', 'Repayment successful.');
               loadData();
             } else {
-              showAlert('error', 'Payment Pending', 'Payment not confirmed yet. Pull down to refresh.');
+              showAlert('error', 'Payment Pending', verification.message);
               loadData();
             }
           } catch (e) {

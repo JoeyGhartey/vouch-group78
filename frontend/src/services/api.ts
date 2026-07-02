@@ -112,6 +112,7 @@ export const approveMember = (circleId: number, memberId: number) => request(`/c
 export const removeMember = (circleId: number, userId: number) => request(`/circles/${circleId}/remove/${userId}`, 'POST');
 export const leaveCircle = (circleId: number) => request(`/circles/${circleId}/leave`, 'POST');
 export const acceptInvite = (circleId: number) => request(`/circles/${circleId}/accept`, 'POST');
+export const rejectInvite = (circleId: number) => request(`/circles/${circleId}/reject`, 'POST');
 
 // Loans
 export const requestLoan = (data: unknown) => request('/loans/request', 'POST', data);

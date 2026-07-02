@@ -73,7 +73,7 @@ public class LoanSchedulerService {
                             member.getUserId(),
                             title,
                             message,
-                            "LOAN_DUE_REMINDER",
+                            "LOAN_REPAYMENT_REMINDER",
                             loan.getId()
                     );
                 }
@@ -105,6 +105,20 @@ public class LoanSchedulerService {
                 loan.setGracePeriodStart(LocalDateTime.now());
                 loan.setGracePeriodEnd(LocalDateTime.now().plusDays(7));
                 loanRepository.save(loan);
+
+                String borrowerName = authServiceClient.getUserName(loan.getBorrowerId());
+                notificationServiceClient.send(loan.getBorrowerId(), "Grace Period Started",
+                        "Your loan of GHS " + String.format("%.2f", loan.getAmount()) +
+                                " is now in the 7-day grace period. Repay by " + loan.getGracePeriodEnd() + " to avoid default.",
+                        "LOAN_GRACE_PERIOD", loan.getId());
+
+                if (loan.getLenderId() != null) {
+                    notificationServiceClient.send(loan.getLenderId(), "Borrower Entered Grace Period",
+                            borrowerName + "'s loan of GHS " + String.format("%.2f", loan.getAmount()) +
+                                    " has entered the grace period. They have until " + loan.getGracePeriodEnd() + " to repay.",
+                            "LOAN_GRACE_PERIOD", loan.getId());
+                }
+
                 log.info("Loan {} entered GRACE_PERIOD. Ends at {}", loan.getId(), loan.getGracePeriodEnd());
             }
         }

@@ -8,9 +8,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import {
   getNotifications, markNotificationRead, markAllNotificationsRead,
-  deleteNotification, clearReadNotifications, acceptInvite,
+  deleteNotification, clearReadNotifications, acceptInvite, rejectInvite,
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
+import { useConfirmModal } from '../components/ConfirmModal';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
@@ -59,6 +60,8 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.accent, marginTop: 4 },
   acceptBtn: { backgroundColor: c.accent, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, alignSelf: 'flex-start' },
   acceptBtnText: { color: c.surface, fontSize: 13, fontWeight: '600' },
+  rejectBtn: { backgroundColor: c.danger, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, alignSelf: 'flex-start' },
+  rejectBtnText: { color: c.surface, fontSize: 13, fontWeight: '600' },
 });
 
 function SwipeableRow({ onDelete, children }: { onDelete: () => void; children: React.ReactNode }): React.ReactElement {
@@ -103,10 +106,12 @@ export default function NotificationsScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { showAlert } = useAppAlert();
+  const { confirm } = useConfirmModal();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [acceptingId, setAcceptingId] = useState<number | null>(null);
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [acceptError, setAcceptError] = useState<Record<number, string>>({});
 
   const loadNotifications = async (): Promise<void> => {
@@ -171,6 +176,22 @@ export default function NotificationsScreen({ navigation }: Props) {
       setAcceptError(prev => ({ ...prev, [notifId]: (error as Error).message }));
     } finally {
       setAcceptingId(null);
+    }
+  };
+
+  const handleRejectInvite = async (notifId: number, circleId: number): Promise<void> => {
+    const ok = await confirm('Reject Invite', 'Are you sure you want to reject this circle invitation?', 'Reject');
+    if (!ok) return;
+    setRejectingId(notifId);
+    setAcceptError(prev => { const next = { ...prev }; delete next[notifId]; return next; });
+    try {
+      await rejectInvite(circleId);
+      markNotificationRead(notifId).catch(() => {});
+      setNotifications(prev => prev.filter(n => n.id !== notifId));
+    } catch (error) {
+      setAcceptError(prev => ({ ...prev, [notifId]: (error as Error).message }));
+    } finally {
+      setRejectingId(null);
     }
   };
 
@@ -277,15 +298,26 @@ export default function NotificationsScreen({ navigation }: Props) {
                 <Text style={styles.notifMessage}>{item.message}</Text>
                 {item.type === 'CIRCLE_INVITE' && item.referenceId != null && (
                   <View style={{ marginTop: 8 }}>
-                    <TouchableOpacity
-                      style={[styles.acceptBtn, acceptingId === item.id && { opacity: 0.6 }]}
-                      onPress={() => handleAcceptInvite(item.id, item.referenceId!)}
-                      disabled={acceptingId === item.id}
-                    >
-                      {acceptingId === item.id
-                        ? <ActivityIndicator size="small" color={colors.surface} />
-                        : <Text style={styles.acceptBtnText}>Accept Invite</Text>}
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <TouchableOpacity
+                        style={[styles.acceptBtn, acceptingId === item.id && { opacity: 0.6 }]}
+                        onPress={() => handleAcceptInvite(item.id, item.referenceId!)}
+                        disabled={acceptingId === item.id || rejectingId === item.id}
+                      >
+                        {acceptingId === item.id
+                          ? <ActivityIndicator size="small" color={colors.surface} />
+                          : <Text style={styles.acceptBtnText}>Accept Invite</Text>}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.rejectBtn, rejectingId === item.id && { opacity: 0.6 }]}
+                        onPress={() => handleRejectInvite(item.id, item.referenceId!)}
+                        disabled={acceptingId === item.id || rejectingId === item.id}
+                      >
+                        {rejectingId === item.id
+                          ? <ActivityIndicator size="small" color={colors.surface} />
+                          : <Text style={styles.rejectBtnText}>Reject</Text>}
+                      </TouchableOpacity>
+                    </View>
                     {acceptError[item.id] && (
                       <Text style={{ color: colors.errorRed, fontSize: 12, marginTop: 4 }}>{acceptError[item.id]}</Text>
                     )}

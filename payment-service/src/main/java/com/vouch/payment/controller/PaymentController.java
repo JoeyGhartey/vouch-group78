@@ -42,8 +42,10 @@ public class PaymentController {
     }
 
     @PostMapping("/webhook")
-    public ResponseEntity<String> handleWebhook(@RequestBody String payload) {
-        paystackService.handleWebhook(payload);
+    public ResponseEntity<String> handleWebhook(
+            @RequestBody String payload,
+            @RequestHeader(value = "x-paystack-signature", required = false) String signature) {
+        paystackService.handleWebhook(payload, signature);
         return ResponseEntity.ok("OK");
     }
 

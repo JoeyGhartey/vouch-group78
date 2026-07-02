@@ -94,6 +94,17 @@ public class LoanService {
                 .build();
 
         loan = loanRepository.save(loan);
+
+        List<CircleMember> circleMembers = circleMemberRepository.findByCircleAndStatus(circle, CircleMember.MemberStatus.ACTIVE);
+        String borrowerName = authServiceClient.getUserName(borrowerId);
+        for (CircleMember member : circleMembers) {
+            if (!member.getUserId().equals(borrowerId)) {
+                notificationServiceClient.send(member.getUserId(), "New Loan Request",
+                        borrowerName + " requested a loan of GHS " + request.getAmount() + " in \"" + circle.getName() + "\"",
+                        "LOAN_REQUESTED", loan.getId());
+            }
+        }
+
         return mapToLoanResponse(loan, "Loan request posted to circle");
     }
 
@@ -329,6 +340,14 @@ public class LoanService {
 
         loan.setStatus(Loan.LoanStatus.CANCELLED);
         loan = loanRepository.save(loan);
+
+        if (loan.getLenderId() != null) {
+            String borrowerName = authServiceClient.getUserName(userId);
+            notificationServiceClient.send(loan.getLenderId(), "Loan Request Cancelled",
+                    borrowerName + " cancelled their loan request for GHS " + loan.getAmount(),
+                    "LOAN_CANCELLED", loan.getId());
+        }
+
         return mapToLoanResponse(loan, "Loan request cancelled.");
     }
 

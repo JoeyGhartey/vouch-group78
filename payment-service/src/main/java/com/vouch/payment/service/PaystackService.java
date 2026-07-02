@@ -11,10 +11,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 
@@ -38,7 +44,7 @@ public class PaystackService {
     private final LoanServiceClient loanServiceClient;
     private final NotificationServiceClient notificationServiceClient;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
@@ -208,50 +214,78 @@ public class PaystackService {
         headers.set("Authorization", "Bearer " + paystackSecretKey);
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
+        ResponseEntity<String> response;
         try {
-            ResponseEntity<String> response = restTemplate.exchange(
-                    VERIFY_URL + reference, HttpMethod.GET, entity, String.class);
-
-            JsonNode jsonResponse = objectMapper.readTree(response.getBody());
-            boolean success = jsonResponse.get("status").asBoolean();
-
-            if (success) {
-                JsonNode data = jsonResponse.get("data");
-                String paymentStatus = data.get("status").asText();
-
-                if ("success".equals(paymentStatus)) {
-                    transaction.setStatus(PaymentTransaction.TransactionStatus.SUCCESS);
-                    transaction.setGatewayResponse(data.has("gateway_response") ? data.get("gateway_response").asText() : "Success");
-                    transaction.setPaymentChannel(data.has("channel") ? data.get("channel").asText() : "unknown");
-                    transaction.setCompletedAt(LocalDateTime.now());
-                    paymentTransactionRepository.save(transaction);
-
-                    processSuccessfulPayment(transaction);
-
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("status", "SUCCESS");
-                    result.put("message", "Payment verified and processed successfully");
-                    result.put("amount", transaction.getAmount());
-                    result.put("reference", transaction.getReference());
-                    return result;
-                } else {
-                    transaction.setStatus(PaymentTransaction.TransactionStatus.FAILED);
-                    transaction.setGatewayResponse(paymentStatus);
-                    paymentTransactionRepository.save(transaction);
-
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("status", "FAILED");
-                    result.put("message", "Payment was not successful: " + paymentStatus);
-                    return result;
-                }
-            }
-        } catch (Exception e) {
-            log.error("Error verifying transaction: {}", e.getMessage());
+            response = restTemplate.exchange(VERIFY_URL + reference, HttpMethod.GET, entity, String.class);
+        } catch (HttpStatusCodeException e) {
+            log.error("Paystack verify returned HTTP {} for reference {}: {}", e.getStatusCode(), reference, e.getResponseBodyAsString());
+            return errorResult("Paystack rejected the verification request (HTTP " + e.getStatusCode().value() + "). Please try again or contact support.");
+        } catch (ResourceAccessException e) {
+            log.error("Paystack verify timed out or network unreachable for reference {}: {}", reference, e.getMessage());
+            return errorResult("Could not reach Paystack to verify this payment. Please check your connection and try again.");
         }
 
+        JsonNode jsonResponse;
+        try {
+            jsonResponse = objectMapper.readTree(response.getBody());
+        } catch (Exception e) {
+            log.error("Paystack verify returned unparseable response for reference {}: {}", reference, response.getBody());
+            return errorResult("Paystack returned an invalid response. Please try again.");
+        }
+
+        if (jsonResponse == null || !jsonResponse.has("status")) {
+            log.error("Paystack verify response missing 'status' field for reference {}: {}", reference, response.getBody());
+            return errorResult("Paystack returned an unexpected response format.");
+        }
+
+        boolean success = jsonResponse.get("status").asBoolean();
+
+        if (success) {
+            JsonNode data = jsonResponse.get("data");
+            if (data == null || !data.has("status")) {
+                log.error("Paystack verify success response missing data.status for reference {}: {}", reference, response.getBody());
+                return errorResult("Paystack returned an incomplete response.");
+            }
+            String paymentStatus = data.get("status").asText();
+
+            if ("success".equals(paymentStatus)) {
+                transaction.setStatus(PaymentTransaction.TransactionStatus.SUCCESS);
+                transaction.setGatewayResponse(data.has("gateway_response") ? data.get("gateway_response").asText() : "Success");
+                transaction.setPaymentChannel(data.has("channel") ? data.get("channel").asText() : "unknown");
+                transaction.setCompletedAt(LocalDateTime.now());
+                paymentTransactionRepository.save(transaction);
+
+                processSuccessfulPayment(transaction);
+
+                Map<String, Object> result = new HashMap<>();
+                result.put("status", "SUCCESS");
+                result.put("message", "Payment verified and processed successfully");
+                result.put("amount", transaction.getAmount());
+                result.put("reference", transaction.getReference());
+                return result;
+            } else {
+                transaction.setStatus(PaymentTransaction.TransactionStatus.FAILED);
+                transaction.setGatewayResponse(paymentStatus);
+                paymentTransactionRepository.save(transaction);
+
+                Map<String, Object> result = new HashMap<>();
+                result.put("status", "FAILED");
+                result.put("message", "Payment was not successful: " + paymentStatus);
+                return result;
+            }
+        }
+
+        String message = jsonResponse.has("message") ? jsonResponse.get("message").asText() : "Verification failed";
         Map<String, Object> result = new HashMap<>();
         result.put("status", "PENDING");
-        result.put("message", "Could not verify payment. Please try again.");
+        result.put("message", "Could not verify payment yet: " + message);
+        return result;
+    }
+
+    private Map<String, Object> errorResult(String message) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("status", "ERROR");
+        result.put("message", message);
         return result;
     }
 
@@ -333,30 +367,52 @@ public class PaystackService {
     }
 
     @Transactional
-    public void handleWebhook(String payload) {
+    public void handleWebhook(String payload, String signature) {
+        if (!isValidSignature(payload, signature)) {
+            log.warn("Rejected Paystack webhook: missing or invalid signature");
+            throw new RuntimeException("Invalid webhook signature");
+        }
+
+        JsonNode event;
         try {
-            JsonNode event = objectMapper.readTree(payload);
-            String eventType = event.get("event").asText();
-
-            if ("charge.success".equals(eventType)) {
-                JsonNode data = event.get("data");
-                String reference = data.get("reference").asText();
-
-                PaymentTransaction transaction = paymentTransactionRepository.findByReference(reference).orElse(null);
-                if (transaction != null && transaction.getStatus() != PaymentTransaction.TransactionStatus.SUCCESS) {
-                    transaction.setStatus(PaymentTransaction.TransactionStatus.SUCCESS);
-                    transaction.setGatewayResponse(data.has("gateway_response") ? data.get("gateway_response").asText() : "Success");
-                    transaction.setPaymentChannel(data.has("channel") ? data.get("channel").asText() : "unknown");
-                    transaction.setCompletedAt(LocalDateTime.now());
-                    paymentTransactionRepository.save(transaction);
-
-                    processSuccessfulPayment(transaction);
-                }
-            }
-
-            log.info("Paystack webhook processed: {}", eventType);
+            event = objectMapper.readTree(payload);
         } catch (Exception e) {
-            log.error("Error processing webhook: {}", e.getMessage());
+            log.error("Failed to parse Paystack webhook payload: {}", e.getMessage());
+            throw new RuntimeException("Malformed webhook payload");
+        }
+
+        String eventType = event.has("event") ? event.get("event").asText() : null;
+
+        if ("charge.success".equals(eventType)) {
+            JsonNode data = event.get("data");
+            String reference = data.get("reference").asText();
+
+            PaymentTransaction transaction = paymentTransactionRepository.findByReference(reference).orElse(null);
+            if (transaction != null && transaction.getStatus() != PaymentTransaction.TransactionStatus.SUCCESS) {
+                transaction.setStatus(PaymentTransaction.TransactionStatus.SUCCESS);
+                transaction.setGatewayResponse(data.has("gateway_response") ? data.get("gateway_response").asText() : "Success");
+                transaction.setPaymentChannel(data.has("channel") ? data.get("channel").asText() : "unknown");
+                transaction.setCompletedAt(LocalDateTime.now());
+                paymentTransactionRepository.save(transaction);
+
+                processSuccessfulPayment(transaction);
+            }
+        }
+
+        log.info("Paystack webhook processed: {}", eventType);
+    }
+
+    private boolean isValidSignature(String payload, String signature) {
+        if (signature == null || signature.isBlank()) return false;
+        try {
+            Mac mac = Mac.getInstance("HmacSHA512");
+            mac.init(new SecretKeySpec(paystackSecretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA512"));
+            byte[] hash = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
+            String computed = HexFormat.of().formatHex(hash);
+            return computed.equalsIgnoreCase(signature);
+        } catch (Exception e) {
+            log.error("Failed to compute webhook signature: {}", e.getMessage());
+            return false;
         }
     }
 
@@ -365,24 +421,55 @@ public class PaystackService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Authorization", "Bearer " + paystackSecretKey);
 
+        ResponseEntity<String> response;
         try {
             String jsonBody = objectMapper.writeValueAsString(payload);
             HttpEntity<String> entity = new HttpEntity<>(jsonBody, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
-
-            JsonNode jsonResponse = objectMapper.readTree(response.getBody());
-
-            if (jsonResponse.get("status").asBoolean()) {
-                return jsonResponse.get("data");
-            } else {
-                String message = jsonResponse.has("message") ? jsonResponse.get("message").asText() : "Paystack error";
-                throw new RuntimeException("Paystack: " + message);
-            }
+            response = restTemplate.postForEntity(url, entity, String.class);
+        } catch (HttpStatusCodeException e) {
+            log.error("Paystack returned HTTP {}: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new RuntimeException("Paystack rejected the request (HTTP " + e.getStatusCode().value() + "): " + extractPaystackMessage(e.getResponseBodyAsString()));
+        } catch (ResourceAccessException e) {
+            log.error("Paystack request timed out or network unreachable: {}", e.getMessage());
+            throw new RuntimeException("Could not reach Paystack. Please check your connection and try again.");
         } catch (Exception e) {
-            if (e instanceof RuntimeException) throw (RuntimeException) e;
-            log.error("Paystack API call failed: {}", e.getMessage());
+            log.error("Unexpected error building Paystack request: {}", e.getMessage());
             throw new RuntimeException("Payment service unavailable. Please try again.");
         }
+
+        JsonNode jsonResponse;
+        try {
+            jsonResponse = objectMapper.readTree(response.getBody());
+        } catch (Exception e) {
+            log.error("Paystack returned unparseable response: {}", response.getBody());
+            throw new RuntimeException("Paystack returned an invalid response. Please try again.");
+        }
+
+        if (jsonResponse == null || !jsonResponse.has("status")) {
+            log.error("Paystack response missing 'status' field: {}", response.getBody());
+            throw new RuntimeException("Paystack returned an unexpected response format.");
+        }
+
+        if (jsonResponse.get("status").asBoolean()) {
+            if (!jsonResponse.has("data")) {
+                log.error("Paystack success response missing 'data' field: {}", response.getBody());
+                throw new RuntimeException("Paystack returned an incomplete response.");
+            }
+            return jsonResponse.get("data");
+        } else {
+            String message = jsonResponse.has("message") ? jsonResponse.get("message").asText() : "Paystack error";
+            throw new RuntimeException("Paystack: " + message);
+        }
+    }
+
+    private String extractPaystackMessage(String body) {
+        try {
+            JsonNode node = objectMapper.readTree(body);
+            if (node != null && node.has("message")) return node.get("message").asText();
+        } catch (Exception ignored) {
+            // fall through to default below
+        }
+        return "Unknown error";
     }
 
     private String mapMomoProvider(String provider) {

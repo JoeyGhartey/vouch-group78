@@ -7,8 +7,9 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { getMyCircles, getPendingInvites, acceptInvite, createCircle } from '../services/api';
+import { getMyCircles, getPendingInvites, acceptInvite, rejectInvite, createCircle } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
+import { useConfirmModal } from '../components/ConfirmModal';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
@@ -76,19 +77,24 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   cancelBtnText: { color: c.muted, fontSize: 14 },
   sectionTitle: { fontSize: 14, fontWeight: '700', color: c.muted, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 4 },
   pendingCard: { borderLeftWidth: 3, borderLeftColor: c.accent, backgroundColor: c.goldBgTint },
-  acceptBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent, borderRadius: 10, paddingVertical: 10, marginTop: 12 },
+  inviteActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  acceptBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent, borderRadius: 10, paddingVertical: 10, flex: 1 },
   acceptBtnText: { color: c.surface, fontSize: 14, fontWeight: '600' },
+  rejectBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.danger, borderRadius: 10, paddingVertical: 10, flex: 1 },
+  rejectBtnText: { color: c.surface, fontSize: 14, fontWeight: '600' },
 });
 
 export default function CirclesScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { showAlert } = useAppAlert();
+  const { confirm } = useConfirmModal();
   const [circles, setCircles] = useState<Circle[]>([]);
   const [pending, setPending] = useState<Circle[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [acceptingId, setAcceptingId] = useState<number | null>(null);
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [showCreate, setShowCreate] = useState<boolean>(false);
   const [newCircle, setNewCircle] = useState<NewCircleForm>({
     name: '', description: '', maxLoanAmount: '5000',
@@ -123,6 +129,20 @@ export default function CirclesScreen({ navigation }: Props) {
       showAlert('error', 'Failed', (error as Error).message);
     } finally {
       setAcceptingId(null);
+    }
+  };
+
+  const handleRejectInvite = async (circleId: number): Promise<void> => {
+    const ok = await confirm('Reject Invite', 'Are you sure you want to reject this circle invitation?', 'Reject');
+    if (!ok) return;
+    setRejectingId(circleId);
+    try {
+      await rejectInvite(circleId);
+      setPending(prev => prev.filter(c => c.id !== circleId));
+    } catch (error) {
+      showAlert('error', 'Failed', (error as Error).message);
+    } finally {
+      setRejectingId(null);
     }
   };
 
@@ -190,15 +210,26 @@ export default function CirclesScreen({ navigation }: Props) {
                     </View>
                   </View>
                   {item.description ? <Text style={styles.circleDesc}>{item.description}</Text> : null}
-                  <TouchableOpacity
-                    style={[styles.acceptBtn, acceptingId === item.id && { opacity: 0.6 }]}
-                    onPress={() => handleAcceptInvite(item.id)}
-                    disabled={acceptingId === item.id}
-                  >
-                    {acceptingId === item.id
-                      ? <ActivityIndicator size="small" color={colors.surface} />
-                      : <><Ionicons name="checkmark-circle-outline" size={16} color={colors.surface} /><Text style={styles.acceptBtnText}>Accept Invite</Text></>}
-                  </TouchableOpacity>
+                  <View style={styles.inviteActions}>
+                    <TouchableOpacity
+                      style={[styles.acceptBtn, acceptingId === item.id && { opacity: 0.6 }]}
+                      onPress={() => handleAcceptInvite(item.id)}
+                      disabled={acceptingId === item.id || rejectingId === item.id}
+                    >
+                      {acceptingId === item.id
+                        ? <ActivityIndicator size="small" color={colors.surface} />
+                        : <><Ionicons name="checkmark-circle-outline" size={16} color={colors.surface} /><Text style={styles.acceptBtnText}>Accept</Text></>}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.rejectBtn, rejectingId === item.id && { opacity: 0.6 }]}
+                      onPress={() => handleRejectInvite(item.id)}
+                      disabled={acceptingId === item.id || rejectingId === item.id}
+                    >
+                      {rejectingId === item.id
+                        ? <ActivityIndicator size="small" color={colors.surface} />
+                        : <><Ionicons name="close-circle-outline" size={16} color={colors.surface} /><Text style={styles.rejectBtnText}>Reject</Text></>}
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))}
               {circles.length > 0 && <Text style={styles.sectionTitle}>My Circles</Text>}
