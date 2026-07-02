@@ -45,6 +45,8 @@ interface Loan {
   createdAt: string;
   disbursedAt?: string;
   gracePeriodEnd?: string;
+  borrowerSigned?: boolean;
+  lenderSigned?: boolean;
 }
 
 interface Profile {
@@ -423,7 +425,8 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             </View>
           </View>
         )}
-        {loan.status === 'AGREEMENT_PENDING' && (isBorrower || isLender) && (
+        {loan.status === 'AGREEMENT_PENDING' &&
+          ((isBorrower && !loan.borrowerSigned) || (isLender && !loan.lenderSigned)) && (
           <TouchableOpacity style={styles.primaryBtn} onPress={handleSign} disabled={acting}>
             {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Sign Agreement</Text>}
           </TouchableOpacity>

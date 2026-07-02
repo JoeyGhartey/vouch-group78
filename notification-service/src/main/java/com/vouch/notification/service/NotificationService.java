@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
@@ -83,6 +84,25 @@ public class NotificationService {
         notification.setRead(true);
         notificationRepository.save(notification);
         return "Notification marked as read";
+    }
+
+    @Transactional
+    public String deleteNotification(String phone, Long notificationId) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new RuntimeException("Notification not found"));
+        if (!notification.getUserId().equals(userId)) {
+            throw new RuntimeException("Not your notification");
+        }
+        notificationRepository.delete(notification);
+        return "Notification deleted";
+    }
+
+    @Transactional
+    public String deleteReadNotifications(String phone) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        notificationRepository.deleteByUserIdAndReadTrue(userId);
+        return "Read notifications cleared";
     }
 
     public String markAllAsRead(String phone) {

@@ -69,4 +69,10 @@ public class CircleController {
     public ResponseEntity<Map<String, String>> acceptInvite(Authentication auth, @PathVariable Long circleId) {
         return ResponseEntity.ok(Map.of("message", circleService.acceptInvite(auth.getName(), circleId)));
     }
+
+    @GetMapping("/{circleId}/insights")
+    public ResponseEntity<Map<String, Object>> getCircleInsights(
+            Authentication auth, @PathVariable Long circleId) {
+        return ResponseEntity.ok(circleService.getCircleInsights(auth.getName(), circleId));
+    }
 }

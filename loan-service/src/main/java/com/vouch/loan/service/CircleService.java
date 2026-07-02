@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -17,8 +18,62 @@ public class CircleService {
 
     private final CircleRepository circleRepository;
     private final CircleMemberRepository circleMemberRepository;
+    private final LoanRepository loanRepository;
     private final AuthServiceClient authServiceClient;
     private final NotificationServiceClient notificationServiceClient;
+
+    public Map<String, Object> getCircleInsights(String phone, Long circleId) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        Circle circle = circleRepository.findById(circleId)
+                .orElseThrow(() -> new RuntimeException("Circle not found"));
+        validateMembership(circle, userId);
+
+        List<Loan> allLoans = loanRepository.findByCircle(circle);
+        int totalLoans = allLoans.size();
+        long activeLoans = allLoans.stream().filter(l -> List.of(
+                Loan.LoanStatus.ACTIVE, Loan.LoanStatus.DUE, Loan.LoanStatus.GRACE_PERIOD
+        ).contains(l.getStatus())).count();
+        long repaidLoans    = allLoans.stream().filter(l -> l.getStatus() == Loan.LoanStatus.REPAID).count();
+        long defaultedLoans = allLoans.stream().filter(l -> l.getStatus() == Loan.LoanStatus.DEFAULTED).count();
+        double circleRepaymentRate = totalLoans == 0 ? 0.0
+                : Math.round((double) repaidLoans / totalLoans * 1000.0) / 10.0;
+        double totalAmountCirculated = allLoans.stream().mapToDouble(Loan::getAmount).sum();
+
+        String circleHealth;
+        if (totalLoans == 0)                 circleHealth = "New";
+        else if (circleRepaymentRate >= 80)  circleHealth = "Excellent";
+        else if (circleRepaymentRate >= 60)  circleHealth = "Good";
+        else if (circleRepaymentRate >= 40)  circleHealth = "Fair";
+        else                                 circleHealth = "Poor";
+
+        List<CircleMember> activeMembers = circleMemberRepository
+                .findByCircleAndStatus(circle, CircleMember.MemberStatus.ACTIVE);
+        double averageTrustScore = activeMembers.isEmpty() ? 50.0
+                : Math.round(activeMembers.stream()
+                        .mapToDouble(CircleMember::getCircleTrustScore).average().orElse(50.0) * 10.0) / 10.0;
+
+        CircleMember topLenderMember = activeMembers.stream()
+                .filter(m -> m.getLoansGivenInCircle() > 0)
+                .max(Comparator.comparingInt(CircleMember::getLoansGivenInCircle)).orElse(null);
+        CircleMember topBorrowerMember = activeMembers.stream()
+                .filter(m -> m.getLoansReceivedInCircle() > 0)
+                .max(Comparator.comparingInt(CircleMember::getLoansReceivedInCircle)).orElse(null);
+        String topLender   = topLenderMember   != null ? authServiceClient.getUserName(topLenderMember.getUserId())   : null;
+        String topBorrower = topBorrowerMember != null ? authServiceClient.getUserName(topBorrowerMember.getUserId()) : null;
+
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("circleHealth",          circleHealth);
+        result.put("totalLoans",            totalLoans);
+        result.put("activeLoans",           activeLoans);
+        result.put("repaidLoans",           repaidLoans);
+        result.put("defaultedLoans",        defaultedLoans);
+        result.put("circleRepaymentRate",   circleRepaymentRate);
+        result.put("totalAmountCirculated", totalAmountCirculated);
+        result.put("averageTrustScore",     averageTrustScore);
+        if (topLender != null)   result.put("topLender",   topLender);
+        if (topBorrower != null) result.put("topBorrower", topBorrower);
+        return result;
+    }
 
     @Transactional
     public CircleResponse createCircle(String phone, CreateCircleRequest request) {

@@ -28,4 +28,6 @@ public class LoanResponse {
     private LocalDateTime createdAt;
     private LocalDateTime disbursedAt;
     private String message;
+    private Boolean borrowerSigned;
+    private Boolean lenderSigned;
 }

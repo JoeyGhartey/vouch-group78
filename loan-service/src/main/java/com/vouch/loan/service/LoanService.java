@@ -643,6 +643,7 @@ public class LoanService {
     private LoanResponse mapToLoanResponse(Loan loan, String message) {
         String borrowerName = authServiceClient.getUserName(loan.getBorrowerId());
         String lenderName = loan.getLenderId() != null ? authServiceClient.getUserName(loan.getLenderId()) : null;
+        LoanAgreement agreement = loanAgreementRepository.findByLoan(loan).orElse(null);
         return LoanResponse.builder()
                 .id(loan.getId())
                 .borrowerName(borrowerName)
@@ -667,6 +668,8 @@ public class LoanService {
                 .createdAt(loan.getCreatedAt())
                 .disbursedAt(loan.getDisbursedAt())
                 .message(message)
+                .borrowerSigned(agreement != null ? agreement.getBorrowerSigned() : false)
+                .lenderSigned(agreement != null ? agreement.getLenderSigned() : false)
                 .build();
     }
 }
