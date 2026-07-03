@@ -1,41 +1,86 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# dependencies
+# -----------------------------------------------------------------------------
+# Node / Dependencies
+# -----------------------------------------------------------------------------
 node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.pnpm-debug.log
 
-# Expo
+# -----------------------------------------------------------------------------
+# Expo & Metro
+# -----------------------------------------------------------------------------
 .expo/
 dist/
 web-build/
 expo-env.d.ts
+.metro-health-check*
 
-# Native
+# -----------------------------------------------------------------------------
+# iOS / Xcode (General)
+# -----------------------------------------------------------------------------
+ios/Pods/
+ios/.xcode.env.local
+DerivedData/
+*.moved-aside
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+!default.pbxuser
+!default.mode1v3
+!default.mode2v3
+!default.perspectivev3
+
+# -----------------------------------------------------------------------------
+# Android / Gradle (General)
+# -----------------------------------------------------------------------------
+.gradle/
+build/
+app/build/
 .kotlin/
+*.apk
+*.aar
+*.bundle
+
+# -----------------------------------------------------------------------------
+# Native Certificates & Keys (Never commit these!)
+# -----------------------------------------------------------------------------
 *.orig.*
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
 *.mobileprovision
-
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
 *.pem
 
-# local env files
+# -----------------------------------------------------------------------------
+# Environment / Secrets
+# -----------------------------------------------------------------------------
+.env
+.env.local
 .env*.local
+*.env.js
 
-# typescript
+# -----------------------------------------------------------------------------
+# System & IDEs
+# -----------------------------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
+# -----------------------------------------------------------------------------
+# Expo Prebuild Folders
+# UNCOMMENT these ONLY if you use `npx expo prebuild` and do not manage native code.
+# -----------------------------------------------------------------------------
+# /ios
+# /android
