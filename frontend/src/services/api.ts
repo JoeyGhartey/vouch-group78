@@ -112,6 +112,7 @@ export const approveMember = (circleId: number, memberId: number) => request(`/c
 export const removeMember = (circleId: number, userId: number) => request(`/circles/${circleId}/remove/${userId}`, 'POST');
 export const leaveCircle = (circleId: number) => request(`/circles/${circleId}/leave`, 'POST');
 export const acceptInvite = (circleId: number) => request(`/circles/${circleId}/accept`, 'POST');
+export const rejectInvite = (circleId: number) => request(`/circles/${circleId}/reject`, 'POST');
 
 // Loans
 export const requestLoan = (data: unknown) => request('/loans/request', 'POST', data);
@@ -150,6 +151,8 @@ export const getUnreadNotifications = () => request('/notifications/unread');
 export const getUnreadCount = () => request('/notifications/count');
 export const markNotificationRead = (notificationId: number) => request(`/notifications/${notificationId}/read`, 'POST');
 export const markAllNotificationsRead = () => request('/notifications/read-all', 'POST');
+export const deleteNotification = (id: number) => request(`/notifications/${id}`, 'DELETE');
+export const clearReadNotifications = () => request('/notifications/read', 'DELETE');
 
 // Disputes
 export const openDispute = (data: unknown) => request('/disputes', 'POST', data);
@@ -159,7 +162,7 @@ export const getDispute = (disputeId: number) => request(`/disputes/${disputeId}
 // Insights
 export const getBorrowerInsights = () => request('/insights/borrower');
 export const getLenderInsights = () => request('/insights/lender');
-export const getCircleInsights = (circleId: number) => request(`/insights/circle/${circleId}`);
+export const getCircleInsights = (circleId: number) => request(`/circles/${circleId}/insights`);
 
 // Payments
 export const initializeDisbursement = (loanId: number) => request(`/payments/disburse/${loanId}`, 'POST');

@@ -29,10 +29,12 @@ interface CircleMember {
   userId: number;
   firstName: string;
   lastName: string;
+  phone?: string;
   memberRole: string;
   circleTrustScore: number;
   loansGivenInCircle: number;
   loansReceivedInCircle: number;
+  loansRepaidInCircle: number;
   defaultsInCircle: number;
 }
 
@@ -166,6 +168,15 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   input: { backgroundColor: c.bg, borderRadius: 10, padding: 14, fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border },
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
   cancelBtnText: { color: c.muted, fontSize: 14 },
+  memberDetailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border },
+  memberDetailLabel: { fontSize: 13, color: c.muted },
+  memberDetailValue: { fontSize: 13, fontWeight: '700', color: c.dark },
+  memberDetailScore: { fontSize: 32, fontWeight: '800', color: c.dark, textAlign: 'center', marginVertical: 4 },
+  memberDetailScoreLabel: { fontSize: 11, color: c.muted, textAlign: 'center', marginBottom: 16 },
+  memberDetailAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: c.buttonDark, justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 8 },
+  memberDetailAvatarText: { color: c.buttonDarkText, fontSize: 20, fontWeight: '700' },
+  memberDetailName: { fontSize: 17, fontWeight: '700', color: c.dark, textAlign: 'center', marginBottom: 2 },
+  memberDetailRole: { fontSize: 12, color: c.muted, textAlign: 'center', marginBottom: 12 },
 });
 
 export default function CircleDetailScreen({ route, navigation }: Props) {
@@ -190,6 +201,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   const [invitePhone, setInvitePhone] = useState<string>('');
   const [inviteError, setInviteError] = useState<string>('');
   const [inviting, setInviting] = useState<boolean>(false);
+  const [selectedMember, setSelectedMember] = useState<CircleMember | null>(null);
 
   const loadData = async (): Promise<void> => {
     try {
@@ -319,7 +331,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
         {activeTab === 'members' && (
           <View style={styles.section}>
             {circle.members.map((member) => (
-              <View key={member.userId} style={styles.memberCard}>
+              <TouchableOpacity key={member.userId} style={styles.memberCard} onPress={() => setSelectedMember(member)} activeOpacity={0.7}>
                 <View style={styles.memberAvatar}>
                   <Text style={styles.memberAvatarText}>{member.firstName[0]}{member.lastName[0]}</Text>
                 </View>
@@ -338,7 +350,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                     </View>
                   )}
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
             <TouchableOpacity style={styles.leaveBtn} onPress={handleLeave}>
               <Ionicons name="exit-outline" size={16} color={colors.danger} style={{ marginRight: 6 }} />
@@ -517,6 +529,40 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Member Detail Modal */}
+      <Modal visible={selectedMember !== null} animationType="slide" transparent onRequestClose={() => setSelectedMember(null)}>
+        <View style={styles.modalBg}>
+          <View style={styles.modal}>
+            {selectedMember && (
+              <>
+                <View style={styles.memberDetailAvatar}>
+                  <Text style={styles.memberDetailAvatarText}>{selectedMember.firstName[0]}{selectedMember.lastName[0]}</Text>
+                </View>
+                <Text style={styles.memberDetailName}>{selectedMember.firstName} {selectedMember.lastName}</Text>
+                <Text style={styles.memberDetailRole}>{selectedMember.memberRole === 'CREATOR' ? 'Admin' : 'Member'}</Text>
+                <Text style={styles.memberDetailScore}>{selectedMember.circleTrustScore?.toFixed(0)}</Text>
+                <Text style={styles.memberDetailScoreLabel}>Circle Trust Score</Text>
+                {([
+                  ['Phone', selectedMember.phone ?? '—'],
+                  ['Loans Given', selectedMember.loansGivenInCircle],
+                  ['Loans Received', selectedMember.loansReceivedInCircle],
+                  ['Repaid On Time', selectedMember.loansRepaidInCircle],
+                  ['Defaults', selectedMember.defaultsInCircle],
+                ] as [string, string | number][]).map(([label, value]) => (
+                  <View key={label} style={styles.memberDetailRow}>
+                    <Text style={styles.memberDetailLabel}>{label}</Text>
+                    <Text style={styles.memberDetailValue}>{value}</Text>
+                  </View>
+                ))}
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setSelectedMember(null)}>
+                  <Text style={styles.cancelBtnText}>Close</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
       </Modal>
     </View>
   );

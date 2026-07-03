@@ -45,6 +45,8 @@ interface Loan {
   createdAt: string;
   disbursedAt?: string;
   gracePeriodEnd?: string;
+  borrowerSigned?: boolean;
+  lenderSigned?: boolean;
 }
 
 interface Profile {
@@ -240,7 +242,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               showAlert('success', 'Success', 'Payment successful. Loan is now active.');
               loadData();
             } else {
-              showAlert('error', 'Payment Pending', 'Payment not confirmed yet. Pull down to refresh.');
+              showAlert('error', 'Payment Pending', verification.message);
               loadData();
             }
           } catch (e) {
@@ -281,7 +283,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               showAlert('success', 'Success', 'Repayment successful.');
               loadData();
             } else {
-              showAlert('error', 'Payment Pending', 'Payment not confirmed yet. Pull down to refresh.');
+              showAlert('error', 'Payment Pending', verification.message);
               loadData();
             }
           } catch (e) {
@@ -423,7 +425,8 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             </View>
           </View>
         )}
-        {loan.status === 'AGREEMENT_PENDING' && (isBorrower || isLender) && (
+        {loan.status === 'AGREEMENT_PENDING' &&
+          ((isBorrower && !loan.borrowerSigned) || (isLender && !loan.lenderSigned)) && (
           <TouchableOpacity style={styles.primaryBtn} onPress={handleSign} disabled={acting}>
             {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Sign Agreement</Text>}
           </TouchableOpacity>
