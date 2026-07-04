@@ -14,7 +14,8 @@ type Props = {
 
 const faqs = [
   {
-    category: '🚀 Getting Started',
+    category: 'Getting Started',
+    icon: 'rocket',
     items: [
       {
         q: 'What is Vouch?',
@@ -31,7 +32,8 @@ const faqs = [
     ],
   },
   {
-    category: '💰 Loans',
+    category: 'Loans',
+    icon: 'cash',
     items: [
       {
         q: 'How do I request a loan?',
@@ -56,7 +58,8 @@ const faqs = [
     ],
   },
   {
-    category: '📱 MoMo & Payments',
+    category: 'MoMo & Payments',
+    icon: 'phone-portrait',
     items: [
       {
         q: 'Which MoMo providers are supported?',
@@ -73,7 +76,8 @@ const faqs = [
     ],
   },
   {
-    category: '⭐ Trust Score & Badges',
+    category: 'Trust Score & Badges',
+    icon: 'star',
     items: [
       {
         q: 'How is my trust score calculated?',
@@ -90,7 +94,8 @@ const faqs = [
     ],
   },
   {
-    category: '👤 Account',
+    category: 'Account',
+    icon: 'person',
     items: [
       {
         q: 'How do I update my profile?',
@@ -122,14 +127,14 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     borderRadius: 16, padding: 20, marginBottom: 12,
     borderWidth: 1, borderColor: c.border, alignItems: 'center',
   },
-  heroIcon: { fontSize: 36, marginBottom: 8 },
+  heroIconWrap: { marginBottom: 8 },
   heroTitle: { fontSize: 18, fontWeight: '700', color: c.dark, marginBottom: 4 },
   heroSub: { fontSize: 13, color: c.muted, textAlign: 'center' },
   categoryCard: {
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     marginBottom: 12, borderWidth: 1, borderColor: c.border, overflow: 'hidden',
   },
-  categoryHeader: { padding: 14, borderBottomWidth: 1, borderBottomColor: c.border },
+  categoryHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderBottomWidth: 1, borderBottomColor: c.border },
   categoryTitle: { fontSize: 14, fontWeight: '700', color: c.dark },
   faqItem: { borderBottomWidth: 1, borderBottomColor: c.border },
   faqQuestion: {
@@ -144,6 +149,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
   },
   contactTitle: { fontSize: 15, fontWeight: '700', color: c.dark, marginBottom: 14 },
+  contactTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   contactBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     padding: 14, borderRadius: 12, backgroundColor: c.bg,
@@ -181,7 +187,7 @@ export default function HelpScreen({ navigation }: Props) {
 
         {/* Hero */}
         <View style={styles.heroCard}>
-          <Text style={styles.heroIcon}>🤝</Text>
+          <Ionicons name="people-circle" size={36} color={colors.accent} style={styles.heroIconWrap} />
           <Text style={styles.heroTitle}>How can we help you?</Text>
           <Text style={styles.heroSub}>Find answers to common questions below or contact us directly</Text>
         </View>
@@ -190,6 +196,13 @@ export default function HelpScreen({ navigation }: Props) {
         {faqs.map((category) => (
           <View key={category.category} style={styles.categoryCard}>
             <View style={styles.categoryHeader}>
+              <Ionicons
+                name={(category.items.some((_, i) => openItem === `${category.category}-${i}`)
+                  ? category.icon
+                  : `${category.icon}-outline`) as keyof typeof Ionicons.glyphMap}
+                size={18}
+                color={category.items.some((_, i) => openItem === `${category.category}-${i}`) ? colors.accent : colors.muted}
+              />
               <Text style={styles.categoryTitle}>{category.category}</Text>
             </View>
             {category.items.map((item, i) => {
@@ -218,7 +231,10 @@ export default function HelpScreen({ navigation }: Props) {
 
         {/* Contact Us */}
         <View style={styles.contactCard}>
-          <Text style={styles.contactTitle}>📬 Contact Us</Text>
+          <View style={styles.contactTitleRow}>
+            <Ionicons name="chatbubbles" size={18} color={colors.accent} />
+            <Text style={[styles.contactTitle, { marginBottom: 0 }]}>Contact Us</Text>
+          </View>
 
           <TouchableOpacity
             style={styles.contactBtn}

@@ -43,6 +43,20 @@ interface Badge {
   earned: boolean;
 }
 
+const BADGE_ICON_NAMES: Record<string, string> = {
+  rising_star: 'star',
+  trusted_borrower: 'people',
+  reliable_lender: 'cash',
+  circle_champion: 'trophy',
+  elite_member: 'medal',
+  zero_defaults: 'shield-checkmark',
+};
+
+const getBadgeIconName = (badgeId: string, earned: boolean): keyof typeof Ionicons.glyphMap => {
+  const base = BADGE_ICON_NAMES[badgeId] || 'ribbon';
+  return (earned ? base : `${base}-outline`) as keyof typeof Ionicons.glyphMap;
+};
+
 interface EditData {
   firstName: string;
   lastName: string;
@@ -123,10 +137,9 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.bg,
   },
   badgeItemEarned: { borderColor: c.accent, backgroundColor: c.goldBgTint },
-  badgeIcon: { fontSize: 28, marginBottom: 6 },
   badgeName: { fontSize: 10, fontWeight: '700', color: c.muted, textAlign: 'center' },
   badgeNameEarned: { color: c.accent },
-  badgeLocked: { fontSize: 18, marginBottom: 6 },
+  badgeIconWrap: { marginBottom: 6 },
   card: {
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
@@ -313,9 +326,12 @@ export default function ProfileScreen({ navigation }: Props) {
             <View style={styles.badgesGrid}>
               {badges.map((badge) => (
                 <View key={badge.id} style={[styles.badgeItem, badge.earned && styles.badgeItemEarned]}>
-                  <Text style={badge.earned ? styles.badgeIcon : styles.badgeLocked}>
-                    {badge.earned ? badge.icon : '🔒'}
-                  </Text>
+                  <Ionicons
+                    name={getBadgeIconName(badge.id, badge.earned)}
+                    size={28}
+                    color={badge.earned ? colors.accent : colors.muted}
+                    style={styles.badgeIconWrap}
+                  />
                   <Text style={[styles.badgeName, badge.earned && styles.badgeNameEarned]}>
                     {badge.name}
                   </Text>
