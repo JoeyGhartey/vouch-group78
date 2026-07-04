@@ -92,6 +92,16 @@ public class LoanController {
         return ResponseEntity.ok(loanService.getMyLoansAsLender(auth.getName()));
     }
 
+    @GetMapping("/insights/borrower")
+    public ResponseEntity<Map<String, Object>> getBorrowerInsights(Authentication auth) {
+        return ResponseEntity.ok(loanService.getBorrowerInsights(auth.getName()));
+    }
+
+    @GetMapping("/insights/lender")
+    public ResponseEntity<Map<String, Object>> getLenderInsights(Authentication auth) {
+        return ResponseEntity.ok(loanService.getLenderInsights(auth.getName()));
+    }
+
     @GetMapping("/{loanId}")
     public ResponseEntity<LoanResponse> getLoan(Authentication auth, @PathVariable Long loanId) {
         return ResponseEntity.ok(loanService.getLoan(auth.getName(), loanId));

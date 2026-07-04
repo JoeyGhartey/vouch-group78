@@ -162,8 +162,8 @@ export const getMyDisputes = () => request('/disputes');
 export const getDispute = (disputeId: number) => request(`/disputes/${disputeId}`);
 
 // Insights
-export const getBorrowerInsights = () => request('/insights/borrower');
-export const getLenderInsights = () => request('/insights/lender');
+export const getBorrowerInsights = () => request('/loans/insights/borrower');
+export const getLenderInsights = () => request('/loans/insights/lender');
 export const getCircleInsights = (circleId: number) => request(`/circles/${circleId}/insights`);
 
 // Payments
