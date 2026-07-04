@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   getCircle, inviteMember, leaveCircle,
   getCircleLoans, getCircleExpenses, getCircleBalances, getCircleInsights,
-  settleExpense,
+  requestPayment, confirmPayment,
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
@@ -62,6 +62,7 @@ interface ExpenseSplit {
   userId: number;
   amountOwed: number;
   settled: boolean;
+  paymentRequested: boolean;
 }
 
 interface Expense {
@@ -71,6 +72,7 @@ interface Expense {
   paidBy: string;
   paidById: number;
   category?: string;
+  createdAt?: string;
   splits: ExpenseSplit[];
 }
 
@@ -132,14 +134,25 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   loanReason: { fontSize: 13, color: c.muted, marginBottom: 4 },
   loanParties: { fontSize: 12, color: c.muted },
   loanInterest: { fontSize: 12, color: c.accent, marginTop: 4 },
-  expenseCard: { backgroundColor: c.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.border },
-  expenseTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  expenseDesc: { fontSize: 14, fontWeight: '600', color: c.dark, flex: 1 },
-  expenseAmount: { fontSize: 16, fontWeight: '800', color: c.danger },
+  expenseCard: { backgroundColor: c.surface, borderRadius: 14, borderLeftWidth: 4, padding: 14, borderWidth: 1, borderColor: c.border },
+  expenseTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  expenseDesc: { fontSize: 16, fontWeight: '700', color: c.dark, flex: 1, marginRight: 8 },
+  expenseAmount: { fontSize: 20, fontWeight: '800', color: c.dark, textAlign: 'right' },
   expenseMeta: { fontSize: 12, color: c.muted },
-  expenseCategory: { fontSize: 11, color: c.muted, marginTop: 2 },
-  splitsContainer: { marginTop: 10, borderTopWidth: 1, borderTopColor: c.border, paddingTop: 10 },
-  splitRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.border },
+  categoryBadge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 8 },
+  categoryBadgeText: { fontSize: 10, fontWeight: '700' },
+  expenseBottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  payerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  payerAvatar: { width: 22, height: 22, borderRadius: 11, backgroundColor: c.buttonDark, justifyContent: 'center', alignItems: 'center' },
+  payerAvatarText: { color: c.buttonDarkText, fontSize: 9, fontWeight: '700' },
+  expenseDate: { fontSize: 11, color: c.muted },
+  splitsContainer: { marginTop: 12, borderTopWidth: 1, borderTopColor: c.border, paddingTop: 12 },
+  progressLabel: { fontSize: 11, color: c.muted, marginBottom: 6, fontWeight: '600' },
+  progressBarTrack: { height: 6, borderRadius: 3, backgroundColor: c.border, overflow: 'hidden', marginBottom: 12 },
+  progressBarFill: { height: 6, borderRadius: 3, backgroundColor: c.success },
+  splitRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border },
+  splitAvatar: { width: 30, height: 30, borderRadius: 15, backgroundColor: c.bg, borderWidth: 1, borderColor: c.border, justifyContent: 'center', alignItems: 'center' },
+  splitAvatarText: { fontSize: 11, fontWeight: '700', color: c.dark },
   splitName: { fontSize: 13, color: c.dark },
   splitAmount: { fontSize: 12, color: c.muted, marginTop: 1 },
   settledBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -191,8 +204,10 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [balances, setBalances] = useState<Record<string, number>>({});
   const [expandedExpense, setExpandedExpense] = useState<number | null>(null);
-  const [settlingId, setSettlingId] = useState<number | null>(null);
-  const [settleError, setSettleError] = useState<Record<number, string>>({});
+  const [requestingId, setRequestingId] = useState<number | null>(null);
+  const [requestError, setRequestError] = useState<Record<number, string>>({});
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
+  const [confirmError, setConfirmError] = useState<Record<number, string>>({});
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -229,17 +244,31 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
 
   useFocusEffect(useCallback(() => { loadData(); }, []));
 
-  const handleSettle = async (splitId: number): Promise<void> => {
-    setSettlingId(splitId);
-    setSettleError(prev => { const next = { ...prev }; delete next[splitId]; return next; });
+  const handleRequestPayment = async (splitId: number): Promise<void> => {
+    setRequestingId(splitId);
+    setRequestError(prev => { const next = { ...prev }; delete next[splitId]; return next; });
     try {
-      await settleExpense(splitId);
-      showAlert('success', 'Settled', 'Expense split settled successfully');
+      await requestPayment(splitId);
+      showAlert('success', 'Payment Requested', 'Waiting for confirmation from the payer.');
       loadData();
     } catch (error) {
-      setSettleError(prev => ({ ...prev, [splitId]: (error as Error).message }));
+      setRequestError(prev => ({ ...prev, [splitId]: (error as Error).message }));
     } finally {
-      setSettlingId(null);
+      setRequestingId(null);
+    }
+  };
+
+  const handleConfirmPayment = async (splitId: number): Promise<void> => {
+    setConfirmingId(splitId);
+    setConfirmError(prev => { const next = { ...prev }; delete next[splitId]; return next; });
+    try {
+      await confirmPayment(splitId);
+      showAlert('success', 'Confirmed', 'Payment confirmed and split settled.');
+      loadData();
+    } catch (error) {
+      setConfirmError(prev => ({ ...prev, [splitId]: (error as Error).message }));
+    } finally {
+      setConfirmingId(null);
     }
   };
 
@@ -279,6 +308,21 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
     ACTIVE: colors.success, DUE: colors.warning, GRACE_PERIOD: colors.danger,
     REPAID: colors.success, DEFAULTED: colors.danger, DISPUTED: colors.statusPurple, CANCELLED: colors.muted,
   }[status] || colors.muted);
+
+  const getCategoryColor = (category?: string): string => ({
+    Food: colors.success, Transport: colors.statusBlue, Entertainment: colors.statusPurple,
+    Utilities: colors.statusOrange, Shopping: colors.accent, Other: colors.slate400,
+  }[category || ''] || colors.muted);
+
+  const getInitials = (fullName: string): string => {
+    const parts = fullName.trim().split(/\s+/);
+    return parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : fullName.slice(0, 2).toUpperCase();
+  };
+
+  const formatExpenseDate = (dateString?: string): string => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  };
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>;
   if (!circle) return <View style={styles.center}><Text style={{ color: colors.danger }}>Circle not found</Text></View>;
@@ -415,60 +459,101 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                 <Text style={styles.emptyTitle}>No shared expenses yet</Text>
               </View>
             ) : (
-              expenses.map((expense) => (
-                <View key={expense.expenseId} style={styles.expenseCard}>
-                  <TouchableOpacity activeOpacity={0.7} onPress={() => setExpandedExpense(expandedExpense === expense.expenseId ? null : expense.expenseId)}>
-                    <View style={styles.expenseTop}>
-                      <Text style={styles.expenseDesc}>{expense.description}</Text>
-                      <Text style={styles.expenseAmount}>GHS {expense.totalAmount}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Text style={styles.expenseMeta}>Paid by {expense.paidBy}</Text>
-                      <Ionicons name={expandedExpense === expense.expenseId ? 'chevron-up' : 'chevron-down'} size={14} color={colors.muted} />
-                    </View>
-                    {expense.category && <Text style={styles.expenseCategory}>{expense.category}</Text>}
-                  </TouchableOpacity>
-                  {expandedExpense === expense.expenseId && expense.splits && (
-                    <View style={styles.splitsContainer}>
-                      {expense.splits.map((split) => {
-                        const memberInfo = circle.members.find(m => m.userId === split.userId);
-                        const name = memberInfo ? `${memberInfo.firstName} ${memberInfo.lastName}` : `User #${split.userId}`;
-                        const isMe = user?.id === split.userId;
-                        const isPayer = split.userId === expense.paidById;
-                        return (
-                          <View key={split.id} style={styles.splitRow}>
-                            <View style={{ flex: 1 }}>
-                              <Text style={[styles.splitName, isMe && { fontWeight: '700' }]}>{name}{isMe ? ' (You)' : ''}</Text>
-                              <Text style={styles.splitAmount}>GHS {split.amountOwed.toFixed(2)}</Text>
-                            </View>
-                            {split.settled || isPayer ? (
-                              <View style={styles.settledBadge}>
-                                <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-                                <Text style={styles.settledText}>Settled</Text>
-                              </View>
-                            ) : isMe ? (
-                              <View>
-                                <TouchableOpacity
-                                  style={[styles.settleBtn, settlingId === split.id && { opacity: 0.6 }]}
-                                  onPress={() => handleSettle(split.id)}
-                                  disabled={settlingId === split.id}
-                                >
-                                  {settlingId === split.id
-                                    ? <ActivityIndicator size="small" color={colors.buttonDarkText} />
-                                    : <Text style={styles.settleBtnText}>Settle</Text>}
-                                </TouchableOpacity>
-                                {settleError[split.id] && <Text style={{ color: colors.danger, fontSize: 11, marginTop: 2 }}>{settleError[split.id]}</Text>}
-                              </View>
-                            ) : (
-                              <Text style={styles.splitPending}>Pending</Text>
-                            )}
+              expenses.map((expense) => {
+                const settledCount = expense.splits.filter(s => s.settled || s.userId === expense.paidById).length;
+                const totalCount = expense.splits.length;
+                const progress = totalCount > 0 ? settledCount / totalCount : 0;
+                const categoryColor = getCategoryColor(expense.category);
+                return (
+                  <View key={expense.expenseId} style={[styles.expenseCard, { borderLeftColor: categoryColor }]}>
+                    <TouchableOpacity activeOpacity={0.7} onPress={() => setExpandedExpense(expandedExpense === expense.expenseId ? null : expense.expenseId)}>
+                      <View style={styles.expenseTop}>
+                        <Text style={styles.expenseDesc}>{expense.description}</Text>
+                        <Text style={styles.expenseAmount}>GHS {expense.totalAmount}</Text>
+                      </View>
+                      {expense.category && (
+                        <View style={[styles.categoryBadge, { backgroundColor: `${categoryColor}18` }]}>
+                          <Text style={[styles.categoryBadgeText, { color: categoryColor }]}>{expense.category}</Text>
+                        </View>
+                      )}
+                      <View style={styles.expenseBottomRow}>
+                        <View style={styles.payerRow}>
+                          <View style={styles.payerAvatar}>
+                            <Text style={styles.payerAvatarText}>{getInitials(expense.paidBy)}</Text>
                           </View>
-                        );
-                      })}
-                    </View>
-                  )}
-                </View>
-              ))
+                          <Text style={styles.expenseMeta}>Paid by {expense.paidBy}</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={styles.expenseDate}>{formatExpenseDate(expense.createdAt)}</Text>
+                          <Ionicons name={expandedExpense === expense.expenseId ? 'chevron-up' : 'chevron-down'} size={14} color={colors.muted} />
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                    {expandedExpense === expense.expenseId && expense.splits && (
+                      <View style={styles.splitsContainer}>
+                        <Text style={styles.progressLabel}>{settledCount} of {totalCount} settled</Text>
+                        <View style={styles.progressBarTrack}>
+                          <View style={[styles.progressBarFill, { width: `${progress * 100}%` }]} />
+                        </View>
+                        {expense.splits.map((split) => {
+                          const memberInfo = circle.members.find(m => m.userId === split.userId);
+                          const name = memberInfo ? `${memberInfo.firstName} ${memberInfo.lastName}` : `User #${split.userId}`;
+                          const isMe = user?.id === split.userId;
+                          const isPayer = split.userId === expense.paidById;
+                          const isCurrentUserPayer = user?.id === expense.paidById;
+                          return (
+                            <View key={split.id} style={styles.splitRow}>
+                              <View style={styles.splitAvatar}>
+                                <Text style={styles.splitAvatarText}>{getInitials(name)}</Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={[styles.splitName, isMe && { fontWeight: '700' }]}>{name}{isMe ? ' (You)' : ''}</Text>
+                                <Text style={styles.splitAmount}>GHS {split.amountOwed.toFixed(2)}</Text>
+                              </View>
+                              {split.settled || isPayer ? (
+                                <View style={styles.settledBadge}>
+                                  <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+                                  <Text style={styles.settledText}>Settled</Text>
+                                </View>
+                              ) : isMe && !split.paymentRequested ? (
+                                <View>
+                                  <TouchableOpacity
+                                    style={[styles.settleBtn, requestingId === split.id && { opacity: 0.6 }]}
+                                    onPress={() => handleRequestPayment(split.id)}
+                                    disabled={requestingId === split.id}
+                                  >
+                                    {requestingId === split.id
+                                      ? <ActivityIndicator size="small" color={colors.buttonDarkText} />
+                                      : <Text style={styles.settleBtnText}>I&apos;ve Paid</Text>}
+                                  </TouchableOpacity>
+                                  {requestError[split.id] && <Text style={{ color: colors.danger, fontSize: 11, marginTop: 2 }}>{requestError[split.id]}</Text>}
+                                </View>
+                              ) : isMe && split.paymentRequested ? (
+                                <Text style={styles.splitPending}>Pending Confirmation</Text>
+                              ) : split.paymentRequested && isCurrentUserPayer ? (
+                                <View>
+                                  <TouchableOpacity
+                                    style={[styles.settleBtn, confirmingId === split.id && { opacity: 0.6 }]}
+                                    onPress={() => handleConfirmPayment(split.id)}
+                                    disabled={confirmingId === split.id}
+                                  >
+                                    {confirmingId === split.id
+                                      ? <ActivityIndicator size="small" color={colors.buttonDarkText} />
+                                      : <Text style={styles.settleBtnText}>Confirm Received</Text>}
+                                  </TouchableOpacity>
+                                  {confirmError[split.id] && <Text style={{ color: colors.danger, fontSize: 11, marginTop: 2 }}>{confirmError[split.id]}</Text>}
+                                </View>
+                              ) : (
+                                <Text style={styles.splitPending}>Pending</Text>
+                              )}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                );
+              })
             )}
           </View>
         )}

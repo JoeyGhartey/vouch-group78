@@ -29,6 +29,12 @@ public class ExpenseSplit {
 
     private LocalDateTime settledAt;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean paymentRequested = false;
+
+    private LocalDateTime paymentRequestedAt;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

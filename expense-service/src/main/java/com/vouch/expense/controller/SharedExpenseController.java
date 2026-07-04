@@ -37,4 +37,14 @@ public class SharedExpenseController {
     public ResponseEntity<Map<String, String>> settleExpense(Authentication auth, @PathVariable Long splitId) {
         return ResponseEntity.ok(Map.of("message", sharedExpenseService.settleExpenseSplit(auth.getName(), splitId)));
     }
+
+    @PostMapping("/splits/{splitId}/request-payment")
+    public ResponseEntity<Map<String, String>> requestPayment(Authentication auth, @PathVariable Long splitId) {
+        return ResponseEntity.ok(Map.of("message", sharedExpenseService.requestPayment(auth.getName(), splitId)));
+    }
+
+    @PostMapping("/splits/{splitId}/confirm-payment")
+    public ResponseEntity<Map<String, String>> confirmPayment(Authentication auth, @PathVariable Long splitId) {
+        return ResponseEntity.ok(Map.of("message", sharedExpenseService.confirmPayment(auth.getName(), splitId)));
+    }
 }

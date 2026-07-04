@@ -86,6 +86,7 @@ public class SharedExpenseService {
                 sm.put("userId", s.getUserId());
                 sm.put("amountOwed", s.getAmountOwed());
                 sm.put("settled", s.getSettled());
+                sm.put("paymentRequested", s.getPaymentRequested());
                 return sm;
             }).collect(Collectors.toList()));
             return map;
@@ -117,14 +118,40 @@ public class SharedExpenseService {
     public String settleExpenseSplit(String phone, Long splitId) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
         ExpenseSplit split = expenseSplitRepository.findById(splitId).orElseThrow(() -> new RuntimeException("Split not found"));
-        if (!userId.equals(split.getUserId())) throw new RuntimeException("You can only settle your own splits");
+        SharedExpense expense = split.getSharedExpense();
+        if (!userId.equals(expense.getPaidById())) throw new RuntimeException("Only the person who paid can settle this split");
         split.setSettled(true); split.setSettledAt(LocalDateTime.now());
         expenseSplitRepository.save(split);
 
-        SharedExpense expense = split.getSharedExpense();
-        notificationServiceClient.send(expense.getPaidById(), "Expense Settled",
-                authServiceClient.getUserName(userId) + " settled GHS " + split.getAmountOwed() + " for \"" + expense.getDescription() + "\"",
+        notificationServiceClient.send(split.getUserId(), "Expense Settled",
+                "Your payment of GHS " + split.getAmountOwed() + " for \"" + expense.getDescription() + "\" was marked settled",
                 "SHARED_EXPENSE_SETTLED", expense.getId());
         return "Split settled successfully";
+    }
+
+    @Transactional
+    public String requestPayment(String phone, Long splitId) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        ExpenseSplit split = expenseSplitRepository.findById(splitId).orElseThrow(() -> new RuntimeException("Split not found"));
+        if (!userId.equals(split.getUserId())) throw new RuntimeException("You can only request payment confirmation for your own splits");
+        split.setPaymentRequested(true); split.setPaymentRequestedAt(LocalDateTime.now());
+        expenseSplitRepository.save(split);
+
+        SharedExpense expense = split.getSharedExpense();
+        notificationServiceClient.send(expense.getPaidById(), "Payment Requested",
+                authServiceClient.getUserName(userId) + " says they paid GHS " + split.getAmountOwed() + " for \"" + expense.getDescription() + "\". Please confirm.",
+                "SHARED_EXPENSE_SETTLED", expense.getId());
+        return "Payment request sent. Waiting for confirmation.";
+    }
+
+    @Transactional
+    public String confirmPayment(String phone, Long splitId) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        ExpenseSplit split = expenseSplitRepository.findById(splitId).orElseThrow(() -> new RuntimeException("Split not found"));
+        SharedExpense expense = split.getSharedExpense();
+        if (!userId.equals(expense.getPaidById())) throw new RuntimeException("Only the person who paid can confirm this payment");
+        split.setSettled(true); split.setSettledAt(LocalDateTime.now());
+        expenseSplitRepository.save(split);
+        return "Payment confirmed. Split settled.";
     }
 }
