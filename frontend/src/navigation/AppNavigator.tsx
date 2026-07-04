@@ -20,6 +20,7 @@ import ExpensesScreen from '../screens/ExpensesScreen';
 import AddSharedExpenseScreen from '../screens/AddSharedExpenseScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import AdminScreen from '../screens/AdminScreen';
+import HelpScreen from '../screens/HelpScreen';
 
 export type RootStackParamList = {
   Main: undefined;
@@ -29,6 +30,7 @@ export type RootStackParamList = {
   LoanDetail: { loanId: number };
   AddSharedExpense: { circleId: number; members: { userId: number; firstName: string; lastName: string }[] };
   Admin: undefined;
+  Help: undefined;
   Login: undefined;
   Register: undefined;
 };
@@ -96,6 +98,7 @@ export default function AppNavigator() {
             <Stack.Screen name="LoanDetail" component={LoanDetailScreen} />
             <Stack.Screen name="AddSharedExpense" component={AddSharedExpenseScreen} />
             <Stack.Screen name="Admin" component={AdminScreen} />
+            <Stack.Screen name="Help" component={HelpScreen} />
           </>
         ) : (
           <>
