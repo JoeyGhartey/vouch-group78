@@ -222,14 +222,27 @@ export default function HelpScreen({ navigation }: Props) {
 
           <TouchableOpacity
             style={styles.contactBtn}
-            onPress={() => Linking.openURL('mailto:lejidarke@gmail.com')}
+            onPress={() => Linking.openURL('mailto:vouchG78@gmail.com')}
           >
             <View style={styles.contactIconBox}>
               <Ionicons name="mail-outline" size={20} color={colors.buttonDarkText} />
             </View>
             <View>
               <Text style={styles.contactLabel}>EMAIL</Text>
-              <Text style={styles.contactValue}>lejidarke@gmail.com</Text>
+              <Text style={styles.contactValue}>vouchG78@gmail.com</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.contactBtn}
+            onPress={() => Linking.openURL('https://wa.me/233597216034')}
+          >
+            <View style={styles.contactIconBox}>
+              <Ionicons name="logo-whatsapp" size={20} color={colors.buttonDarkText} />
+            </View>
+            <View>
+              <Text style={styles.contactLabel}>WHATSAPP</Text>
+              <Text style={styles.contactValue}>+233 59 721 6034</Text>
             </View>
           </TouchableOpacity>
 
