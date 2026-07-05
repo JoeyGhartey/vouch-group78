@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -27,6 +28,12 @@ public class LoanService {
     private final AuthServiceClient authServiceClient;
     private final NotificationServiceClient notificationServiceClient;
     private static final double PLATFORM_FEE_PERCENT = 2.0;
+    private static final EnumSet<Loan.LoanStatus> FUNDED_STATUSES = EnumSet.of(
+            Loan.LoanStatus.DISBURSED, Loan.LoanStatus.ACTIVE, Loan.LoanStatus.DUE,
+            Loan.LoanStatus.GRACE_PERIOD, Loan.LoanStatus.REPAID, Loan.LoanStatus.DEFAULTED,
+            Loan.LoanStatus.DISPUTED);
+    private static final EnumSet<Loan.LoanStatus> ACTIVE_STATUSES = EnumSet.of(
+            Loan.LoanStatus.ACTIVE, Loan.LoanStatus.DUE, Loan.LoanStatus.GRACE_PERIOD);
 
     @Transactional
     public LoanResponse requestLoan(String phone, LoanRequest request) {
@@ -690,5 +697,61 @@ public class LoanService {
                 .borrowerSigned(agreement != null ? agreement.getBorrowerSigned() : false)
                 .lenderSigned(agreement != null ? agreement.getLenderSigned() : false)
                 .build();
+    }
+
+    public Map<String, Object> getBorrowerInsights(String phone) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        List<Loan> loans = loanRepository.findByBorrowerId(userId).stream()
+                .filter(l -> FUNDED_STATUSES.contains(l.getStatus()))
+                .collect(Collectors.toList());
+
+        int totalLoansTaken = loans.size();
+        long activeLoans = loans.stream().filter(l -> ACTIVE_STATUSES.contains(l.getStatus())).count();
+        double totalAmountBorrowed = loans.stream().mapToDouble(Loan::getAmount).sum();
+        double totalInterestPaid = loans.stream()
+                .filter(l -> l.getStatus() == Loan.LoanStatus.REPAID)
+                .mapToDouble(l -> l.getTotalRepaymentAmount() - l.getAmount())
+                .sum();
+        long repaidCount = loans.stream().filter(l -> l.getStatus() == Loan.LoanStatus.REPAID).count();
+        double repaymentRate = totalLoansTaken == 0 ? 0.0 : Math.round((double) repaidCount / totalLoansTaken * 1000.0) / 10.0;
+        double averageLoanSize = totalLoansTaken == 0 ? 0.0 : Math.round(totalAmountBorrowed / totalLoansTaken * 100.0) / 100.0;
+
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("totalLoansTaken", totalLoansTaken);
+        result.put("activeLoans", activeLoans);
+        result.put("totalAmountBorrowed", totalAmountBorrowed);
+        result.put("totalInterestPaid", totalInterestPaid);
+        result.put("repaymentRate", repaymentRate);
+        result.put("averageLoanSize", averageLoanSize);
+        return result;
+    }
+
+    public Map<String, Object> getLenderInsights(String phone) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        List<Loan> loans = loanRepository.findByLenderId(userId).stream()
+                .filter(l -> FUNDED_STATUSES.contains(l.getStatus()))
+                .collect(Collectors.toList());
+
+        int totalLoansGiven = loans.size();
+        long activeLoans = loans.stream().filter(l -> ACTIVE_STATUSES.contains(l.getStatus())).count();
+        double totalAmountLent = loans.stream().mapToDouble(Loan::getAmount).sum();
+        double totalInterestEarned = loans.stream()
+                .filter(l -> l.getStatus() == Loan.LoanStatus.REPAID)
+                .mapToDouble(l -> l.getTotalRepaymentAmount() - l.getAmount())
+                .sum();
+        double returnRate = totalAmountLent == 0 ? 0.0 : Math.round(totalInterestEarned / totalAmountLent * 1000.0) / 10.0;
+        double totalAmountAtRisk = loans.stream()
+                .filter(l -> ACTIVE_STATUSES.contains(l.getStatus()))
+                .mapToDouble(l -> l.getTotalRepaymentAmount() + l.getOverdueInterestAccrued() - l.getAmountRepaid())
+                .sum();
+
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("totalLoansGiven", totalLoansGiven);
+        result.put("activeLoans", activeLoans);
+        result.put("totalAmountLent", totalAmountLent);
+        result.put("totalInterestEarned", totalInterestEarned);
+        result.put("returnRate", returnRate);
+        result.put("totalAmountAtRisk", totalAmountAtRisk);
+        return result;
     }
 }

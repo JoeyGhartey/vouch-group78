@@ -136,6 +136,8 @@ export const createSharedExpense = (data: unknown) => request('/expenses/shared'
 export const getCircleExpenses = (circleId: number) => request(`/expenses/shared/circle/${circleId}`);
 export const getCircleBalances = (circleId: number) => request(`/expenses/shared/circle/${circleId}/balances`);
 export const settleExpense = (splitId: number) => request(`/expenses/shared/settle/${splitId}`, 'POST');
+export const requestPayment = (splitId: number) => request(`/expenses/shared/splits/${splitId}/request-payment`, 'POST');
+export const confirmPayment = (splitId: number) => request(`/expenses/shared/splits/${splitId}/confirm-payment`, 'POST');
 
 // Personal Expenses
 export const addPersonalExpense = (data: unknown) => request('/expenses/personal', 'POST', data);
@@ -160,8 +162,8 @@ export const getMyDisputes = () => request('/disputes');
 export const getDispute = (disputeId: number) => request(`/disputes/${disputeId}`);
 
 // Insights
-export const getBorrowerInsights = () => request('/insights/borrower');
-export const getLenderInsights = () => request('/insights/lender');
+export const getBorrowerInsights = () => request('/loans/insights/borrower');
+export const getLenderInsights = () => request('/loans/insights/lender');
 export const getCircleInsights = (circleId: number) => request(`/circles/${circleId}/insights`);
 
 // Payments
