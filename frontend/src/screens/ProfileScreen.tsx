@@ -43,20 +43,6 @@ interface Badge {
   earned: boolean;
 }
 
-const BADGE_ICON_NAMES: Record<string, string> = {
-  rising_star: 'star',
-  trusted_borrower: 'people',
-  reliable_lender: 'cash',
-  circle_champion: 'trophy',
-  elite_member: 'medal',
-  zero_defaults: 'shield-checkmark',
-};
-
-const getBadgeIconName = (badgeId: string, earned: boolean): keyof typeof Ionicons.glyphMap => {
-  const base = BADGE_ICON_NAMES[badgeId] || 'ribbon';
-  return (earned ? base : `${base}-outline`) as keyof typeof Ionicons.glyphMap;
-};
-
 interface EditData {
   firstName: string;
   lastName: string;
@@ -137,9 +123,10 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.bg,
   },
   badgeItemEarned: { borderColor: c.accent, backgroundColor: c.goldBgTint },
+  badgeIcon: { fontSize: 28, marginBottom: 6 },
   badgeName: { fontSize: 10, fontWeight: '700', color: c.muted, textAlign: 'center' },
   badgeNameEarned: { color: c.accent },
-  badgeIconWrap: { marginBottom: 6 },
+  badgeLocked: { fontSize: 18, marginBottom: 6 },
   card: {
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
@@ -149,20 +136,9 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border,
   },
-  detailRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  detailLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   detailLabel: { color: c.muted, fontSize: 13 },
   detailValue: { color: c.dark, fontSize: 13, fontWeight: '600' },
-  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  statCard: {
-    width: '47%', backgroundColor: c.bg, borderRadius: 12,
-    borderWidth: 1, borderColor: c.border, padding: 14,
-  },
-  statCardIconBox: {
-    width: 34, height: 34, borderRadius: 10,
-    justifyContent: 'center', alignItems: 'center', marginBottom: 8,
-  },
-  statCardValue: { fontSize: 17, fontWeight: '800', color: c.dark },
-  statCardLabel: { fontSize: 11, color: c.muted, marginTop: 2 },
   tabRow: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 12 },
   tab: { flex: 1, padding: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   activeTab: { borderBottomColor: c.accent },
@@ -275,6 +251,14 @@ export default function ProfileScreen({ navigation }: Props) {
   const getTrustColor = (s: number): string => s >= 70 ? colors.success : s >= 40 ? colors.accent : colors.danger;
   const earnedCount = badges.filter(b => b.earned).length;
 
+  const handleBorrowingStatusInfo = (): void => {
+    showAlert(
+      'success',
+      'Borrowing Status Explained',
+      '🟢 Active — You can borrow normally.\n\n🟡 Suspended — You have been temporarily banned from borrowing due to a loan default. This lasts 30 days.\n\n🔴 Permanently Banned — You have defaulted multiple times and can no longer borrow on Vouch.'
+    );
+  };
+
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>;
 
   const editFields: [string, keyof EditData][] = [
@@ -283,6 +267,14 @@ export default function ProfileScreen({ navigation }: Props) {
     ['Email', 'email'],
     ['MoMo Provider', 'momoProvider'],
     ['MoMo Number', 'momoNumber'],
+  ];
+
+  const accountDetails: [string, string][] = [
+    ['Email', profile?.email || 'Not set'],
+    ['MoMo Provider', profile?.momoProvider || 'Not set'],
+    ['MoMo Number', profile?.momoNumber || 'Not set'],
+    ['Member Since', profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''],
+    ['Borrowing Status', profile?.permanentBan ? 'Permanently Banned' : profile?.borrowingSuspended ? 'Suspended' : 'Active'],
   ];
 
   return (
@@ -338,12 +330,9 @@ export default function ProfileScreen({ navigation }: Props) {
             <View style={styles.badgesGrid}>
               {badges.map((badge) => (
                 <View key={badge.id} style={[styles.badgeItem, badge.earned && styles.badgeItemEarned]}>
-                  <Ionicons
-                    name={getBadgeIconName(badge.id, badge.earned)}
-                    size={28}
-                    color={badge.earned ? colors.accent : colors.muted}
-                    style={styles.badgeIconWrap}
-                  />
+                  <Text style={badge.earned ? styles.badgeIcon : styles.badgeLocked}>
+                    {badge.earned ? badge.icon : '🔒'}
+                  </Text>
                   <Text style={[styles.badgeName, badge.earned && styles.badgeNameEarned]}>
                     {badge.name}
                   </Text>
@@ -354,49 +343,27 @@ export default function ProfileScreen({ navigation }: Props) {
         )}
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Contact Information</Text>
-          {([
-            ['Email', profile?.email || 'Not set', 'mail-outline'],
-            ['MoMo Provider', profile?.momoProvider || 'Not set', 'wallet-outline'],
-            ['MoMo Number', profile?.momoNumber || 'Not set', 'call-outline'],
-          ] as [string, string, keyof typeof Ionicons.glyphMap][]).map(([label, value, icon], i) => (
+          <Text style={styles.cardTitle}>Account Details</Text>
+          {accountDetails.map(([label, value], i) => (
             <View key={i} style={styles.detailRow}>
-              <View style={styles.detailRowLeft}>
-                <Ionicons name={icon} size={16} color={colors.muted} />
+              {/* Label — with info icon on Borrowing Status */}
+              <View style={styles.detailLabelRow}>
                 <Text style={styles.detailLabel}>{label}</Text>
+                {label === 'Borrowing Status' && (
+                  <TouchableOpacity onPress={handleBorrowingStatusInfo} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="information-circle-outline" size={16} color={colors.muted} />
+                  </TouchableOpacity>
+                )}
               </View>
-              <Text style={styles.detailValue}>{value}</Text>
+              {/* Value */}
+              <Text style={[
+                styles.detailValue,
+                label === 'Borrowing Status' && value !== 'Active' && { color: colors.danger },
+              ]}>
+                {value}
+              </Text>
             </View>
           ))}
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Account Information</Text>
-          <View style={styles.detailRow}>
-            <View style={styles.detailRowLeft}>
-              <Ionicons name="calendar-outline" size={16} color={colors.muted} />
-              <Text style={styles.detailLabel}>Member Since</Text>
-            </View>
-            <Text style={styles.detailValue}>
-              {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
-            </Text>
-          </View>
-          <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
-            <View style={styles.detailRowLeft}>
-              <Ionicons
-                name={profile?.permanentBan ? 'close-circle-outline' : profile?.borrowingSuspended ? 'pause-circle-outline' : 'checkmark-circle-outline'}
-                size={16}
-                color={profile?.permanentBan || profile?.borrowingSuspended ? colors.danger : colors.success}
-              />
-              <Text style={styles.detailLabel}>Borrowing Status</Text>
-            </View>
-            <Text style={[
-              styles.detailValue,
-              { color: profile?.permanentBan || profile?.borrowingSuspended ? colors.danger : colors.success },
-            ]}>
-              {profile?.permanentBan ? 'Permanently Banned' : profile?.borrowingSuspended ? 'Suspended' : 'Active'}
-            </Text>
-          </View>
         </View>
 
         <View style={styles.tabRow}>
@@ -411,24 +378,19 @@ export default function ProfileScreen({ navigation }: Props) {
 
         {activeTab === 'borrower' && borrowerInsights && (
           <View style={styles.card}>
-            <View style={styles.statGrid}>
-              {([
-                ['Total Loans Taken', borrowerInsights.totalLoansTaken, 'document-text-outline', colors.accent],
-                ['Active Loans', borrowerInsights.activeLoans, 'time-outline', colors.statusBlue],
-                ['Total Borrowed', `GHS ${borrowerInsights.totalAmountBorrowed}`, 'cash-outline', colors.dark],
-                ['Interest Paid', `GHS ${borrowerInsights.totalInterestPaid}`, 'trending-up-outline', colors.danger],
-                ['Repayment Rate', `${borrowerInsights.repaymentRate}%`, 'checkmark-done-outline', colors.success],
-                ['Avg Loan Size', `GHS ${borrowerInsights.averageLoanSize}`, 'calculator-outline', colors.dark],
-              ] as [string, string | number, keyof typeof Ionicons.glyphMap, string][]).map(([label, value, icon, color], i) => (
-                <View key={i} style={styles.statCard}>
-                  <View style={[styles.statCardIconBox, { backgroundColor: `${color}18` }]}>
-                    <Ionicons name={icon} size={18} color={color} />
-                  </View>
-                  <Text style={styles.statCardValue}>{value}</Text>
-                  <Text style={styles.statCardLabel}>{label}</Text>
-                </View>
-              ))}
-            </View>
+            {([
+              ['Total Loans Taken', borrowerInsights.totalLoansTaken],
+              ['Active Loans', borrowerInsights.activeLoans],
+              ['Total Borrowed', `GHS ${borrowerInsights.totalAmountBorrowed}`],
+              ['Interest Paid', `GHS ${borrowerInsights.totalInterestPaid}`],
+              ['Repayment Rate', `${borrowerInsights.repaymentRate}%`],
+              ['Avg Loan Size', `GHS ${borrowerInsights.averageLoanSize}`],
+            ] as [string, string | number][]).map(([label, value], i) => (
+              <View key={i} style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{label}</Text>
+                <Text style={styles.detailValue}>{value}</Text>
+              </View>
+            ))}
             {borrowerInsights.recommendations && borrowerInsights.recommendations.length > 0 && (
               <View style={{ marginTop: 12 }}>
                 <Text style={styles.recTitle}>Recommendations</Text>
@@ -442,24 +404,19 @@ export default function ProfileScreen({ navigation }: Props) {
 
         {activeTab === 'lender' && lenderInsights && (
           <View style={styles.card}>
-            <View style={styles.statGrid}>
-              {([
-                ['Total Loans Given', lenderInsights.totalLoansGiven, 'document-text-outline', colors.accent],
-                ['Active Loans', lenderInsights.activeLoans, 'time-outline', colors.statusBlue],
-                ['Total Lent', `GHS ${lenderInsights.totalAmountLent}`, 'cash-outline', colors.dark],
-                ['Interest Earned', `GHS ${lenderInsights.totalInterestEarned}`, 'trending-up-outline', colors.success],
-                ['Return Rate', `${lenderInsights.returnRate}%`, 'checkmark-done-outline', colors.success],
-                ['Amount At Risk', `GHS ${lenderInsights.totalAmountAtRisk}`, 'warning-outline', colors.danger],
-              ] as [string, string | number, keyof typeof Ionicons.glyphMap, string][]).map(([label, value, icon, color], i) => (
-                <View key={i} style={styles.statCard}>
-                  <View style={[styles.statCardIconBox, { backgroundColor: `${color}18` }]}>
-                    <Ionicons name={icon} size={18} color={color} />
-                  </View>
-                  <Text style={styles.statCardValue}>{value}</Text>
-                  <Text style={styles.statCardLabel}>{label}</Text>
-                </View>
-              ))}
-            </View>
+            {([
+              ['Total Loans Given', lenderInsights.totalLoansGiven],
+              ['Active Loans', lenderInsights.activeLoans],
+              ['Total Lent', `GHS ${lenderInsights.totalAmountLent}`],
+              ['Interest Earned', `GHS ${lenderInsights.totalInterestEarned}`],
+              ['Return Rate', `${lenderInsights.returnRate}%`],
+              ['Amount At Risk', `GHS ${lenderInsights.totalAmountAtRisk}`],
+            ] as [string, string | number][]).map(([label, value], i) => (
+              <View key={i} style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{label}</Text>
+                <Text style={styles.detailValue}>{value}</Text>
+              </View>
+            ))}
             {lenderInsights.recommendations && lenderInsights.recommendations.length > 0 && (
               <View style={{ marginTop: 12 }}>
                 <Text style={styles.recTitle}>Recommendations</Text>
