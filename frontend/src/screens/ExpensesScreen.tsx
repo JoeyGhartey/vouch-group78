@@ -150,6 +150,14 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   catChipTextSel: { color: c.buttonDarkText },
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
   cancelText: { color: c.muted, fontSize: 14 },
+
+  // Income banner
+  incomeBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12,
+    borderWidth: 1, borderColor: '#bbf7d0', marginBottom: 4,
+  },
+  incomeBannerText: { fontSize: 13, color: '#16a34a', fontWeight: '600', flex: 1 },
 });
 
 export default function ExpensesScreen() {
@@ -177,6 +185,8 @@ export default function ExpensesScreen() {
   const now = new Date();
   const [year] = useState<number>(now.getFullYear());
   const [month] = useState<number>(now.getMonth() + 1);
+
+  const isIncome = newExpense.type === 'INCOME';
 
   const loadData = async (): Promise<void> => {
     try {
@@ -209,7 +219,7 @@ export default function ExpensesScreen() {
       await addPersonalExpense({
         amount: parseFloat(newExpense.amount),
         description: newExpense.description,
-        category: newExpense.category,
+        category: isIncome ? 'Income' : newExpense.category,
         type: newExpense.type,
       });
       setShowAdd(false);
@@ -226,7 +236,7 @@ export default function ExpensesScreen() {
             await addPersonalExpense({
               amount: parseFloat(newExpense.amount),
               description: newExpense.description,
-              category: newExpense.category,
+              category: isIncome ? 'Income' : newExpense.category,
               type: newExpense.type,
               overrideLimit: true,
             });
@@ -485,34 +495,81 @@ export default function ExpensesScreen() {
           <View style={styles.modalBg}>
             <View style={styles.modal}>
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                <Text style={styles.modalTitle}>Add Transaction</Text>
+                <Text style={styles.modalTitle}>
+                  {isIncome ? 'Add Income' : 'Add Expense'}
+                </Text>
+
+                {/* Type toggle */}
                 <View style={styles.typeRow}>
                   {['EXPENSE', 'INCOME'].map((t) => (
                     <TouchableOpacity
                       key={t}
                       style={[styles.typeBtn, newExpense.type === t && styles.typeSel]}
-                      onPress={() => setNewExpense({ ...newExpense, type: t })}
+                      onPress={() => setNewExpense({ ...newExpense, type: t, description: '', category: 'Food' })}
                     >
                       <Text style={[styles.typeText, newExpense.type === t && styles.typeTextSel]}>
-                        {t === 'EXPENSE' ? 'Expense' : 'Income'}
+                        {t === 'EXPENSE' ? '💸 Expense' : '💰 Income'}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-                <Text style={styles.label}>Amount (GHS) *</Text>
-                <TextInput style={styles.input} placeholder="0.00" placeholderTextColor={colors.muted} value={newExpense.amount} onChangeText={(t) => setNewExpense({ ...newExpense, amount: t })} keyboardType="numeric" />
+
+                {/* Income banner */}
+                {isIncome && (
+                  <View style={styles.incomeBanner}>
+                    <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
+                    <Text style={styles.incomeBannerText}>Recording income — category not required</Text>
+                  </View>
+                )}
+
+                {/* Amount label changes based on type */}
+                <Text style={styles.label}>
+                  {isIncome ? 'Income Amount (GHS) *' : 'Amount (GHS) *'}
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="0.00"
+                  placeholderTextColor={colors.muted}
+                  value={newExpense.amount}
+                  onChangeText={(t) => setNewExpense({ ...newExpense, amount: t })}
+                  keyboardType="numeric"
+                />
+
+                {/* Description placeholder changes based on type */}
                 <Text style={styles.label}>Description *</Text>
-                <TextInput style={styles.input} placeholder="What was this for?" placeholderTextColor={colors.muted} value={newExpense.description} onChangeText={(t) => setNewExpense({ ...newExpense, description: t })} />
-                <Text style={styles.label}>Category</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 4, marginBottom: 8 }}>
-                  {CATEGORIES.map((cat) => (
-                    <TouchableOpacity key={cat} style={[styles.catChip, newExpense.category === cat && styles.catChipSel]} onPress={() => setNewExpense({ ...newExpense, category: cat })}>
-                      <Text style={[styles.catChipText, newExpense.category === cat && styles.catChipTextSel]}>{cat}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                <TouchableOpacity style={[styles.primaryBtn, adding && { opacity: 0.6 }]} onPress={handleAdd} disabled={adding}>
-                  {adding ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.primaryBtnText}>Save Transaction</Text>}
+                <TextInput
+                  style={styles.input}
+                  placeholder={isIncome ? 'Source of income (e.g. Salary, Freelance)' : 'What was this for?'}
+                  placeholderTextColor={colors.muted}
+                  value={newExpense.description}
+                  onChangeText={(t) => setNewExpense({ ...newExpense, description: t })}
+                />
+
+                {/* Category picker — hidden for INCOME */}
+                {!isIncome && (
+                  <>
+                    <Text style={styles.label}>Category</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 4, marginBottom: 8 }}>
+                      {CATEGORIES.map((cat) => (
+                        <TouchableOpacity key={cat} style={[styles.catChip, newExpense.category === cat && styles.catChipSel]} onPress={() => setNewExpense({ ...newExpense, category: cat })}>
+                          <Text style={[styles.catChipText, newExpense.category === cat && styles.catChipTextSel]}>{cat}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </>
+                )}
+
+                {/* Submit button label changes based on type */}
+                <TouchableOpacity
+                  style={[styles.primaryBtn, adding && { opacity: 0.6 }, { marginTop: 16 }]}
+                  onPress={handleAdd}
+                  disabled={adding}
+                >
+                  {adding
+                    ? <ActivityIndicator color={colors.buttonDarkText} />
+                    : <Text style={styles.primaryBtnText}>
+                        {isIncome ? 'Add Income' : 'Save Expense'}
+                      </Text>}
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAdd(false)}>
                   <Text style={styles.cancelText}>Cancel</Text>
