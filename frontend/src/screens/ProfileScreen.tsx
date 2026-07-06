@@ -80,6 +80,12 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     padding: 20, paddingTop: 56, backgroundColor: c.surface,
     borderBottomWidth: 1, borderBottomColor: c.border,
   },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  helpBtn: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: c.bg, borderWidth: 1, borderColor: c.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
   title: { color: c.dark, fontSize: 22, fontWeight: '700' },
   editBtn: { color: c.accent, fontSize: 15, fontWeight: '600' },
   profileCard: {
@@ -105,8 +111,6 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   statItem: { alignItems: 'center' },
   statValue: { color: c.dark, fontSize: 20, fontWeight: '800' },
   statLabel: { color: c.muted, fontSize: 11, marginTop: 4, textAlign: 'center' },
-
-  // Badges
   badgesCard: {
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
@@ -118,24 +122,21 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     borderRadius: 12, borderWidth: 1, borderColor: c.border,
     backgroundColor: c.bg,
   },
-  badgeItemEarned: {
-    borderColor: c.accent,
-    backgroundColor: c.goldBgTint,
-  },
+  badgeItemEarned: { borderColor: c.accent, backgroundColor: c.goldBgTint },
   badgeIcon: { fontSize: 28, marginBottom: 6 },
   badgeName: { fontSize: 10, fontWeight: '700', color: c.muted, textAlign: 'center' },
   badgeNameEarned: { color: c.accent },
   badgeLocked: { fontSize: 18, marginBottom: 6 },
-
   card: {
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
   },
   cardTitle: { color: c.dark, fontSize: 15, fontWeight: '700', marginBottom: 12 },
   detailRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border,
   },
+  detailLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   detailLabel: { color: c.muted, fontSize: 13 },
   detailValue: { color: c.dark, fontSize: 13, fontWeight: '600' },
   tabRow: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 12 },
@@ -250,6 +251,14 @@ export default function ProfileScreen({ navigation }: Props) {
   const getTrustColor = (s: number): string => s >= 70 ? colors.success : s >= 40 ? colors.accent : colors.danger;
   const earnedCount = badges.filter(b => b.earned).length;
 
+  const handleBorrowingStatusInfo = (): void => {
+    showAlert(
+      'success',
+      'Borrowing Status Explained',
+      '🟢 Active — You can borrow normally.\n\n🟡 Suspended — You have been temporarily banned from borrowing due to a loan default. This lasts 30 days.\n\n🔴 Permanently Banned — You have defaulted multiple times and can no longer borrow on Vouch.'
+    );
+  };
+
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>;
 
   const editFields: [string, keyof EditData][] = [
@@ -260,11 +269,26 @@ export default function ProfileScreen({ navigation }: Props) {
     ['MoMo Number', 'momoNumber'],
   ];
 
+  const accountDetails: [string, string][] = [
+    ['Email', profile?.email || 'Not set'],
+    ['MoMo Provider', profile?.momoProvider || 'Not set'],
+    ['MoMo Number', profile?.momoNumber || 'Not set'],
+    ['Member Since', profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''],
+    ['Borrowing Status', profile?.permanentBan ? 'Permanently Banned' : profile?.borrowingSuspended ? 'Suspended' : 'Active'],
+  ];
+
   return (
     <View style={styles.container}>
       <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={colors.accent} />}>
+
+        {/* Header with Help button on the left */}
         <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity style={styles.helpBtn} onPress={() => navigation.navigate('Help')}>
+              <Ionicons name="help-circle-outline" size={20} color={colors.accent} />
+            </TouchableOpacity>
+            <Text style={styles.title}>Profile</Text>
+          </View>
           <TouchableOpacity onPress={openEdit}>
             <Text style={styles.editBtn}>Edit</Text>
           </TouchableOpacity>
@@ -298,7 +322,6 @@ export default function ProfileScreen({ navigation }: Props) {
           ))}
         </View>
 
-        {/* Badges Section */}
         {badges.length > 0 && (
           <View style={styles.badgesCard}>
             <Text style={styles.badgesTitle}>
@@ -306,10 +329,7 @@ export default function ProfileScreen({ navigation }: Props) {
             </Text>
             <View style={styles.badgesGrid}>
               {badges.map((badge) => (
-                <View
-                  key={badge.id}
-                  style={[styles.badgeItem, badge.earned && styles.badgeItemEarned]}
-                >
+                <View key={badge.id} style={[styles.badgeItem, badge.earned && styles.badgeItemEarned]}>
                   <Text style={badge.earned ? styles.badgeIcon : styles.badgeLocked}>
                     {badge.earned ? badge.icon : '🔒'}
                   </Text>
@@ -324,16 +344,22 @@ export default function ProfileScreen({ navigation }: Props) {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Account Details</Text>
-          {([
-            ['Email', profile?.email || 'Not set'],
-            ['MoMo Provider', profile?.momoProvider || 'Not set'],
-            ['MoMo Number', profile?.momoNumber || 'Not set'],
-            ['Member Since', profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''],
-            ['Borrowing Status', profile?.permanentBan ? 'Permanently Banned' : profile?.borrowingSuspended ? 'Suspended' : 'Active'],
-          ] as [string, string][]).map(([label, value], i) => (
+          {accountDetails.map(([label, value], i) => (
             <View key={i} style={styles.detailRow}>
-              <Text style={styles.detailLabel}>{label}</Text>
-              <Text style={[styles.detailValue, label === 'Borrowing Status' && value !== 'Active' && { color: colors.danger }]}>
+              {/* Label — with info icon on Borrowing Status */}
+              <View style={styles.detailLabelRow}>
+                <Text style={styles.detailLabel}>{label}</Text>
+                {label === 'Borrowing Status' && (
+                  <TouchableOpacity onPress={handleBorrowingStatusInfo} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="information-circle-outline" size={16} color={colors.muted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              {/* Value */}
+              <Text style={[
+                styles.detailValue,
+                label === 'Borrowing Status' && value !== 'Active' && { color: colors.danger },
+              ]}>
                 {value}
               </Text>
             </View>

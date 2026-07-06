@@ -1,13 +1,17 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, Animated, PanResponder,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { getNotifications, markNotificationRead, markAllNotificationsRead, acceptInvite } from '../services/api';
+import {
+  getNotifications, markNotificationRead, markAllNotificationsRead,
+  deleteNotification, clearReadNotifications, acceptInvite, rejectInvite,
+} from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
+import { useConfirmModal } from '../components/ConfirmModal';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
@@ -56,16 +60,58 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.accent, marginTop: 4 },
   acceptBtn: { backgroundColor: c.accent, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, alignSelf: 'flex-start' },
   acceptBtnText: { color: c.surface, fontSize: 13, fontWeight: '600' },
+  rejectBtn: { backgroundColor: c.danger, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, alignSelf: 'flex-start' },
+  rejectBtnText: { color: c.surface, fontSize: 13, fontWeight: '600' },
 });
+
+function SwipeableRow({ onDelete, children }: { onDelete: () => void; children: React.ReactNode }): React.ReactElement {
+  const { colors } = useTheme();
+  const swipeAnim = useRef(new Animated.Value(0)).current;
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dx) > Math.abs(gs.dy) && Math.abs(gs.dx) > 8,
+      onPanResponderMove: (_, gs) => {
+        swipeAnim.setValue(Math.min(0, Math.max(gs.dx, -80)));
+      },
+      onPanResponderRelease: (_, gs) => {
+        Animated.spring(swipeAnim, {
+          toValue: gs.dx < -40 ? -80 : 0,
+          useNativeDriver: true,
+        }).start();
+      },
+    })
+  ).current;
+
+  return (
+    <View style={{ borderRadius: 14, overflow: 'hidden' }}>
+      <View style={{
+        position: 'absolute', right: 0, top: 0, bottom: 0, width: 80,
+        backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center',
+      }}>
+        <TouchableOpacity onPress={onDelete} style={{ alignItems: 'center' }}>
+          <Ionicons name="trash-outline" size={18} color="#fff" />
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600', marginTop: 2 }}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <Animated.View style={{ transform: [{ translateX: swipeAnim }] }} {...(panResponder.panHandlers as any)}>
+        {children}
+      </Animated.View>
+    </View>
+  );
+}
 
 export default function NotificationsScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { showAlert } = useAppAlert();
+  const { confirm } = useConfirmModal();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [acceptingId, setAcceptingId] = useState<number | null>(null);
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
   const [acceptError, setAcceptError] = useState<Record<number, string>>({});
 
   const loadNotifications = async (): Promise<void> => {
@@ -100,6 +146,24 @@ export default function NotificationsScreen({ navigation }: Props) {
     }
   };
 
+  const handleDelete = async (id: number): Promise<void> => {
+    try {
+      await deleteNotification(id);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch (error) {
+      showAlert('error', 'Error', (error as Error).message);
+    }
+  };
+
+  const handleClearRead = async (): Promise<void> => {
+    try {
+      await clearReadNotifications();
+      setNotifications(prev => prev.filter(n => !n.read));
+    } catch (error) {
+      showAlert('error', 'Error', (error as Error).message);
+    }
+  };
+
   const handleAcceptInvite = async (notifId: number, circleId: number): Promise<void> => {
     setAcceptingId(notifId);
     setAcceptError(prev => { const next = { ...prev }; delete next[notifId]; return next; });
@@ -112,6 +176,22 @@ export default function NotificationsScreen({ navigation }: Props) {
       setAcceptError(prev => ({ ...prev, [notifId]: (error as Error).message }));
     } finally {
       setAcceptingId(null);
+    }
+  };
+
+  const handleRejectInvite = async (notifId: number, circleId: number): Promise<void> => {
+    const ok = await confirm('Reject Invite', 'Are you sure you want to reject this circle invitation?', 'Reject');
+    if (!ok) return;
+    setRejectingId(notifId);
+    setAcceptError(prev => { const next = { ...prev }; delete next[notifId]; return next; });
+    try {
+      await rejectInvite(circleId);
+      markNotificationRead(notifId).catch(() => {});
+      setNotifications(prev => prev.filter(n => n.id !== notifId));
+    } catch (error) {
+      setAcceptError(prev => ({ ...prev, [notifId]: (error as Error).message }));
+    } finally {
+      setRejectingId(null);
     }
   };
 
@@ -158,11 +238,18 @@ export default function NotificationsScreen({ navigation }: Props) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Notifications</Text>
-        {unreadCount > 0 && (
-          <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllBtn}>
-            <Text style={styles.markAllText}>Mark all read</Text>
-          </TouchableOpacity>
-        )}
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {notifications.some(n => n.read) && (
+            <TouchableOpacity onPress={handleClearRead} style={styles.markAllBtn}>
+              <Text style={styles.markAllText}>Clear Read</Text>
+            </TouchableOpacity>
+          )}
+          {unreadCount > 0 && (
+            <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllBtn}>
+              <Text style={styles.markAllText}>Mark all read</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {unreadCount > 0 && (
@@ -184,13 +271,21 @@ export default function NotificationsScreen({ navigation }: Props) {
           contentContainerStyle={{ padding: 16, gap: 8 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadNotifications(); }} tintColor={colors.accent} />}
           renderItem={({ item }) => (
+            <SwipeableRow onDelete={() => handleDelete(item.id)}>
             <TouchableOpacity
               style={[styles.notifCard, !item.read && styles.unread]}
               onPress={() => {
                 if (!item.read) handleMarkRead(item.id);
                 if (item.referenceId) {
-                  if (item.type.startsWith('CIRCLE_')) navigation.navigate('CircleDetail', { circleId: item.referenceId });
-                  else if (item.type.startsWith('LOAN_')) navigation.navigate('LoanDetail', { loanId: item.referenceId });
+                  if (item.type.startsWith('CIRCLE_')) {
+                    try {
+                      navigation.navigate('CircleDetail', { circleId: item.referenceId });
+                    } catch {
+                      showAlert('error', 'Circle Not Found', 'This circle no longer exists or you are no longer a member.');
+                    }
+                  } else if (item.type.startsWith('LOAN_')) {
+                    navigation.navigate('LoanDetail', { loanId: item.referenceId });
+                  }
                 }
               }}
               activeOpacity={0.7}
@@ -203,15 +298,26 @@ export default function NotificationsScreen({ navigation }: Props) {
                 <Text style={styles.notifMessage}>{item.message}</Text>
                 {item.type === 'CIRCLE_INVITE' && item.referenceId != null && (
                   <View style={{ marginTop: 8 }}>
-                    <TouchableOpacity
-                      style={[styles.acceptBtn, acceptingId === item.id && { opacity: 0.6 }]}
-                      onPress={() => handleAcceptInvite(item.id, item.referenceId!)}
-                      disabled={acceptingId === item.id}
-                    >
-                      {acceptingId === item.id
-                        ? <ActivityIndicator size="small" color={colors.surface} />
-                        : <Text style={styles.acceptBtnText}>Accept Invite</Text>}
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <TouchableOpacity
+                        style={[styles.acceptBtn, acceptingId === item.id && { opacity: 0.6 }]}
+                        onPress={() => handleAcceptInvite(item.id, item.referenceId!)}
+                        disabled={acceptingId === item.id || rejectingId === item.id}
+                      >
+                        {acceptingId === item.id
+                          ? <ActivityIndicator size="small" color={colors.surface} />
+                          : <Text style={styles.acceptBtnText}>Accept Invite</Text>}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.rejectBtn, rejectingId === item.id && { opacity: 0.6 }]}
+                        onPress={() => handleRejectInvite(item.id, item.referenceId!)}
+                        disabled={acceptingId === item.id || rejectingId === item.id}
+                      >
+                        {rejectingId === item.id
+                          ? <ActivityIndicator size="small" color={colors.surface} />
+                          : <Text style={styles.rejectBtnText}>Reject</Text>}
+                      </TouchableOpacity>
+                    </View>
                     {acceptError[item.id] && (
                       <Text style={{ color: colors.errorRed, fontSize: 12, marginTop: 4 }}>{acceptError[item.id]}</Text>
                     )}
@@ -221,6 +327,7 @@ export default function NotificationsScreen({ navigation }: Props) {
               </View>
               {!item.read && <View style={styles.unreadDot} />}
             </TouchableOpacity>
+            </SwipeableRow>
           )}
         />
       )}

@@ -1,6 +1,8 @@
 package com.vouch.loan.service;
 
+import com.vouch.loan.entity.CircleMember;
 import com.vouch.loan.entity.Loan;
+import com.vouch.loan.repository.CircleMemberRepository;
 import com.vouch.loan.repository.LoanRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +20,9 @@ import java.util.List;
 public class LoanSchedulerService {
 
     private final LoanRepository loanRepository;
+    private final CircleMemberRepository circleMemberRepository;
+    private final NotificationServiceClient notificationServiceClient;
+    private final AuthServiceClient authServiceClient;
 
     @Scheduled(fixedRate = 3600000)
     @Transactional
@@ -27,6 +32,60 @@ public class LoanSchedulerService {
         calculateOverdueInterest();
         checkGracePeriodExpiry();
         log.info("Overdue loan check complete.");
+    }
+
+    // Runs every day at 9:00 AM
+    @Scheduled(cron = "0 0 9 * * *")
+    @Transactional
+    public void sendGentleNudges() {
+        log.info("Running Gentle Nudge check...");
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime twoDaysFromNow = now.plusDays(2);
+
+        // Find all active loans due within the next 2 days
+        List<Loan> upcomingLoans = loanRepository.findByStatus(Loan.LoanStatus.ACTIVE)
+                .stream()
+                .filter(loan -> loan.getDueDate() != null
+                        && loan.getDueDate().isAfter(now)
+                        && loan.getDueDate().isBefore(twoDaysFromNow))
+                .toList();
+
+        for (Loan loan : upcomingLoans) {
+            try {
+                String borrowerName = authServiceClient.getUserName(loan.getBorrowerId());
+                long daysLeft = ChronoUnit.DAYS.between(now, loan.getDueDate());
+                String timeLeft = daysLeft <= 0 ? "today" : daysLeft == 1 ? "tomorrow" : "in 2 days";
+
+                String title = "💪 Gentle Nudge";
+                String message = borrowerName + "'s loan of GHS "
+                        + String.format("%.0f", loan.getAmount())
+                        + " is due " + timeLeft
+                        + ". Let's support them! 🤝";
+
+                // Notify all active circle members
+                List<CircleMember> members = circleMemberRepository
+                        .findByCircleAndStatus(loan.getCircle(), CircleMember.MemberStatus.ACTIVE);
+
+                for (CircleMember member : members) {
+                    // Send to everyone including the borrower as a reminder
+                    notificationServiceClient.send(
+                            member.getUserId(),
+                            title,
+                            message,
+                            "LOAN_REPAYMENT_REMINDER",
+                            loan.getId()
+                    );
+                }
+
+                log.info("Gentle Nudge sent for loan {} — {} members notified", loan.getId(), members.size());
+
+            } catch (Exception e) {
+                log.warn("Failed to send Gentle Nudge for loan {}: {}", loan.getId(), e.getMessage());
+            }
+        }
+
+        log.info("Gentle Nudge check complete. {} loans processed.", upcomingLoans.size());
     }
 
     private void checkActiveLoansForOverdue() {
@@ -46,6 +105,20 @@ public class LoanSchedulerService {
                 loan.setGracePeriodStart(LocalDateTime.now());
                 loan.setGracePeriodEnd(LocalDateTime.now().plusDays(7));
                 loanRepository.save(loan);
+
+                String borrowerName = authServiceClient.getUserName(loan.getBorrowerId());
+                notificationServiceClient.send(loan.getBorrowerId(), "Grace Period Started",
+                        "Your loan of GHS " + String.format("%.2f", loan.getAmount()) +
+                                " is now in the 7-day grace period. Repay by " + loan.getGracePeriodEnd() + " to avoid default.",
+                        "LOAN_GRACE_PERIOD", loan.getId());
+
+                if (loan.getLenderId() != null) {
+                    notificationServiceClient.send(loan.getLenderId(), "Borrower Entered Grace Period",
+                            borrowerName + "'s loan of GHS " + String.format("%.2f", loan.getAmount()) +
+                                    " has entered the grace period. They have until " + loan.getGracePeriodEnd() + " to repay.",
+                            "LOAN_GRACE_PERIOD", loan.getId());
+                }
+
                 log.info("Loan {} entered GRACE_PERIOD. Ends at {}", loan.getId(), loan.getGracePeriodEnd());
             }
         }

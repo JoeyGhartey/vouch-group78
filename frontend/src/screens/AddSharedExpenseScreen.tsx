@@ -78,7 +78,6 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { showAlert } = useAppAlert();
   const { circleId, members } = route.params as { circleId: number; members: Member[] };
-  const [description, setDescription] = useState<string>('');
   const [amount, setAmount] = useState<string>('');
   const [category, setCategory] = useState<string>('Food');
   const [selectedMembers, setSelectedMembers] = useState<number[]>(
@@ -94,12 +93,11 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
 
   const handleSubmit = async (): Promise<void> => {
     if (!amount || parseFloat(amount) <= 0) { showAlert('error', 'Error', 'Enter a valid amount'); return; }
-    if (!description.trim()) { showAlert('error', 'Error', 'Enter a description'); return; }
     if (selectedMembers.length < 2) { showAlert('error', 'Error', 'Select at least 2 members'); return; }
     setLoading(true);
     try {
       await createSharedExpense({
-        circleId, description,
+        circleId, description: category,
         totalAmount: parseFloat(amount),
         category, participantIds: selectedMembers,
       });
@@ -135,15 +133,6 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
             value={amount}
             onChangeText={setAmount}
             keyboardType="numeric"
-          />
-
-          <Text style={styles.label}>Description *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="What was this for?"
-            placeholderTextColor={colors.muted}
-            value={description}
-            onChangeText={setDescription}
           />
 
           <Text style={styles.label}>Category</Text>

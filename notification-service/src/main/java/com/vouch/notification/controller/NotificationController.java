@@ -41,6 +41,19 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("message", notificationService.markAllAsRead(auth.getName())));
     }
 
+    @DeleteMapping("/{notificationId}")
+    public ResponseEntity<Map<String, String>> deleteNotification(
+            Authentication auth, @PathVariable Long notificationId) {
+        return ResponseEntity.ok(Map.of("message",
+                notificationService.deleteNotification(auth.getName(), notificationId)));
+    }
+
+    @DeleteMapping("/read")
+    public ResponseEntity<Map<String, String>> deleteReadNotifications(Authentication auth) {
+        return ResponseEntity.ok(Map.of("message",
+                notificationService.deleteReadNotifications(auth.getName())));
+    }
+
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
         return ResponseEntity.ok(Map.of(
