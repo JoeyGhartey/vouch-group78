@@ -129,8 +129,9 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
   },
-  badgesTitle: { color: c.dark, fontSize: 15, fontWeight: '700', marginBottom: 12 },
-  badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  badgesTitle: { color: c.dark, fontSize: 15, fontWeight: '700' },
+  badgesHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
   badgeItem: {
     width: '30%', alignItems: 'center', padding: 12,
     borderRadius: 12, borderWidth: 1, borderColor: c.border,
@@ -163,6 +164,10 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   },
   statCardValue: { fontSize: 17, fontWeight: '800', color: c.dark },
   statCardLabel: { fontSize: 11, color: c.muted, marginTop: 2 },
+  insightsHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginHorizontal: 16, marginBottom: 12,
+  },
   tabRow: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 12 },
   tab: { flex: 1, padding: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   activeTab: { borderBottomColor: c.accent },
@@ -219,6 +224,8 @@ export default function ProfileScreen({ navigation }: Props) {
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('borrower');
+  const [showBadges, setShowBadges] = useState<boolean>(false);
+  const [showInsights, setShowInsights] = useState<boolean>(false);
   const [showEdit, setShowEdit] = useState<boolean>(false);
   const [editData, setEditData] = useState<EditData>({ firstName: '', lastName: '', email: '', momoProvider: '', momoNumber: '' });
   const [saving, setSaving] = useState<boolean>(false);
@@ -332,24 +339,29 @@ export default function ProfileScreen({ navigation }: Props) {
 
         {badges.length > 0 && (
           <View style={styles.badgesCard}>
-            <Text style={styles.badgesTitle}>
-              🏅 Reputation Badges — {earnedCount}/{badges.length} earned
-            </Text>
-            <View style={styles.badgesGrid}>
-              {badges.map((badge) => (
-                <View key={badge.id} style={[styles.badgeItem, badge.earned && styles.badgeItemEarned]}>
-                  <Ionicons
-                    name={getBadgeIconName(badge.id, badge.earned)}
-                    size={28}
-                    color={badge.earned ? colors.accent : colors.muted}
-                    style={styles.badgeIconWrap}
-                  />
-                  <Text style={[styles.badgeName, badge.earned && styles.badgeNameEarned]}>
-                    {badge.name}
-                  </Text>
-                </View>
-              ))}
-            </View>
+            <TouchableOpacity style={styles.badgesHeaderRow} onPress={() => setShowBadges(!showBadges)} activeOpacity={0.7}>
+              <Text style={styles.badgesTitle}>
+                🏅 Reputation Badges — {earnedCount}/{badges.length} earned
+              </Text>
+              <Ionicons name={showBadges ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
+            </TouchableOpacity>
+            {showBadges && (
+              <View style={styles.badgesGrid}>
+                {badges.map((badge) => (
+                  <View key={badge.id} style={[styles.badgeItem, badge.earned && styles.badgeItemEarned]}>
+                    <Ionicons
+                      name={getBadgeIconName(badge.id, badge.earned)}
+                      size={28}
+                      color={badge.earned ? colors.accent : colors.muted}
+                      style={styles.badgeIconWrap}
+                    />
+                    <Text style={[styles.badgeName, badge.earned && styles.badgeNameEarned]}>
+                      {badge.name}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         )}
 
@@ -399,6 +411,12 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
         </View>
 
+        <TouchableOpacity style={styles.insightsHeader} onPress={() => setShowInsights(!showInsights)} activeOpacity={0.7}>
+          <Text style={[styles.cardTitle, { marginBottom: 0 }]}>Insights</Text>
+          <Ionicons name={showInsights ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
+        </TouchableOpacity>
+
+        {showInsights && (
         <View style={styles.tabRow}>
           {['borrower', 'lender'].map((t) => (
             <TouchableOpacity key={t} style={[styles.tab, activeTab === t && styles.activeTab]} onPress={() => setActiveTab(t)}>
@@ -408,8 +426,9 @@ export default function ProfileScreen({ navigation }: Props) {
             </TouchableOpacity>
           ))}
         </View>
+        )}
 
-        {activeTab === 'borrower' && borrowerInsights && (
+        {showInsights && activeTab === 'borrower' && borrowerInsights && (
           <View style={styles.card}>
             <View style={styles.statGrid}>
               {([
@@ -440,7 +459,7 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
         )}
 
-        {activeTab === 'lender' && lenderInsights && (
+        {showInsights && activeTab === 'lender' && lenderInsights && (
           <View style={styles.card}>
             <View style={styles.statGrid}>
               {([

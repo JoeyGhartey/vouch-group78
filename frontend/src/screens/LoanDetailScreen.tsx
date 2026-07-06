@@ -100,14 +100,14 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   },
   dangerBtn: {
     backgroundColor: c.danger, borderRadius: 12, padding: 16,
-    alignItems: 'center', marginBottom: 10,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 10,
   },
   outlineBtn: {
     borderWidth: 1.5, borderColor: c.accent, borderRadius: 12,
     padding: 16, alignItems: 'center', marginBottom: 10,
   },
   btnText: { color: c.buttonDarkText, fontSize: 15, fontWeight: '700' },
-  dangerBtnText: { color: c.surface, fontSize: 15, fontWeight: '700' },
+  dangerBtnText: { color: c.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
   outlineText: { color: c.accent, fontSize: 15, fontWeight: '600' },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
   modal: { backgroundColor: c.surface, borderRadius: 16, padding: 24 },
@@ -234,6 +234,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       const response = await initializeDisbursement(loan!.id) as PaymentInitResponse;
       if (response.authorizationUrl) {
         const result = await WebBrowser.openBrowserAsync(response.authorizationUrl);
+        await WebBrowser.dismissBrowser();
         if (result.type === 'dismiss' || result.type === 'cancel') {
           setActing(true);
           try {
@@ -275,6 +276,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       const response = await initializeRepayment(loan!.id, amt) as PaymentInitResponse;
       if (response.authorizationUrl) {
         const result = await WebBrowser.openBrowserAsync(response.authorizationUrl);
+        await WebBrowser.dismissBrowser();
         if (result.type === 'dismiss' || result.type === 'cancel') {
           setActing(true);
           try {
