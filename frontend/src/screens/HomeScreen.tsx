@@ -11,7 +11,7 @@ import Svg from 'react-native-svg';
 const { Circle } = require('react-native-svg');
 import {
   getProfile, getMyCircles, getUnreadCount,
-  getMyBorrowedLoans, getMyLentLoans, getCircleExpenses,
+  getMyBorrowedLoans, getMyLentLoans, getCircleExpenses, getPersonalTransactions,
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -76,6 +76,13 @@ interface SharedExpense {
 }
 
 type CircleExpense = SharedExpense & { circleId: number; circleName: string };
+
+interface PersonalTransaction {
+  category: string;
+  amount: number;
+  type: string;
+  transactionDate: string;
+}
 
 type LoanActivityItem = Loan & { kind: 'loan'; role: 'borrower' | 'lender' };
 type ExpenseActivityItem = CircleExpense & { kind: 'expense'; role: 'paid' | 'owed' };
@@ -154,6 +161,9 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   statDivider: { borderRightWidth: 1, borderRightColor: HERO_BORDER },
   statVal: { fontSize: 20, fontWeight: '800', color: '#FFFFFF' },      // was 17
   statLbl: { fontSize: 11, color: HERO_MUTED, fontWeight: '600', marginTop: 3 }, // was 10
+  statsRowSecondary: {
+    flexDirection: 'row', justifyContent: 'center', borderTopWidth: 1, borderTopColor: HERO_BORDER,
+  },
 
   activityHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -223,6 +233,7 @@ export default function HomeScreen({ navigation }: Props) {
   const [borrowedLoans, setBorrowedLoans] = useState<Loan[]>([]);
   const [lentLoans, setLentLoans] = useState<Loan[]>([]);
   const [expenses, setExpenses] = useState<CircleExpense[]>([]);
+  const [personalTransactions, setPersonalTransactions] = useState<PersonalTransaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [amountsVisible, setAmountsVisible] = useState<boolean>(false);
@@ -230,12 +241,13 @@ export default function HomeScreen({ navigation }: Props) {
 
   const loadData = async (): Promise<void> => {
     try {
-      const [profileData, circlesData, notifData, borrowed, lent] = await Promise.all([
+      const [profileData, circlesData, notifData, borrowed, lent, personalTxs] = await Promise.all([
         getProfile(),
         getMyCircles(),
         getUnreadCount(),
         getMyBorrowedLoans(),
         getMyLentLoans(),
+        getPersonalTransactions().catch(() => []),
       ]);
       setProfile(profileData as Profile);
       const circlesList = circlesData as Circle[];
@@ -243,6 +255,7 @@ export default function HomeScreen({ navigation }: Props) {
       setUnreadCount((notifData as { unreadCount: number }).unreadCount || 0);
       setBorrowedLoans(borrowed as Loan[]);
       setLentLoans(lent as Loan[]);
+      setPersonalTransactions(personalTxs as PersonalTransaction[]);
 
       const expenseLists = await Promise.all(
         circlesList.map((c) => getCircleExpenses(c.id).catch(() => []))
@@ -288,6 +301,15 @@ export default function HomeScreen({ navigation }: Props) {
   const totalOwedToYou = lentLoans
     .filter(l => ACTIVE_STATUSES.includes(l.status))
     .reduce((sum, l) => sum + (l.totalRepaymentAmount + l.overdueInterestAccrued - l.amountRepaid), 0);
+
+  const now = new Date();
+  const thisMonthSpend = personalTransactions
+    .filter(t => {
+      if (t.type !== 'EXPENSE') return false;
+      const d = new Date(t.transactionDate);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    })
+    .reduce((sum, t) => sum + t.amount, 0);
 
   const myId = user?.id;
 
@@ -444,6 +466,13 @@ export default function HomeScreen({ navigation }: Props) {
               <Text style={styles.statLbl}>{s.label}</Text>
             </View>
           ))}
+        </View>
+
+        <View style={styles.statsRowSecondary}>
+          <View style={styles.statItem}>
+            <Text style={styles.statVal}>GHS {thisMonthSpend.toFixed(0)}</Text>
+            <Text style={styles.statLbl}>This Month</Text>
+          </View>
         </View>
       </View>
 
