@@ -249,6 +249,10 @@ export default function LoginScreen({ navigation }: Props) {
           />
           {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
+          <TouchableOpacity style={styles.forgotBtn} onPress={() => navigation.navigate('ForgotPassword')}>
+            <Text style={styles.forgotText}>Forgot Password?</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.btn, loading && { opacity: 0.6 }]}
             onPress={handleLogin}

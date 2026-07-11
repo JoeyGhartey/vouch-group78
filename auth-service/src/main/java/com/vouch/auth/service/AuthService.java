@@ -1,8 +1,10 @@
 package com.vouch.auth.service;
 
 import com.vouch.auth.dto.AuthResponse;
+import com.vouch.auth.dto.ForgotPasswordRequest;
 import com.vouch.auth.dto.LoginRequest;
 import com.vouch.auth.dto.RegisterRequest;
+import com.vouch.auth.dto.ResetPasswordRequest;
 import com.vouch.auth.entity.User;
 import com.vouch.auth.repository.UserRepository;
 import com.vouch.auth.security.JwtUtil;
@@ -11,6 +13,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -99,5 +103,21 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         user.setPushToken(pushToken);
         userRepository.save(user);
+    }
+
+    public Map<String, String> forgotPassword(ForgotPasswordRequest request) {
+        // Deliberately generic — never reveal whether an account exists.
+        return Map.of("message", "If an account with that phone number or email exists, you can now reset the password.");
+    }
+
+    public Map<String, String> resetPassword(ResetPasswordRequest request) {
+        User user = userRepository.findByPhone(request.getIdentifier())
+                .or(() -> userRepository.findByEmail(request.getIdentifier()))
+                .orElseThrow(() -> new RuntimeException("No account found with that phone number or email"));
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        return Map.of("message", "Password reset successful. You can now log in with your new password.");
     }
 }

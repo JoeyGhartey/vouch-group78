@@ -1,8 +1,10 @@
 package com.vouch.auth.controller;
 
 import com.vouch.auth.dto.AuthResponse;
+import com.vouch.auth.dto.ForgotPasswordRequest;
 import com.vouch.auth.dto.LoginRequest;
 import com.vouch.auth.dto.RegisterRequest;
+import com.vouch.auth.dto.ResetPasswordRequest;
 import com.vouch.auth.security.JwtUtil;
 import com.vouch.auth.service.AuthService;
 import jakarta.validation.Valid;
@@ -29,6 +31,16 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        return ResponseEntity.ok(authService.forgotPassword(request));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        return ResponseEntity.ok(authService.resetPassword(request));
     }
 
     @GetMapping("/validate")

@@ -2,12 +2,13 @@ import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput, Modal,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Dimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { PieChart } from 'react-native-chart-kit';
 import {
   getCircle, inviteMember, leaveCircle,
   getCircleLoans, getCircleExpenses, getCircleBalances, getCircleInsights,
@@ -167,11 +168,21 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   balanceAmount: { fontSize: 13, fontWeight: '700', color: c.danger },
   insightHero: { backgroundColor: c.surface, borderRadius: 14, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: c.border },
   insightHealthLabel: { fontSize: 11, color: c.slate400, fontWeight: '600', letterSpacing: 0.8 },
-  insightHealth: { fontSize: 28, fontWeight: '800', color: c.dark, marginTop: 4 },
-  card: { backgroundColor: c.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.border },
-  insightRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border },
-  insightLabel: { fontSize: 13, color: c.muted },
-  insightValue: { fontSize: 13, fontWeight: '700', color: c.dark },
+  healthBadge: { borderRadius: 999, paddingHorizontal: 20, paddingVertical: 8, marginTop: 10 },
+  healthBadgeText: { fontSize: 26, fontWeight: '900' },
+  categoryChartCard: { backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, alignItems: 'center' },
+  categoryChartTitle: { fontSize: 14, fontWeight: '700', color: c.dark, alignSelf: 'flex-start', marginBottom: 4 },
+  legendList: { width: '100%', marginTop: 14, gap: 2 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border },
+  legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
+  legendCategory: { flex: 1, fontSize: 13, color: c.dark, fontWeight: '600' },
+  legendPercent: { fontSize: 12, color: c.muted, marginRight: 10, width: 36, textAlign: 'right' },
+  legendAmount: { fontSize: 13, color: c.dark, fontWeight: '700', width: 90, textAlign: 'right' },
+  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  statCard: { width: '47%', backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.border, padding: 14 },
+  statCardIconBox: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  statCardValue: { fontSize: 17, fontWeight: '800', color: c.dark },
+  statCardLabel: { fontSize: 11, color: c.muted, marginTop: 2 },
   emptyCard: { backgroundColor: c.surface, borderRadius: 14, padding: 28, alignItems: 'center', borderWidth: 1, borderColor: c.border },
   emptyTitle: { fontSize: 14, fontWeight: '600', color: c.muted, marginTop: 10 },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
@@ -323,6 +334,29 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
     if (!dateString) return '';
     return new Date(dateString).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   };
+
+  const screenWidth = Dimensions.get('window').width;
+
+  const categoryTotals: Record<string, number> = {};
+  expenses.forEach((e) => {
+    const cat = e.category || 'Other';
+    categoryTotals[cat] = (categoryTotals[cat] || 0) + e.totalAmount;
+  });
+  const totalSpend = Object.values(categoryTotals).reduce((sum, v) => sum + v, 0);
+  const categoryChartData = Object.entries(categoryTotals)
+    .sort((a, b) => b[1] - a[1])
+    .map(([category, amount]) => ({
+      name: category,
+      population: amount,
+      color: getCategoryColor(category),
+      legendFontColor: colors.muted,
+      legendFontSize: 12,
+      percentage: totalSpend > 0 ? Math.round((amount / totalSpend) * 100) : 0,
+    }));
+
+  const getHealthColor = (health: string): string => ({
+    Excellent: colors.success, Good: colors.success, Fair: colors.warning, Poor: colors.danger,
+  }[health] || colors.muted);
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>;
   if (!circle) return <View style={styles.center}><Text style={{ color: colors.danger }}>Circle not found</Text></View>;
@@ -563,23 +597,58 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
           <View style={styles.section}>
             <View style={styles.insightHero}>
               <Text style={styles.insightHealthLabel}>Circle Health</Text>
-              <Text style={styles.insightHealth}>{insights.circleHealth}</Text>
+              <View style={[styles.healthBadge, { backgroundColor: `${getHealthColor(insights.circleHealth)}18` }]}>
+                <Text style={[styles.healthBadgeText, { color: getHealthColor(insights.circleHealth) }]}>
+                  {insights.circleHealth}
+                </Text>
+              </View>
             </View>
-            <View style={styles.card}>
+            {categoryChartData.length > 0 && (
+              <View style={styles.categoryChartCard}>
+                <Text style={styles.categoryChartTitle}>Shared Expenses by Category</Text>
+                <PieChart
+                  data={categoryChartData}
+                  width={screenWidth - 64}
+                  height={180}
+                  chartConfig={{
+                    color: () => colors.dark,
+                    labelColor: () => colors.muted,
+                  }}
+                  accessor="population"
+                  backgroundColor="transparent"
+                  paddingLeft="8"
+                  hasLegend={false}
+                />
+                <View style={styles.legendList}>
+                  {categoryChartData.map((item, i) => (
+                    <View key={i} style={styles.legendRow}>
+                      <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                      <Text style={styles.legendCategory}>{item.name}</Text>
+                      <Text style={styles.legendPercent}>{item.percentage}%</Text>
+                      <Text style={styles.legendAmount}>GHS {item.population.toFixed(2)}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+            <View style={styles.statGrid}>
               {([
-                ['Total Loans', insights.totalLoans],
-                ['Active Loans', insights.activeLoans],
-                ['Repaid', insights.repaidLoans],
-                ['Defaulted', insights.defaultedLoans],
-                ['Repayment Rate', `${insights.circleRepaymentRate}%`],
-                ['Total Circulated', `GHS ${insights.totalAmountCirculated}`],
-                ['Avg Trust Score', insights.averageTrustScore],
-                ...(insights.topLender ? [['Top Lender', insights.topLender]] : []),
-                ...(insights.topBorrower ? [['Top Borrower', insights.topBorrower]] : []),
-              ] as [string, string | number][]).map(([label, value], i) => (
-                <View key={i} style={styles.insightRow}>
-                  <Text style={styles.insightLabel}>{label}</Text>
-                  <Text style={styles.insightValue}>{value}</Text>
+                ['Total Loans', insights.totalLoans, 'document-text-outline', colors.accent],
+                ['Active Loans', insights.activeLoans, 'time-outline', colors.statusBlue],
+                ['Repaid', insights.repaidLoans, 'checkmark-done-outline', colors.success],
+                ['Defaulted', insights.defaultedLoans, 'warning-outline', colors.danger],
+                ['Repayment Rate', `${insights.circleRepaymentRate}%`, 'trending-up-outline', colors.success],
+                ['Total Circulated', `GHS ${insights.totalAmountCirculated}`, 'cash-outline', colors.dark],
+                ['Avg Trust Score', insights.averageTrustScore, 'shield-checkmark-outline', colors.accent],
+                ...(insights.topLender ? [['Top Lender', insights.topLender, 'star-outline', colors.warning]] : []),
+                ...(insights.topBorrower ? [['Top Borrower', insights.topBorrower, 'person-outline', colors.statusPurple]] : []),
+              ] as [string, string | number, keyof typeof Ionicons.glyphMap, string][]).map(([label, value, icon, color], i) => (
+                <View key={i} style={styles.statCard}>
+                  <View style={[styles.statCardIconBox, { backgroundColor: `${color}18` }]}>
+                    <Ionicons name={icon} size={18} color={color} />
+                  </View>
+                  <Text style={styles.statCardValue}>{value}</Text>
+                  <Text style={styles.statCardLabel}>{label}</Text>
                 </View>
               ))}
             </View>
