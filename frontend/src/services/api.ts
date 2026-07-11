@@ -81,12 +81,27 @@ const request = async <T = unknown>(
     clearTimeout(timeout);
   }
 
-  const data = await response.json();
+  const contentType = response.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
 
   if (!response.ok) {
-    throw new Error(data.message || 'Something went wrong');
+    let message = `Request failed (${response.status})`;
+    if (isJson) {
+      try {
+        const errorData = await response.json();
+        if (errorData && errorData.message) message = errorData.message;
+      } catch {
+        // body claimed to be JSON but wasn't parseable — keep the generic status message
+      }
+    }
+    throw new Error(message);
   }
 
+  if (!isJson) {
+    throw new Error(`Unexpected response format (${response.status})`);
+  }
+
+  const data = await response.json();
   return data as T;
 };
 

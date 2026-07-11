@@ -11,8 +11,9 @@ import Svg from 'react-native-svg';
 const { Circle } = require('react-native-svg');
 import {
   getProfile, getMyCircles, getUnreadCount,
-  getMyBorrowedLoans, getMyLentLoans,
+  getMyBorrowedLoans, getMyLentLoans, getCircleExpenses,
 } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
@@ -54,6 +55,31 @@ interface Loan {
   overdueInterestAccrued: number;
   createdAt: string;
 }
+
+interface ExpenseSplit {
+  id: number;
+  userId: number;
+  amountOwed: number;
+  settled: boolean;
+  paymentRequested: boolean;
+}
+
+interface SharedExpense {
+  expenseId: number;
+  description: string;
+  totalAmount: number;
+  category?: string;
+  paidBy: string;
+  paidById: number;
+  createdAt: string;
+  splits: ExpenseSplit[];
+}
+
+type CircleExpense = SharedExpense & { circleId: number; circleName: string };
+
+type LoanActivityItem = Loan & { kind: 'loan'; role: 'borrower' | 'lender' };
+type ExpenseActivityItem = CircleExpense & { kind: 'expense'; role: 'paid' | 'owed' };
+type ActivityItem = LoanActivityItem | ExpenseActivityItem;
 
 const HERO_BORDER = '#1e293b';
 const HERO_MUTED = '#64748b';
@@ -190,11 +216,13 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
 export default function HomeScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [circles, setCircles] = useState<Circle[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [borrowedLoans, setBorrowedLoans] = useState<Loan[]>([]);
   const [lentLoans, setLentLoans] = useState<Loan[]>([]);
+  const [expenses, setExpenses] = useState<CircleExpense[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [amountsVisible, setAmountsVisible] = useState<boolean>(false);
@@ -210,10 +238,21 @@ export default function HomeScreen({ navigation }: Props) {
         getMyLentLoans(),
       ]);
       setProfile(profileData as Profile);
-      setCircles(circlesData as Circle[]);
+      const circlesList = circlesData as Circle[];
+      setCircles(circlesList);
       setUnreadCount((notifData as { unreadCount: number }).unreadCount || 0);
       setBorrowedLoans(borrowed as Loan[]);
       setLentLoans(lent as Loan[]);
+
+      const expenseLists = await Promise.all(
+        circlesList.map((c) => getCircleExpenses(c.id).catch(() => []))
+      );
+      const mergedExpenses: CircleExpense[] = expenseLists.flatMap((list, i) =>
+        (list as SharedExpense[]).map((e) => ({
+          ...e, circleId: circlesList[i].id, circleName: circlesList[i].name,
+        }))
+      );
+      setExpenses(mergedExpenses);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -250,10 +289,18 @@ export default function HomeScreen({ navigation }: Props) {
     .filter(l => ACTIVE_STATUSES.includes(l.status))
     .reduce((sum, l) => sum + (l.totalRepaymentAmount + l.overdueInterestAccrued - l.amountRepaid), 0);
 
-  const recentActivity: (Loan & { role: 'borrower' | 'lender' })[] = [
-    ...borrowedLoans.map(l => ({ ...l, role: 'borrower' as const })),
-    ...lentLoans.map(l => ({ ...l, role: 'lender' as const })),
-  ]
+  const myId = user?.id;
+
+  const loanActivity: ActivityItem[] = [
+    ...borrowedLoans.map(l => ({ ...l, kind: 'loan' as const, role: 'borrower' as const })),
+    ...lentLoans.map(l => ({ ...l, kind: 'loan' as const, role: 'lender' as const })),
+  ];
+
+  const expenseActivity: ActivityItem[] = expenses
+    .filter(e => myId != null && (e.paidById === myId || e.splits.some(s => s.userId === myId)))
+    .map(e => ({ ...e, kind: 'expense' as const, role: e.paidById === myId ? 'paid' as const : 'owed' as const }));
+
+  const recentActivity: ActivityItem[] = [...loanActivity, ...expenseActivity]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 
@@ -267,6 +314,20 @@ export default function HomeScreen({ navigation }: Props) {
       case 'REQUESTED': return colors.warning;
       default: return colors.muted;
     }
+  };
+
+  const getExpenseStatus = (e: ExpenseActivityItem): { label: string; color: string } => {
+    if (e.role === 'paid') {
+      const settledCount = e.splits.filter(s => s.settled || s.userId === e.paidById).length;
+      const total = e.splits.length;
+      return settledCount === total
+        ? { label: 'All Settled', color: colors.success }
+        : { label: `${settledCount}/${total} Settled`, color: colors.warning };
+    }
+    const mySplit = e.splits.find(s => s.userId === myId);
+    return mySplit?.settled
+      ? { label: 'Settled', color: colors.success }
+      : { label: 'Pending', color: colors.warning };
   };
 
   const formatDate = (dateStr: string) => {
@@ -407,45 +468,91 @@ export default function HomeScreen({ navigation }: Props) {
               <Text style={styles.emptyText}>No activity yet</Text>
             </View>
           ) : (
-            recentActivity.map((loan, i) => (
-              <TouchableOpacity
-                key={`${loan.role}-${loan.id}-${i}`}
-                style={styles.activityCard}
-                onPress={() => navigation.navigate('LoanDetail', { loanId: loan.id })}
-              >
-                <View style={[styles.activityIconBox, {
-                  backgroundColor: loan.role === 'lender' ? colors.successBgTint : colors.dangerBgTint
-                }]}>
-                  <Ionicons
-                    name={loan.role === 'lender' ? 'arrow-up-outline' : 'arrow-down-outline'}
-                    size={18}
-                    color={loan.role === 'lender' ? colors.success : colors.danger}
-                  />
-                </View>
-                <View style={styles.activityInfo}>
-                  <Text style={styles.activityTitle} numberOfLines={1}>
-                    {loan.role === 'lender'
-                      ? `Lent to ${loan.borrowerName}`
-                      : `Borrowed from ${loan.lenderName || 'Pending'}`}
-                  </Text>
-                  <Text style={styles.activitySub}>
-                    {loan.circleName} · {formatDate(loan.createdAt)}
-                  </Text>
-                </View>
-                <View style={styles.activityRight}>
-                  <Text style={[styles.activityAmount, {
-                    color: loan.role === 'lender' ? colors.success : colors.danger
+            recentActivity.map((item, i) => {
+              if (item.kind === 'loan') {
+                return (
+                  <TouchableOpacity
+                    key={`loan-${item.role}-${item.id}-${i}`}
+                    style={styles.activityCard}
+                    onPress={() => navigation.navigate('LoanDetail', { loanId: item.id })}
+                  >
+                    <View style={[styles.activityIconBox, {
+                      backgroundColor: item.role === 'lender' ? colors.successBgTint : colors.dangerBgTint
+                    }]}>
+                      <Ionicons
+                        name={item.role === 'lender' ? 'arrow-up-outline' : 'arrow-down-outline'}
+                        size={18}
+                        color={item.role === 'lender' ? colors.success : colors.danger}
+                      />
+                    </View>
+                    <View style={styles.activityInfo}>
+                      <Text style={styles.activityTitle} numberOfLines={1}>
+                        {item.role === 'lender'
+                          ? `Lent to ${item.borrowerName}`
+                          : `Borrowed from ${item.lenderName || 'Pending'}`}
+                      </Text>
+                      <Text style={styles.activitySub}>
+                        {item.circleName} · {formatDate(item.createdAt)}
+                      </Text>
+                    </View>
+                    <View style={styles.activityRight}>
+                      <Text style={[styles.activityAmount, {
+                        color: item.role === 'lender' ? colors.success : colors.danger
+                      }]}>
+                        {item.role === 'lender' ? '+' : '-'}GHS {item.amount}
+                      </Text>
+                      <View style={[styles.statusPill, { backgroundColor: `${getStatusColor(item.status)}18` }]}>
+                        <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+                          {item.status.replace(/_/g, ' ')}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }
+
+              const mySplit = item.splits.find(s => s.userId === myId);
+              const amount = item.role === 'paid' ? item.totalAmount : (mySplit?.amountOwed ?? 0);
+              const status = getExpenseStatus(item);
+
+              return (
+                <TouchableOpacity
+                  key={`expense-${item.expenseId}-${i}`}
+                  style={styles.activityCard}
+                  onPress={() => navigation.navigate('CircleDetail', { circleId: item.circleId })}
+                >
+                  <View style={[styles.activityIconBox, {
+                    backgroundColor: item.role === 'paid' ? colors.successBgTint : colors.dangerBgTint
                   }]}>
-                    {loan.role === 'lender' ? '+' : '-'}GHS {loan.amount}
-                  </Text>
-                  <View style={[styles.statusPill, { backgroundColor: `${getStatusColor(loan.status)}18` }]}>
-                    <Text style={[styles.statusText, { color: getStatusColor(loan.status) }]}>
-                      {loan.status.replace(/_/g, ' ')}
+                    <Ionicons
+                      name={item.role === 'paid' ? 'cash-outline' : 'receipt-outline'}
+                      size={18}
+                      color={item.role === 'paid' ? colors.success : colors.danger}
+                    />
+                  </View>
+                  <View style={styles.activityInfo}>
+                    <Text style={styles.activityTitle} numberOfLines={1}>
+                      {item.role === 'paid' ? `Paid for ${item.description}` : `You owe for ${item.description}`}
+                    </Text>
+                    <Text style={styles.activitySub}>
+                      {item.circleName} · {formatDate(item.createdAt)}
                     </Text>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))
+                  <View style={styles.activityRight}>
+                    <Text style={[styles.activityAmount, {
+                      color: item.role === 'paid' ? colors.success : colors.danger
+                    }]}>
+                      {item.role === 'paid' ? '+' : '-'}GHS {amount.toFixed(2)}
+                    </Text>
+                    <View style={[styles.statusPill, { backgroundColor: `${status.color}18` }]}>
+                      <Text style={[styles.statusText, { color: status.color }]}>
+                        {status.label}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
           )}
         </View>
       )}
