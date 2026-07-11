@@ -7,6 +7,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, PieChart } from 'react-native-chart-kit';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { getPersonalTransactions, addPersonalExpense, getMonthlySummary, getSpendingLimits, setSpendingLimit } from '../services/api';
 import { aggregateTransactions, ChartPeriod } from '../utils/chartData';
 import { useAppAlert } from '../components/AppAlert';
@@ -75,18 +76,14 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: '600', color: c.muted },
   activeTabText: { color: c.accent },
   section: { padding: 16, gap: 12 },
-  periodToggle: {
-    flexDirection: 'row', backgroundColor: c.bg, borderRadius: 10,
-    borderWidth: 1, borderColor: c.border, padding: 3,
-  },
-  periodBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
-  periodBtnActive: {
-    backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
-    shadowColor: c.dark, shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06, shadowRadius: 2, elevation: 1,
-  },
-  periodText: { fontSize: 13, fontWeight: '600', color: c.muted },
-  periodTextActive: { color: c.dark },
+  chartHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  chartSectionLabel: { fontSize: 11, fontWeight: '700', color: c.muted, letterSpacing: 1 },
+  periodPillRow: { flexDirection: 'row', backgroundColor: c.bg, borderRadius: 8, borderWidth: 1, borderColor: c.border, padding: 2 },
+  periodPillBtn: { paddingVertical: 4, paddingHorizontal: 9, borderRadius: 6 },
+  periodPillBtnActive: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
+  periodPillText: { fontSize: 10, fontWeight: '600', color: c.muted },
+  periodPillTextActive: { color: c.dark },
+  chartTotalValue: { fontSize: 26, fontWeight: '900', color: c.dark, marginTop: 4, marginBottom: 14 },
   chartCard: {
     backgroundColor: c.surface, borderRadius: 14, padding: 16,
     borderWidth: 1, borderColor: c.border,
@@ -97,8 +94,12 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   customBtnActive: { backgroundColor: c.surface, borderColor: c.accent },
   customBtnText: { fontSize: 12, fontWeight: '600', color: c.muted },
   customBtnTextActive: { color: c.accent },
-  customRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  customInput: { flex: 1, backgroundColor: c.bg, borderRadius: 8, padding: 10, fontSize: 13, color: c.dark, borderWidth: 1, borderColor: c.border, textAlign: 'center' },
+  customRow: { flexDirection: 'row', gap: 10, marginTop: 10, justifyContent: 'center' },
+  customInput: { backgroundColor: c.bg, borderRadius: 8, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: c.border, alignItems: 'center' },
+  customInputText: { fontSize: 13, textAlign: 'center' },
+  iosPickerCard: { backgroundColor: c.bg, borderRadius: 10, marginTop: 10, overflow: 'hidden' },
+  iosPickerDoneBtn: { alignItems: 'center', paddingVertical: 12, borderTopWidth: 1, borderTopColor: c.border },
+  iosPickerDoneText: { color: c.accent, fontWeight: '700', fontSize: 14 },
   customEmptyState: { paddingVertical: 40, alignItems: 'center', justifyContent: 'center' },
   customEmptyText: { fontSize: 13, color: c.muted, textAlign: 'center' },
   summaryCard: {
@@ -189,6 +190,22 @@ export default function ExpensesScreen() {
   const [customFrom, setCustomFrom] = useState<string>('');
   const [customTo, setCustomTo] = useState<string>('');
   const [showCustomRange, setShowCustomRange] = useState<boolean>(false);
+  const [pickerField, setPickerField] = useState<'from' | 'to' | null>(null);
+
+  const toDateInputString = (d: Date): string =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  const handleDateChange = (event: DateTimePickerEvent, date?: Date): void => {
+    if (Platform.OS === 'android') {
+      setPickerField(null);
+      if (event.type !== 'set' || !date) return;
+    }
+    if (date) {
+      const formatted = toDateInputString(date);
+      if (pickerField === 'from') setCustomFrom(formatted);
+      else if (pickerField === 'to') setCustomTo(formatted);
+    }
+  };
 
   const now = new Date();
   const [year] = useState<number>(now.getFullYear());
@@ -217,6 +234,28 @@ export default function ExpensesScreen() {
   useFocusEffect(useCallback(() => { loadData(); }, []));
 
   const chartData = useMemo(() => aggregateTransactions(transactions, chartPeriod, customFrom || undefined, customTo || undefined), [transactions, chartPeriod, customFrom, customTo]);
+  const periodTotal = chartData.datasets[1].data.reduce((sum, v) => sum + v, 0);
+
+  const chartLabels = useMemo(() => {
+    const labels = chartData.labels;
+    const n = labels.length;
+    if (n <= 8) return labels;
+    let step: number;
+    if (n <= 16) step = 2;
+    else if (n <= 30) step = 3;
+    else step = Math.ceil(n / 7); // wide ranges: cap at ~7-8 visible labels total
+
+    const lastSteppedIndex = Math.floor((n - 1) / step) * step;
+    const skipLastStepped = lastSteppedIndex !== n - 1 && lastSteppedIndex !== 0 && (n - 1 - lastSteppedIndex) < step;
+
+    return labels.map((l, i) => {
+      if (i === n - 1) return l;
+      if (i === lastSteppedIndex && skipLastStepped) return '';
+      return i % step === 0 ? l : '';
+    });
+  }, [chartData.labels]);
+
+  const chartPointCount = chartData.datasets[1].data.length;
   const screenWidth = Dimensions.get('window').width;
 
   const getCategoryColor = (category?: string): string => ({
@@ -386,15 +425,20 @@ export default function ExpensesScreen() {
             )}
 
             <View style={styles.chartCard}>
-              <View style={styles.periodToggle}>
-                {(['day', 'week', 'month', 'year'] as const).map((p) => (
-                  <TouchableOpacity key={p} style={[styles.periodBtn, chartPeriod === p && styles.periodBtnActive]} onPress={() => { setChartPeriod(p); setShowCustomRange(false); }}>
-                    <Text style={[styles.periodText, chartPeriod === p && styles.periodTextActive]}>
-                      {({ day: 'Day', week: 'Week', month: 'Month', year: 'Year' } as const)[p]}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={styles.chartHeaderRow}>
+                <Text style={styles.chartSectionLabel}>SPENDING ACTIVITY</Text>
+                <View style={styles.periodPillRow}>
+                  {(['day', 'week', 'month', 'year'] as const).map((p) => (
+                    <TouchableOpacity key={p} style={[styles.periodPillBtn, chartPeriod === p && styles.periodPillBtnActive]} onPress={() => { setChartPeriod(p); setShowCustomRange(false); }}>
+                      <Text style={[styles.periodPillText, chartPeriod === p && styles.periodPillTextActive]}>
+                        {({ day: 'D', week: 'W', month: 'M', year: 'Y' } as const)[p]}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
+              <Text style={styles.chartTotalValue}>GHS {periodTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+
               <TouchableOpacity
                 style={[styles.customBtn, chartPeriod === 'custom' && styles.customBtnActive]}
                 onPress={() => { setChartPeriod('custom'); setShowCustomRange(true); }}
@@ -403,8 +447,39 @@ export default function ExpensesScreen() {
               </TouchableOpacity>
               {showCustomRange && (
                 <View style={styles.customRow}>
-                  <TextInput style={styles.customInput} placeholder="From (YYYY-MM-DD)" placeholderTextColor={colors.muted} value={customFrom} onChangeText={setCustomFrom} />
-                  <TextInput style={styles.customInput} placeholder="To (YYYY-MM-DD)" placeholderTextColor={colors.muted} value={customTo} onChangeText={setCustomTo} />
+                  <TouchableOpacity style={styles.customInput} onPress={() => setPickerField('from')}>
+                    <Text style={[styles.customInputText, { color: customFrom ? colors.dark : colors.muted }]}>
+                      {customFrom || 'From (YYYY-MM-DD)'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.customInput} onPress={() => setPickerField('to')}>
+                    <Text style={[styles.customInputText, { color: customTo ? colors.dark : colors.muted }]}>
+                      {customTo || 'To (YYYY-MM-DD)'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {pickerField && Platform.OS === 'android' && (
+                <DateTimePicker
+                  value={(pickerField === 'from' ? customFrom : customTo) ? new Date(`${pickerField === 'from' ? customFrom : customTo}T00:00:00`) : new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={handleDateChange}
+                />
+              )}
+
+              {pickerField && Platform.OS === 'ios' && (
+                <View style={styles.iosPickerCard}>
+                  <DateTimePicker
+                    value={(pickerField === 'from' ? customFrom : customTo) ? new Date(`${pickerField === 'from' ? customFrom : customTo}T00:00:00`) : new Date()}
+                    mode="date"
+                    display="inline"
+                    onChange={handleDateChange}
+                  />
+                  <TouchableOpacity style={styles.iosPickerDoneBtn} onPress={() => setPickerField(null)}>
+                    <Text style={styles.iosPickerDoneText}>Done</Text>
+                  </TouchableOpacity>
                 </View>
               )}
 
@@ -414,13 +489,15 @@ export default function ExpensesScreen() {
                 </View>
               ) : (
                 <LineChart
-                  data={{ labels: chartData.labels, datasets: [{ data: chartData.datasets[1].data }] }}
-                  width={screenWidth - 72}
+                  data={{ labels: chartLabels, datasets: [{ data: chartData.datasets[1].data }] }}
+                  width={screenWidth - 64}
                   height={180}
                   fromZero
                   bezier
-                  withInnerLines={false}
-                  yAxisLabel="GHS "
+                  withInnerLines
+                  withHorizontalLabels={false}
+                  withDots={chartPointCount <= 60}
+                  yAxisLabel=""
                   yAxisSuffix=""
                   onDataPointClick={({ value, index }: { value: number; index: number }) => setTappedPoint({ label: chartData.labels[index], value, type: 'Expenses' })}
                   chartConfig={{
@@ -430,10 +507,11 @@ export default function ExpensesScreen() {
                     decimalPlaces: 0,
                     color: () => colors.danger,
                     labelColor: () => colors.muted,
-                    propsForDots: { r: '4', strokeWidth: '2', stroke: colors.danger },
+                    propsForDots: { r: chartPointCount > 30 ? '2' : '4', strokeWidth: '2', stroke: colors.danger },
                     propsForLabels: { fontSize: 9 },
+                    propsForBackgroundLines: { stroke: colors.border, strokeWidth: 1, strokeDasharray: '' },
                   }}
-                  style={{ borderRadius: 10, paddingBottom: 4 }}
+                  style={{ borderRadius: 10, paddingBottom: 4, paddingRight: 24 }}
                 />
               )}
 
