@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { LineChart } from 'react-native-chart-kit';
+import { LineChart, PieChart } from 'react-native-chart-kit';
 import { getPersonalTransactions, addPersonalExpense, getMonthlySummary, getSpendingLimits, setSpendingLimit } from '../services/api';
 import { aggregateTransactions, ChartPeriod } from '../utils/chartData';
 import { useAppAlert } from '../components/AppAlert';
@@ -114,9 +114,11 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   summaryCurrency: { fontSize: 10, fontWeight: '500', color: c.muted },
   card: { backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border },
   cardTitle: { fontSize: 14, fontWeight: '700', color: c.dark, marginBottom: 12 },
-  catRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border },
-  catName: { fontSize: 13, color: c.muted },
-  catAmt: { fontSize: 13, fontWeight: '700', color: c.dark },
+  legendRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border },
+  legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
+  legendCategory: { flex: 1, fontSize: 13, color: c.dark, fontWeight: '600' },
+  legendPercent: { fontSize: 12, color: c.muted, marginRight: 10, width: 36, textAlign: 'right' },
+  legendAmount: { fontSize: 13, color: c.dark, fontWeight: '700', width: 90, textAlign: 'right' },
   limitRow: { marginBottom: 14 },
   limitHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   limitCat: { fontSize: 13, fontWeight: '700', color: c.dark },
@@ -210,6 +212,27 @@ export default function ExpensesScreen() {
 
   const chartData = useMemo(() => aggregateTransactions(transactions, chartPeriod, customFrom || undefined, customTo || undefined), [transactions, chartPeriod, customFrom, customTo]);
   const screenWidth = Dimensions.get('window').width;
+
+  const getCategoryColor = (category?: string): string => ({
+    Food: colors.success, Transport: colors.statusBlue, Entertainment: colors.statusPurple,
+    Utilities: colors.statusOrange, Shopping: colors.accent, Other: colors.slate400,
+  }[category || ''] || colors.muted);
+
+  const categoryChartData = summary?.categoryBreakdown
+    ? Object.entries(summary.categoryBreakdown)
+        .sort((a, b) => (b[1] as number) - (a[1] as number))
+        .map(([category, amount]) => {
+          const totalSpend = Object.values(summary.categoryBreakdown as Record<string, number>).reduce((sum, v) => sum + v, 0);
+          return {
+            name: category,
+            population: amount as number,
+            color: getCategoryColor(category),
+            legendFontColor: colors.muted,
+            legendFontSize: 12,
+            percentage: totalSpend > 0 ? Math.round(((amount as number) / totalSpend) * 100) : 0,
+          };
+        })
+    : [];
 
   const handleAdd = async (): Promise<void> => {
     if (!newExpense.amount || parseFloat(newExpense.amount) <= 0) { showAlert('error', 'Error', 'Enter a valid amount'); return; }
@@ -392,17 +415,30 @@ export default function ExpensesScreen() {
               )}
             </View>
 
-            {summary.categoryBreakdown && Object.keys(summary.categoryBreakdown).length > 0 && (
+            {categoryChartData.length > 0 && (
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Spending by Category</Text>
-                {Object.entries(summary.categoryBreakdown)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([cat, amt]) => (
-                    <View key={cat} style={styles.catRow}>
-                      <Text style={styles.catName}>{cat}</Text>
-                      <Text style={styles.catAmt}>GHS {(amt as number).toFixed(2)}</Text>
-                    </View>
-                  ))}
+                <PieChart
+                  data={categoryChartData}
+                  width={screenWidth - 72}
+                  height={180}
+                  chartConfig={{
+                    color: () => colors.dark,
+                    labelColor: () => colors.muted,
+                  }}
+                  accessor="population"
+                  backgroundColor="transparent"
+                  paddingLeft="8"
+                  hasLegend={false}
+                />
+                {categoryChartData.map((item, i) => (
+                  <View key={i} style={styles.legendRow}>
+                    <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                    <Text style={styles.legendCategory}>{item.name}</Text>
+                    <Text style={styles.legendPercent}>{item.percentage}%</Text>
+                    <Text style={styles.legendAmount}>GHS {item.population.toFixed(2)}</Text>
+                  </View>
+                ))}
               </View>
             )}
 
