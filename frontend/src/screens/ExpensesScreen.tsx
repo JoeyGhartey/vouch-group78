@@ -114,6 +114,12 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   summaryCurrency: { fontSize: 10, fontWeight: '500', color: c.muted },
   card: { backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border },
   cardTitle: { fontSize: 14, fontWeight: '700', color: c.dark, marginBottom: 12 },
+  recapCard: {
+    backgroundColor: c.surface, borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: c.border, marginTop: 12,
+  },
+  recapText: { fontSize: 14, color: c.dark, lineHeight: 21 },
+  recapHighlight: { fontWeight: '700', color: c.dark },
   legendRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border },
   legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
   legendCategory: { flex: 1, fontSize: 13, color: c.dark, fontWeight: '600' },
@@ -355,6 +361,29 @@ export default function ExpensesScreen() {
                 </View>
               </View>
             </View>
+
+            {categoryChartData.length > 0 ? (
+              <View style={styles.recapCard}>
+                <Text style={styles.recapText}>
+                  You spent <Text style={styles.recapHighlight}>GHS {summary.totalExpenses?.toFixed(2)}</Text> this month, most on{' '}
+                  <Text style={styles.recapHighlight}>{categoryChartData[0].name} ({categoryChartData[0].percentage}%)</Text>.
+                  Income was <Text style={styles.recapHighlight}>GHS {summary.totalIncome?.toFixed(2)}</Text>, net{' '}
+                  <Text style={[styles.recapHighlight, { color: (summary.netBalance ?? 0) >= 0 ? colors.success : colors.danger }]}>
+                    GHS {summary.netBalance?.toFixed(2)}
+                  </Text>.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.recapCard}>
+                <Text style={styles.recapText}>
+                  Income was <Text style={styles.recapHighlight}>GHS {summary.totalIncome?.toFixed(2)}</Text>, expenses{' '}
+                  <Text style={styles.recapHighlight}>GHS {summary.totalExpenses?.toFixed(2)}</Text>, net{' '}
+                  <Text style={[styles.recapHighlight, { color: (summary.netBalance ?? 0) >= 0 ? colors.success : colors.danger }]}>
+                    GHS {summary.netBalance?.toFixed(2)}
+                  </Text>.
+                </Text>
+              </View>
+            )}
 
             <View style={styles.chartCard}>
               <View style={styles.periodToggle}>
