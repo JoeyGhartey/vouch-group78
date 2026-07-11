@@ -470,8 +470,8 @@ export default function HomeScreen({ navigation }: Props) {
 
         <View style={styles.statsRowSecondary}>
           <View style={styles.statItem}>
-            <Text style={styles.statVal}>GHS {thisMonthSpend.toFixed(0)}</Text>
-            <Text style={styles.statLbl}>This Month</Text>
+            <Text style={styles.statVal}>{amountsVisible ? `GHS ${thisMonthSpend.toFixed(0)}` : maskAmount}</Text>
+            <Text style={styles.statLbl}>Spent This Month</Text>
           </View>
         </View>
       </View>
