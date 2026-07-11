@@ -102,17 +102,22 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   iosPickerDoneText: { color: c.accent, fontWeight: '700', fontSize: 14 },
   customEmptyState: { paddingVertical: 40, alignItems: 'center', justifyContent: 'center' },
   customEmptyText: { fontSize: 13, color: c.muted, textAlign: 'center' },
-  summaryCard: {
-    backgroundColor: c.surface, borderRadius: 16, padding: 20,
-    borderWidth: 1, borderColor: c.border,
-  },
   summaryMonth: { color: c.muted, fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: 16, letterSpacing: 0.5 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  summaryItem: { flex: 1, alignItems: 'center' },
-  summaryDivider: { width: 1, height: 40, backgroundColor: c.border },
-  summaryLabel: { fontSize: 11, color: c.muted, fontWeight: '600', marginBottom: 4 },
-  summaryValue: { fontSize: 13, fontWeight: '800' },
-  summaryCurrency: { fontSize: 10, fontWeight: '500', color: c.muted },
+  summaryRow: { flexDirection: 'row', gap: 12 },
+  summaryCard: {
+    flex: 1, backgroundColor: c.surface, borderRadius: 16, padding: 18,
+    borderWidth: 1, borderColor: c.border, alignItems: 'center',
+  },
+  summaryIconBadge: {
+    width: 44, height: 44, borderRadius: 22,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 10,
+  },
+  summaryValue: { fontSize: 18, fontWeight: '800', color: c.dark },
+  summaryCurrency: { fontSize: 11, fontWeight: '500', color: c.muted },
+  summaryLabel: { fontSize: 11, color: c.muted, fontWeight: '600', marginTop: 4 },
+  netRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'baseline', marginTop: 14, gap: 6 },
+  netLabel: { fontSize: 12, color: c.muted, fontWeight: '600' },
+  netValue: { fontSize: 15, fontWeight: '800' },
   card: { backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border },
   cardTitle: { fontSize: 14, fontWeight: '700', color: c.dark, marginBottom: 12 },
   recapCard: {
@@ -373,32 +378,34 @@ export default function ExpensesScreen() {
         {/* Summary Tab */}
         {activeTab === 'summary' && summary && (
           <View style={styles.section}>
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryMonth}>
-                {new Date(year, month - 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
-              </Text>
-              <View style={styles.summaryRow}>
-                <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Income</Text>
-                  <Text style={[styles.summaryValue, { color: colors.success }]} numberOfLines={2} adjustsFontSizeToFit>
-                    <Text style={styles.summaryCurrency}>GHS </Text>{summary.totalIncome?.toFixed(2)}
-                  </Text>
+            <Text style={styles.summaryMonth}>
+              {new Date(year, month - 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+            </Text>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryCard}>
+                <View style={[styles.summaryIconBadge, { backgroundColor: `${colors.success}18` }]}>
+                  <Ionicons name="arrow-up-circle" size={26} color={colors.success} />
                 </View>
-                <View style={styles.summaryDivider} />
-                <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Expenses</Text>
-                  <Text style={[styles.summaryValue, { color: colors.danger }]} numberOfLines={2} adjustsFontSizeToFit>
-                    <Text style={styles.summaryCurrency}>GHS </Text>{summary.totalExpenses?.toFixed(2)}
-                  </Text>
-                </View>
-                <View style={styles.summaryDivider} />
-                <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Net</Text>
-                  <Text style={[styles.summaryValue, { color: (summary.netBalance ?? 0) >= 0 ? colors.success : colors.danger }]} numberOfLines={2} adjustsFontSizeToFit>
-                    <Text style={styles.summaryCurrency}>GHS </Text>{summary.netBalance?.toFixed(2)}
-                  </Text>
-                </View>
+                <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>
+                  <Text style={styles.summaryCurrency}>GHS </Text>{summary.totalIncome?.toFixed(2)}
+                </Text>
+                <Text style={styles.summaryLabel}>Income</Text>
               </View>
+              <View style={styles.summaryCard}>
+                <View style={[styles.summaryIconBadge, { backgroundColor: `${colors.danger}18` }]}>
+                  <Ionicons name="arrow-down-circle" size={26} color={colors.danger} />
+                </View>
+                <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>
+                  <Text style={styles.summaryCurrency}>GHS </Text>{summary.totalExpenses?.toFixed(2)}
+                </Text>
+                <Text style={styles.summaryLabel}>Expenses</Text>
+              </View>
+            </View>
+            <View style={styles.netRow}>
+              <Text style={styles.netLabel}>Net</Text>
+              <Text style={[styles.netValue, { color: (summary.netBalance ?? 0) >= 0 ? colors.success : colors.danger }]}>
+                GHS {summary.netBalance?.toFixed(2)}
+              </Text>
             </View>
 
             {categoryChartData.length > 0 ? (
