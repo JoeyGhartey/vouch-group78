@@ -302,6 +302,7 @@ export default function ExpensesScreen() {
       const msg = (e as Error).message;
       if (msg.includes('Spending limit exceeded')) {
         setAdding(false);
+        setShowAdd(false);
         const ok = await confirm('Limit Exceeded', msg, 'Add Anyway');
         if (ok) {
           setAdding(true);
@@ -313,9 +314,9 @@ export default function ExpensesScreen() {
               type: newExpense.type,
               overrideLimit: true,
             });
-            setShowAdd(false);
             setNewExpense({ amount: '', description: '', category: 'Food', type: 'EXPENSE' });
             loadData();
+            showAlert('success', 'Expense Added', 'Your expense was added, exceeding the spending limit.');
           } catch (retryError) {
             showAlert('error', 'Error', (retryError as Error).message);
           } finally {
