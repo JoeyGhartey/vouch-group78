@@ -55,8 +55,6 @@ interface Loan {
   createdAt: string;
 }
 
-// Hero card colors (always dark regardless of theme)
-const HERO_BG = '#0f172a';
 const HERO_BORDER = '#1e293b';
 const HERO_MUTED = '#64748b';
 const HERO_SUBTLE = '#94a3b8';
@@ -74,13 +72,13 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
 
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: c.surface, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
+    backgroundColor: c.surface, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 18,
     borderBottomWidth: 1, borderBottomColor: c.border,
   },
-  greeting: { fontSize: 13, color: c.muted },
-  name: { fontSize: 22, fontWeight: '700', color: c.dark, letterSpacing: -0.3, marginTop: 2 },
+  greeting: { fontSize: 15, color: c.muted },                          // was 13
+  name: { fontSize: 26, fontWeight: '700', color: c.dark, letterSpacing: -0.3, marginTop: 2 }, // was 22
   bellBtn: {
-    width: 40, height: 40, borderRadius: 12,
+    width: 44, height: 44, borderRadius: 12,
     backgroundColor: c.bg, justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: c.border,
   },
@@ -92,7 +90,6 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   },
   badgeText: { fontSize: 8, color: c.surface, fontWeight: '800' },
 
-  // Hero card styles — hardcoded, always dark regardless of theme
   heroCard: {
     backgroundColor: c.heroCardBg, marginHorizontal: 16, marginTop: 16,
     borderRadius: 20, overflow: 'hidden',
@@ -101,38 +98,37 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 20, paddingTop: 18, paddingBottom: 4,
   },
-  eyeText: { fontSize: 12, color: HERO_SUBTLE, fontWeight: '500' },
+  eyeText: { fontSize: 13, color: HERO_SUBTLE, fontWeight: '500' },    // was 12
   amountsRow: {
-    flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 16,
+    flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 18,  // was 16
   },
   amountItem: { flex: 1 },
-  amountLabel: { fontSize: 12, color: HERO_MUTED, fontWeight: '500', marginBottom: 6 },
-  amountValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
-  amountSub: { fontSize: 11, color: HERO_MUTED, marginTop: 4 },
+  amountLabel: { fontSize: 14, color: HERO_MUTED, fontWeight: '500', marginBottom: 8 }, // was 12
+  amountValue: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },               // was 22
+  amountSub: { fontSize: 13, color: HERO_MUTED, marginTop: 6 },                        // was 11
   amountDivider: { width: 1, backgroundColor: HERO_BORDER, marginHorizontal: 16 },
   trustSection: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     borderTopWidth: 1, borderTopColor: HERO_BORDER,
-    paddingHorizontal: 20, paddingVertical: 16,
+    paddingHorizontal: 20, paddingVertical: 18,                         // was 16
   },
   trustTextCol: { flex: 1, marginRight: 16 },
-  trustHeading: { fontSize: 11, color: HERO_MUTED, fontWeight: '700', letterSpacing: 0.8, marginBottom: 6 },
+  trustHeading: { fontSize: 12, color: HERO_MUTED, fontWeight: '700', letterSpacing: 0.8, marginBottom: 6 }, // was 11
   trustPill: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 },
-  pillDot: { width: 7, height: 7, borderRadius: 4 },
-  pillText: { fontSize: 13, fontWeight: '700' },
-  progressBg: { height: 4, backgroundColor: RING_BG, borderRadius: 4, overflow: 'hidden' },
+  pillDot: { width: 8, height: 8, borderRadius: 4 },                   // was 7
+  pillText: { fontSize: 15, fontWeight: '700' },                        // was 13
+  progressBg: { height: 5, backgroundColor: RING_BG, borderRadius: 4, overflow: 'hidden' }, // was 4
   progressFill: { height: '100%', borderRadius: 4 },
-  ringWrapper: { width: 64, height: 64, justifyContent: 'center', alignItems: 'center' },
-  ringText: { position: 'absolute', fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
+  ringWrapper: { width: 72, height: 72, justifyContent: 'center', alignItems: 'center' }, // was 64
+  ringText: { position: 'absolute', fontSize: 15, fontWeight: '800', color: '#FFFFFF' }, // was 13
   statsRow: {
     flexDirection: 'row', borderTopWidth: 1, borderTopColor: HERO_BORDER,
   },
-  statItem: { flex: 1, paddingVertical: 14, alignItems: 'center' },
+  statItem: { flex: 1, paddingVertical: 16, alignItems: 'center' },    // was 14
   statDivider: { borderRightWidth: 1, borderRightColor: HERO_BORDER },
-  statVal: { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
-  statLbl: { fontSize: 10, color: HERO_MUTED, fontWeight: '600', marginTop: 2 },
+  statVal: { fontSize: 20, fontWeight: '800', color: '#FFFFFF' },      // was 17
+  statLbl: { fontSize: 11, color: HERO_MUTED, fontWeight: '600', marginTop: 3 }, // was 10
 
-  // Themed styles continued
   activityHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginHorizontal: 16, marginTop: 24, marginBottom: 10,
@@ -141,10 +137,10 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   },
   activityToggle: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   activityBadge: {
-    backgroundColor: c.accent, borderRadius: 10, width: 20, height: 20,
+    backgroundColor: c.accent, borderRadius: 10, width: 22, height: 22,
     justifyContent: 'center', alignItems: 'center',
   },
-  activityBadgeText: { fontSize: 10, fontWeight: '800', color: c.surface },
+  activityBadgeText: { fontSize: 11, fontWeight: '800', color: c.surface }, // was 10
 
   activityList: { marginHorizontal: 16, gap: 8, marginBottom: 8 },
   activityCard: {
@@ -152,21 +148,21 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     borderWidth: 1, borderColor: c.border,
   },
-  activityIconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  activityIconBox: { width: 42, height: 42, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   activityInfo: { flex: 1 },
-  activityTitle: { fontSize: 14, fontWeight: '600', color: c.dark },
-  activitySub: { fontSize: 11, color: c.muted, marginTop: 2 },
+  activityTitle: { fontSize: 15, fontWeight: '600', color: c.dark },   // was 14
+  activitySub: { fontSize: 12, color: c.muted, marginTop: 2 },         // was 11
   activityRight: { alignItems: 'flex-end', gap: 4 },
-  activityAmount: { fontSize: 14, fontWeight: '700' },
+  activityAmount: { fontSize: 15, fontWeight: '700' },                  // was 14
   statusPill: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  statusText: { fontSize: 10, fontWeight: '700' },
+  statusText: { fontSize: 11, fontWeight: '700' },                      // was 10
 
   sectionRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginHorizontal: 16, marginTop: 20, marginBottom: 10,
   },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: c.muted, letterSpacing: 0.8 },
-  seeAll: { fontSize: 12, color: c.accent, fontWeight: '700' },
+  sectionLabel: { fontSize: 12, fontWeight: '700', color: c.muted, letterSpacing: 0.8 }, // was 11
+  seeAll: { fontSize: 13, color: c.accent, fontWeight: '700' },         // was 12
 
   circleList: { marginHorizontal: 16, gap: 8 },
   circleCard: {
@@ -176,19 +172,19 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   },
   circleLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   circleIconBox: {
-    width: 40, height: 40, borderRadius: 12,
+    width: 42, height: 42, borderRadius: 12,
     backgroundColor: c.bg, justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: c.border,
   },
-  circleName: { fontSize: 14, fontWeight: '600', color: c.dark },
-  circleMeta: { fontSize: 11, color: c.muted, marginTop: 2 },
+  circleName: { fontSize: 15, fontWeight: '600', color: c.dark },       // was 14
+  circleMeta: { fontSize: 12, color: c.muted, marginTop: 2 },           // was 11
 
   emptyCard: {
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     padding: 24, alignItems: 'center', borderWidth: 1, borderColor: c.border,
   },
-  emptyText: { fontSize: 14, fontWeight: '600', color: c.dark, marginTop: 10, marginBottom: 4 },
-  emptySubText: { fontSize: 12, color: c.muted, textAlign: 'center' },
+  emptyText: { fontSize: 15, fontWeight: '600', color: c.dark, marginTop: 10, marginBottom: 4 }, // was 14
+  emptySubText: { fontSize: 13, color: c.muted, textAlign: 'center' }, // was 12
 });
 
 export default function HomeScreen({ navigation }: Props) {
@@ -203,6 +199,7 @@ export default function HomeScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [amountsVisible, setAmountsVisible] = useState<boolean>(false);
   const [activityExpanded, setActivityExpanded] = useState<boolean>();
+
   const loadData = async (): Promise<void> => {
     try {
       const [profileData, circlesData, notifData, borrowed, lent] = await Promise.all([
@@ -241,7 +238,7 @@ export default function HomeScreen({ navigation }: Props) {
   }
 
   const score = profile?.trustScore ?? 0;
-  const radius = 22;
+  const radius = 26;                                                     // was 22 — bigger ring
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (score / 100) * circumference;
 
@@ -284,11 +281,12 @@ export default function HomeScreen({ navigation }: Props) {
 
   const maskAmount = '••••••';
   const getGreeting = (): string => {
-  const hour = new Date().getHours();
+    const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
   };
+
   return (
     <ScrollView
       style={styles.container}
@@ -302,7 +300,7 @@ export default function HomeScreen({ navigation }: Props) {
           <Text style={styles.name}>{profile?.firstName} {profile?.lastName}</Text>
         </View>
         <TouchableOpacity style={styles.bellBtn} onPress={() => navigation.navigate('Notifications')}>
-          <Ionicons name="notifications-outline" size={20} color={colors.dark} />
+          <Ionicons name="notifications-outline" size={22} color={colors.dark} />
           {unreadCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{unreadCount}</Text>
@@ -311,23 +309,14 @@ export default function HomeScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      {/* Dark Financial Card — hardcoded, not themed */}
+      {/* Hero Card */}
       <View style={styles.heroCard}>
 
-        {/* Eye toggle */}
-        <TouchableOpacity
-          style={styles.eyeBtn}
-          onPress={() => setAmountsVisible(v => !v)}
-        >
-          <Ionicons
-            name={amountsVisible ? 'eye-outline' : 'eye-off-outline'}
-            size={18}
-            color="#94a3b8"
-          />
+        <TouchableOpacity style={styles.eyeBtn} onPress={() => setAmountsVisible(v => !v)}>
+          <Ionicons name={amountsVisible ? 'eye-outline' : 'eye-off-outline'} size={20} color="#94a3b8" />
           <Text style={styles.eyeText}>{amountsVisible ? 'Hide balances' : 'Show balances'}</Text>
         </TouchableOpacity>
 
-        {/* Amounts */}
         <View style={styles.amountsRow}>
           <View style={styles.amountItem}>
             <Text style={styles.amountLabel}>You are owed</Text>
@@ -338,9 +327,7 @@ export default function HomeScreen({ navigation }: Props) {
               {lentLoans.filter(l => ACTIVE_STATUSES.includes(l.status)).length} active
             </Text>
           </View>
-
           <View style={styles.amountDivider} />
-
           <View style={styles.amountItem}>
             <Text style={styles.amountLabel}>You owe</Text>
             <Text style={[styles.amountValue, { color: totalOwed > 0 ? '#f87171' : '#94a3b8' }]}>
@@ -352,10 +339,9 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* Trust Score inside hero card */}
         <View style={styles.trustSection}>
           <View style={styles.trustTextCol}>
-            <Text style={styles.trustHeading}>Trust Score</Text>
+            <Text style={styles.trustHeading}>TRUST SCORE</Text>
             <View style={styles.trustPill}>
               <View style={[styles.pillDot, { backgroundColor: getTrustColor(score) }]} />
               <Text style={[styles.pillText, { color: getTrustColor(score) }]}>
@@ -371,10 +357,10 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
 
           <View style={styles.ringWrapper}>
-            <Svg width={64} height={64} style={{ transform: [{ rotate: '-90deg' }] }}>
-              <Circle cx="32" cy="32" r={radius} fill="none" stroke={RING_BG} strokeWidth="6" />
+            <Svg width={72} height={72} style={{ transform: [{ rotate: '-90deg' }] }}>
+              <Circle cx="36" cy="36" r={radius} fill="none" stroke={RING_BG} strokeWidth="6" />
               <Circle
-                cx="32" cy="32" r={radius}
+                cx="36" cy="36" r={radius}
                 fill="none" stroke={getTrustColor(score)} strokeWidth="6"
                 strokeDasharray={circumference}
                 strokeDashoffset={strokeDashoffset}
@@ -385,7 +371,6 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* Stats row */}
         <View style={styles.statsRow}>
           {[
             { label: 'Lent', value: profile?.totalLoansGiven ?? 0 },
@@ -401,7 +386,7 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
       </View>
 
-      {/* Recent Activity — Collapsible */}
+      {/* Recent Activity */}
       <TouchableOpacity style={styles.activityHeader} onPress={toggleActivity} activeOpacity={0.7}>
         <Text style={styles.sectionLabel}>RECENT ACTIVITY</Text>
         <View style={styles.activityToggle}>
@@ -410,11 +395,7 @@ export default function HomeScreen({ navigation }: Props) {
               <Text style={styles.activityBadgeText}>{recentActivity.length}</Text>
             </View>
           )}
-          <Ionicons
-            name={activityExpanded ? 'chevron-up' : 'chevron-down'}
-            size={16}
-            color={colors.muted}
-          />
+          <Ionicons name={activityExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.muted} />
         </View>
       </TouchableOpacity>
 
@@ -457,9 +438,7 @@ export default function HomeScreen({ navigation }: Props) {
                   }]}>
                     {loan.role === 'lender' ? '+' : '-'}GHS {loan.amount}
                   </Text>
-                  <View style={[styles.statusPill, {
-                    backgroundColor: `${getStatusColor(loan.status)}18`
-                  }]}>
+                  <View style={[styles.statusPill, { backgroundColor: `${getStatusColor(loan.status)}18` }]}>
                     <Text style={[styles.statusText, { color: getStatusColor(loan.status) }]}>
                       {loan.status.replace(/_/g, ' ')}
                     </Text>

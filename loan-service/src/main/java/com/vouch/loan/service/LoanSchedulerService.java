@@ -57,11 +57,11 @@ public class LoanSchedulerService {
                 long daysLeft = ChronoUnit.DAYS.between(now, loan.getDueDate());
                 String timeLeft = daysLeft <= 0 ? "today" : daysLeft == 1 ? "tomorrow" : "in 2 days";
 
-                String title = "💪 Gentle Nudge";
+                String title = "Gentle Nudge";
                 String message = borrowerName + "'s loan of GHS "
                         + String.format("%.0f", loan.getAmount())
                         + " is due " + timeLeft
-                        + ". Let's support them! 🤝";
+                        + ". Let's support them!";
 
                 // Notify all active circle members
                 List<CircleMember> members = circleMemberRepository

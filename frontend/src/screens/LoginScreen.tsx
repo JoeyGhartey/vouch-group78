@@ -91,16 +91,16 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     fontSize: 15, color: c.dark, borderWidth: 1, borderColor: c.border,
   },
   inputError: {
-    borderColor: '#dc2626',
+    borderColor: c.danger,
   },
   errorText: {
-    fontSize: 11, color: '#dc2626', marginTop: 4, fontWeight: '500',
+    fontSize: 11, color: c.danger, marginTop: 4, fontWeight: '500',
   },
   btn: {
-    backgroundColor: c.dark, borderRadius: 12, padding: 16,
+    backgroundColor: c.buttonDark, borderRadius: 12, padding: 16,
     alignItems: 'center', marginTop: 24,
   },
-  btnText: { color: c.surface, fontSize: 16, fontWeight: '700' },
+  btnText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700' },
   linkBtn: { alignItems: 'center', marginTop: 20 },
   linkText: { color: c.muted, fontSize: 14 },
   linkBold: { color: c.accent, fontWeight: '700' },
@@ -254,7 +254,7 @@ export default function LoginScreen({ navigation }: Props) {
             onPress={handleLogin}
             disabled={loading}
           >
-            {loading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.btnText}>Log In</Text>}
+            {loading ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Log In</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.navigate('Register')}>

@@ -604,7 +604,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                 onChangeText={(text) => { setInvitePhone(text); setInviteError(''); }}
                 keyboardType="phone-pad"
               />
-              {inviteError !== '' && <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 6 }}>{inviteError}</Text>}
+              {inviteError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{inviteError}</Text>}
               <TouchableOpacity style={[styles.primaryBtn, { marginTop: 20 }, inviting && { opacity: 0.6 }]} onPress={handleInvite} disabled={inviting}>
                 {inviting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.primaryBtnText}>Send Invite</Text>}
               </TouchableOpacity>

@@ -150,7 +150,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border,
   },
-  detailRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  detailLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   detailLabel: { color: c.muted, fontSize: 13 },
   detailValue: { color: c.dark, fontSize: 13, fontWeight: '600' },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -177,9 +177,9 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   recText: { color: c.muted, fontSize: 13, marginBottom: 4 },
   adminBtn: {
     marginHorizontal: 16, marginTop: 8, padding: 16, borderRadius: 12,
-    backgroundColor: c.dark, alignItems: 'center', flexDirection: 'row', justifyContent: 'center',
+    backgroundColor: c.buttonDark, alignItems: 'center', flexDirection: 'row', justifyContent: 'center',
   },
-  adminBtnText: { color: c.surface, fontSize: 14, fontWeight: '700' },
+  adminBtnText: { color: c.buttonDarkText, fontSize: 14, fontWeight: '700' },
   appearanceSection: {
     marginHorizontal: 16, marginTop: 16, backgroundColor: c.surface,
     borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border,
@@ -207,8 +207,8 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.bg, borderRadius: 10, padding: 12,
     fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border,
   },
-  primaryBtn: { backgroundColor: c.dark, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 20 },
-  btnText: { color: c.surface, fontSize: 15, fontWeight: '700' },
+  primaryBtn: { backgroundColor: c.buttonDark, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 20 },
+  btnText: { color: c.buttonDarkText, fontSize: 15, fontWeight: '700' },
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
   cancelText: { color: c.muted, fontSize: 14 },
 });
@@ -282,6 +282,14 @@ export default function ProfileScreen({ navigation }: Props) {
   const getTrustColor = (s: number): string => s >= 70 ? colors.success : s >= 40 ? colors.accent : colors.danger;
   const earnedCount = badges.filter(b => b.earned).length;
 
+  const handleBorrowingStatusInfo = (): void => {
+    showAlert(
+      'success',
+      'Borrowing Status Explained',
+      '🟢 Active — You can borrow normally.\n\n🟡 Suspended — You have been temporarily banned from borrowing due to a loan default. This lasts 30 days.\n\n🔴 Permanently Banned — You have defaulted multiple times and can no longer borrow on Vouch.'
+    );
+  };
+
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>;
 
   const editFields: [string, keyof EditData][] = [
@@ -290,6 +298,14 @@ export default function ProfileScreen({ navigation }: Props) {
     ['Email', 'email'],
     ['MoMo Provider', 'momoProvider'],
     ['MoMo Number', 'momoNumber'],
+  ];
+
+  const accountDetails: [string, string][] = [
+    ['Email', profile?.email || 'Not set'],
+    ['MoMo Provider', profile?.momoProvider || 'Not set'],
+    ['MoMo Number', profile?.momoNumber || 'Not set'],
+    ['Member Since', profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''],
+    ['Borrowing Status', profile?.permanentBan ? 'Permanently Banned' : profile?.borrowingSuspended ? 'Suspended' : 'Active'],
   ];
 
   return (
@@ -366,49 +382,27 @@ export default function ProfileScreen({ navigation }: Props) {
         )}
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Contact Information</Text>
-          {([
-            ['Email', profile?.email || 'Not set', 'mail-outline'],
-            ['MoMo Provider', profile?.momoProvider || 'Not set', 'wallet-outline'],
-            ['MoMo Number', profile?.momoNumber || 'Not set', 'call-outline'],
-          ] as [string, string, keyof typeof Ionicons.glyphMap][]).map(([label, value, icon], i) => (
+          <Text style={styles.cardTitle}>Account Details</Text>
+          {accountDetails.map(([label, value], i) => (
             <View key={i} style={styles.detailRow}>
-              <View style={styles.detailRowLeft}>
-                <Ionicons name={icon} size={16} color={colors.muted} />
+              {/* Label — with info icon on Borrowing Status */}
+              <View style={styles.detailLabelRow}>
                 <Text style={styles.detailLabel}>{label}</Text>
+                {label === 'Borrowing Status' && (
+                  <TouchableOpacity onPress={handleBorrowingStatusInfo} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="information-circle-outline" size={16} color={colors.muted} />
+                  </TouchableOpacity>
+                )}
               </View>
-              <Text style={styles.detailValue}>{value}</Text>
+              {/* Value */}
+              <Text style={[
+                styles.detailValue,
+                label === 'Borrowing Status' && value !== 'Active' && { color: colors.danger },
+              ]}>
+                {value}
+              </Text>
             </View>
           ))}
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Account Information</Text>
-          <View style={styles.detailRow}>
-            <View style={styles.detailRowLeft}>
-              <Ionicons name="calendar-outline" size={16} color={colors.muted} />
-              <Text style={styles.detailLabel}>Member Since</Text>
-            </View>
-            <Text style={styles.detailValue}>
-              {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
-            </Text>
-          </View>
-          <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
-            <View style={styles.detailRowLeft}>
-              <Ionicons
-                name={profile?.permanentBan ? 'close-circle-outline' : profile?.borrowingSuspended ? 'pause-circle-outline' : 'checkmark-circle-outline'}
-                size={16}
-                color={profile?.permanentBan || profile?.borrowingSuspended ? colors.danger : colors.success}
-              />
-              <Text style={styles.detailLabel}>Borrowing Status</Text>
-            </View>
-            <Text style={[
-              styles.detailValue,
-              { color: profile?.permanentBan || profile?.borrowingSuspended ? colors.danger : colors.success },
-            ]}>
-              {profile?.permanentBan ? 'Permanently Banned' : profile?.borrowingSuspended ? 'Suspended' : 'Active'}
-            </Text>
-          </View>
         </View>
 
         <TouchableOpacity style={styles.insightsHeader} onPress={() => setShowInsights(!showInsights)} activeOpacity={0.7}>
@@ -492,7 +486,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
         {profile?.role === 'ADMIN' && (
           <TouchableOpacity style={styles.adminBtn} onPress={() => navigation.navigate('Admin')}>
-            <Ionicons name="shield-checkmark-outline" size={18} color={colors.surface} style={{ marginRight: 8 }} />
+            <Ionicons name="shield-checkmark-outline" size={18} color={colors.buttonDarkText} style={{ marginRight: 8 }} />
             <Text style={styles.adminBtnText}>Admin Panel — Open Disputes</Text>
           </TouchableOpacity>
         )}
@@ -544,7 +538,7 @@ export default function ProfileScreen({ navigation }: Props) {
               </View>
             ))}
             <TouchableOpacity style={[styles.primaryBtn, saving && { opacity: 0.6 }]} onPress={handleEdit} disabled={saving}>
-              {saving ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.btnText}>Save Changes</Text>}
+              {saving ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Save Changes</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowEdit(false)}>
               <Text style={styles.cancelText}>Cancel</Text>

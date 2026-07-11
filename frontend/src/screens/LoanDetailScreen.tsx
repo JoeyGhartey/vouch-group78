@@ -7,6 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as WebBrowser from 'expo-web-browser';
+import { Ionicons } from '@expo/vector-icons';
 import {
   getLoan, fundLoan, signAgreement, disburseLoan, repayLoan,
   cancelLoan, defaultLoan, openDispute, getProfile,
@@ -98,6 +99,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.buttonDark, borderRadius: 12, padding: 16,
     alignItems: 'center', marginBottom: 10,
   },
+  primaryBtnDisabled: { opacity: 0.4 },
   dangerBtn: {
     backgroundColor: c.danger, borderRadius: 12, padding: 16,
     alignItems: 'center', justifyContent: 'center', marginBottom: 10,
@@ -132,6 +134,30 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   counterAcceptBtn: { flex: 1, backgroundColor: c.success, borderRadius: 10, padding: 12, alignItems: 'center' },
   counterDeclineBtn: { flex: 1, backgroundColor: c.danger, borderRadius: 10, padding: 12, alignItems: 'center' },
   counterBtnText: { color: c.surface, fontSize: 14, fontWeight: '700' },
+
+  // Terms & Conditions modal
+  termsScroll: { maxHeight: 260, marginBottom: 16 },
+  termsText: { fontSize: 13, color: c.muted, lineHeight: 20 },
+  termsSectionTitle: { fontSize: 13, fontWeight: '700', color: c.dark, marginTop: 12, marginBottom: 4 },
+  checkboxRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    padding: 12, borderRadius: 10, backgroundColor: c.bg,
+    borderWidth: 1, borderColor: c.border, marginBottom: 16,
+  },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 5,
+    borderWidth: 2, borderColor: c.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  checkboxChecked: { backgroundColor: c.accent, borderColor: c.accent },
+  checkboxLabel: { fontSize: 13, color: c.muted, flex: 1 },
+  checkboxLabelChecked: { color: c.dark, fontWeight: '600' },
+  alreadySignedBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12,
+    borderWidth: 1, borderColor: '#bbf7d0', marginBottom: 10,
+  },
+  alreadySignedText: { color: '#16a34a', fontSize: 13, fontWeight: '600' },
 });
 
 export default function LoanDetailScreen({ route, navigation }: Props) {
@@ -148,6 +174,8 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   const [showRepay, setShowRepay] = useState<boolean>(false);
   const [showDispute, setShowDispute] = useState<boolean>(false);
   const [showCounterOffer, setShowCounterOffer] = useState<boolean>(false);
+  const [showTerms, setShowTerms] = useState<boolean>(false);
+  const [termsAccepted, setTermsAccepted] = useState<boolean>(false);
   const [counterRate, setCounterRate] = useState<string>('');
   const [interestRate, setInterestRate] = useState<string>('');
   const [repayAmount, setRepayAmount] = useState<string>('');
@@ -193,7 +221,14 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     }, 'Loan funded. Agreement pending signatures.');
   };
 
+  // Opens T&C modal first, then signs after acceptance
+  const handleSignPress = (): void => {
+    setTermsAccepted(false);
+    setShowTerms(true);
+  };
+
   const handleSign = async (): Promise<void> => {
+    setShowTerms(false);
     const ok = await confirm('Sign Agreement', 'Are you sure you want to sign this loan agreement? This action is binding.', 'Yes, Sign');
     if (!ok) return;
     doAction(async () => { await signAgreement(loan!.id); }, 'Agreement signed.');
@@ -336,6 +371,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   const isBorrower = profile?.id === loan.borrowerId;
   const isLender = profile?.id === loan.lenderId;
   const totalOwed = loan.totalRepaymentAmount + loan.overdueInterestAccrued - loan.amountRepaid;
+  const iHaveSigned = (isBorrower && loan.borrowerSigned) || (isLender && loan.lenderSigned);
 
   const statusColor = (s: string): string => ({
     REQUESTED: colors.warning, AGREEMENT_PENDING: colors.statusOrange, AGREEMENT_SIGNED: colors.statusBlue,
@@ -427,12 +463,21 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             </View>
           </View>
         )}
-        {loan.status === 'AGREEMENT_PENDING' &&
-          ((isBorrower && !loan.borrowerSigned) || (isLender && !loan.lenderSigned)) && (
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleSign} disabled={acting}>
-            {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Sign Agreement</Text>}
-          </TouchableOpacity>
+
+        {/* Sign Agreement — only show if not yet signed */}
+        {loan.status === 'AGREEMENT_PENDING' && (isBorrower || isLender) && (
+          iHaveSigned ? (
+            <View style={styles.alreadySignedBadge}>
+              <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
+              <Text style={styles.alreadySignedText}>You have signed — waiting for the other party</Text>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleSignPress} disabled={acting}>
+              {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Sign Agreement</Text>}
+            </TouchableOpacity>
+          )
         )}
+
         {loan.status === 'AGREEMENT_PENDING' && isBorrower && (
           <View style={styles.actionRow}>
             <TouchableOpacity style={[styles.outlineBtn, { flex: 1 }]} onPress={() => setShowCounterOffer(true)}>
@@ -445,7 +490,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
         )}
         {loan.status === 'AGREEMENT_SIGNED' && isLender && (
           <TouchableOpacity style={styles.primaryBtn} onPress={handleDisburse} disabled={acting}>
-          <Text style={styles.btnText}>Send GHS {loan.amount} to {loan.borrowerName}</Text>
+            <Text style={styles.btnText}>Send GHS {loan.amount} to {loan.borrowerName}</Text>
           </TouchableOpacity>
         )}
         {['ACTIVE', 'DUE', 'GRACE_PERIOD'].includes(loan.status) && isBorrower && (
@@ -469,6 +514,76 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Terms & Conditions Modal */}
+      <Modal visible={showTerms} animationType="slide" transparent>
+        <View style={styles.modalBg}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Loan Agreement</Text>
+            <Text style={styles.modalSub}>Please read and accept before signing</Text>
+
+            <ScrollView style={styles.termsScroll} showsVerticalScrollIndicator>
+              <Text style={styles.termsSectionTitle}>1. Repayment Obligation</Text>
+              <Text style={styles.termsText}>
+                The borrower agrees to repay the full principal amount plus the agreed interest rate by the specified due date. Failure to repay on time will result in overdue interest accruing daily during a 7-day grace period.
+              </Text>
+
+              <Text style={styles.termsSectionTitle}>2. Overdue Interest</Text>
+              <Text style={styles.termsText}>
+                If the loan is not repaid by the due date, daily overdue interest will be charged on the outstanding balance for up to 7 days. After the grace period, the lender may mark the loan as defaulted.
+              </Text>
+
+              <Text style={styles.termsSectionTitle}>3. Trust Score Impact</Text>
+              <Text style={styles.termsText}>
+                Defaulting on a loan will significantly reduce your trust score. A first default results in a score drop and a circle-wide notification. A second default results in a 30-day borrowing suspension. A third default results in a permanent borrowing ban.
+              </Text>
+
+              <Text style={styles.termsSectionTitle}>4. Platform Fee</Text>
+              <Text style={styles.termsText}>
+                A 2% platform fee is deducted from the disbursed amount. The borrower receives the loan amount minus this fee.
+              </Text>
+
+              <Text style={styles.termsSectionTitle}>5. Disputes</Text>
+              <Text style={styles.termsText}>
+                Either party may open a dispute through the app. All disputes are reviewed by Vouch administrators. This agreement may be used as evidence in any dispute resolution process.
+              </Text>
+
+              <Text style={styles.termsSectionTitle}>6. Binding Agreement</Text>
+              <Text style={styles.termsText}>
+                By signing, both parties confirm they have read, understood and agreed to these terms. This is a legally binding agreement between the borrower and lender within the Vouch platform.
+              </Text>
+            </ScrollView>
+
+            {/* Checkbox */}
+            <TouchableOpacity
+              style={styles.checkboxRow}
+              onPress={() => setTermsAccepted(v => !v)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+                {termsAccepted && <Ionicons name="checkmark" size={13} color="#fff" />}
+              </View>
+              <Text style={[styles.checkboxLabel, termsAccepted && styles.checkboxLabelChecked]}>
+                I have read and agree to the terms and conditions
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.primaryBtn, !termsAccepted && styles.primaryBtnDisabled]}
+              onPress={handleSign}
+              disabled={!termsAccepted || acting}
+            >
+              {acting
+                ? <ActivityIndicator color={colors.buttonDarkText} />
+                : <Text style={styles.btnText}>Sign Agreement</Text>}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowTerms(false)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Fund Modal */}
       <Modal visible={showFund} animationType="slide" transparent>
