@@ -27,6 +27,7 @@ public class LoanService {
     private final InstallmentService installmentService;
     private final AuthServiceClient authServiceClient;
     private final NotificationServiceClient notificationServiceClient;
+    private final ExpenseServiceClient expenseServiceClient;
     private static final double PLATFORM_FEE_PERCENT = 2.0;
     private static final EnumSet<Loan.LoanStatus> FUNDED_STATUSES = EnumSet.of(
             Loan.LoanStatus.DISBURSED, Loan.LoanStatus.ACTIVE, Loan.LoanStatus.DUE,
@@ -235,6 +236,15 @@ public class LoanService {
 
         loan = loanRepository.save(loan);
         installmentService.generateInstallments(loan);
+
+        expenseServiceClient.logTransaction(
+                loan.getBorrowerId(),
+                "Loan received - " + loan.getCircle().getName(),
+                loan.getAmount(),
+                "Loan",
+                "INCOME"
+        );
+
         return mapToLoanResponse(loan, "Loan disbursed and active. Platform fee: GHS " + String.format("%.2f", platformFee) + ". Borrower receives: GHS " + String.format("%.2f", amountAfterFee));
     }
 
@@ -265,6 +275,23 @@ public class LoanService {
         }
 
         loan.setAmountRepaid(Math.round((loan.getAmountRepaid() + repayAmount) * 100.0) / 100.0);
+
+        expenseServiceClient.logTransaction(
+                loan.getBorrowerId(),
+                "Loan repayment - " + loan.getCircle().getName(),
+                repayAmount,
+                "Loan",
+                "EXPENSE"
+        );
+        if (loan.getLenderId() != null) {
+            expenseServiceClient.logTransaction(
+                    loan.getLenderId(),
+                    "Repayment received - " + loan.getCircle().getName(),
+                    repayAmount,
+                    "Loan",
+                    "INCOME"
+            );
+        }
 
         if (loan.getAmountRepaid() >= loan.getTotalRepaymentAmount() + loan.getOverdueInterestAccrued()) {
             loan.setStatus(Loan.LoanStatus.REPAID);
@@ -627,6 +654,14 @@ public class LoanService {
         loan = loanRepository.save(loan);
         installmentService.generateInstallments(loan);
 
+        expenseServiceClient.logTransaction(
+                loan.getBorrowerId(),
+                "Loan received - " + loan.getCircle().getName(),
+                loan.getAmount(),
+                "Loan",
+                "INCOME"
+        );
+
         Map<String, Object> result = new java.util.HashMap<>();
         result.put("status", loan.getStatus().name());
         result.put("disbursedAt", loan.getDisbursedAt());
@@ -641,6 +676,23 @@ public class LoanService {
 
         loan.setAmountRepaid(Math.round((loan.getAmountRepaid() + amount) * 100.0) / 100.0);
         double totalOwed = loan.getTotalRepaymentAmount() + loan.getOverdueInterestAccrued();
+
+        expenseServiceClient.logTransaction(
+                loan.getBorrowerId(),
+                "Loan repayment - " + loan.getCircle().getName(),
+                amount,
+                "Loan",
+                "EXPENSE"
+        );
+        if (loan.getLenderId() != null) {
+            expenseServiceClient.logTransaction(
+                    loan.getLenderId(),
+                    "Repayment received - " + loan.getCircle().getName(),
+                    amount,
+                    "Loan",
+                    "INCOME"
+            );
+        }
 
         Map<String, Object> result = new java.util.HashMap<>();
 

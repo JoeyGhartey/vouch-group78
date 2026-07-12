@@ -1,5 +1,6 @@
 package com.vouch.expense.service;
 
+import com.vouch.expense.dto.InternalTransactionRequest;
 import com.vouch.expense.dto.PersonalExpenseRequest;
 import com.vouch.expense.dto.SpendingLimitRequest;
 import com.vouch.expense.entity.PersonalExpense;
@@ -39,6 +40,22 @@ public class PersonalExpenseService {
         PersonalExpense expense = PersonalExpense.builder()
                 .userId(userId).amount(request.getAmount()).description(request.getDescription())
                 .category(request.getCategory()).type(type).transactionDate(txDate).build();
+        expense = personalExpenseRepository.save(expense);
+
+        Map<String, Object> r = new HashMap<>();
+        r.put("id", expense.getId()); r.put("amount", expense.getAmount()); r.put("description", expense.getDescription());
+        r.put("category", expense.getCategory()); r.put("type", expense.getType().name());
+        r.put("transactionDate", expense.getTransactionDate()); r.put("message", "Transaction recorded");
+        return r;
+    }
+
+    public Map<String, Object> addInternalTransaction(InternalTransactionRequest request) {
+        PersonalExpense.TransactionType type = "INCOME".equalsIgnoreCase(request.getType())
+                ? PersonalExpense.TransactionType.INCOME : PersonalExpense.TransactionType.EXPENSE;
+
+        PersonalExpense expense = PersonalExpense.builder()
+                .userId(request.getUserId()).amount(request.getAmount()).description(request.getDescription())
+                .category(request.getCategory()).type(type).build();
         expense = personalExpenseRepository.save(expense);
 
         Map<String, Object> r = new HashMap<>();

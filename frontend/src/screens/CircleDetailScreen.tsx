@@ -322,7 +322,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
 
   const getCategoryColor = (category?: string): string => ({
     Food: colors.success, Transport: colors.statusBlue, Entertainment: colors.statusPurple,
-    Utilities: colors.statusOrange, Shopping: colors.accent, Other: colors.slate400,
+    Utilities: colors.statusOrange, Shopping: colors.accent, Loan: colors.statusTeal, Other: colors.slate400,
   }[category || ''] || colors.muted);
 
   const getInitials = (fullName: string): string => {

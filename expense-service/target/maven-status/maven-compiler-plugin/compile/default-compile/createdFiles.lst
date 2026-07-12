@@ -12,8 +12,10 @@ com\vouch\expense\controller\DebtSimplificationController.class
 com\vouch\expense\ExpenseServiceApplication.class
 com\vouch\expense\entity\SpendingLimit$SpendingLimitBuilder.class
 com\vouch\expense\dto\PersonalExpenseRequest.class
+com\vouch\expense\dto\InternalTransactionRequest.class
 com\vouch\expense\config\AppConfig.class
 com\vouch\expense\entity\PersonalExpense$PersonalExpenseBuilder.class
+com\vouch\expense\controller\InternalPersonalExpenseController.class
 com\vouch\expense\controller\PersonalExpenseController.class
 com\vouch\expense\entity\SharedExpense.class
 com\vouch\expense\entity\ExpenseSplit$ExpenseSplitBuilder.class

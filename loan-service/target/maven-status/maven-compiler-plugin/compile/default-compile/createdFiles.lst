@@ -11,6 +11,7 @@ com\vouch\loan\dto\CircleResponse.class
 com\vouch\loan\repository\CircleRepository.class
 com\vouch\loan\config\SecurityConfig.class
 com\vouch\loan\service\TrustScoreService.class
+com\vouch\loan\service\ExpenseServiceClient.class
 com\vouch\loan\config\AppConfig.class
 com\vouch\loan\service\InstallmentService.class
 com\vouch\loan\dto\CreateCircleRequest.class

@@ -269,7 +269,6 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       const response = await initializeDisbursement(loan!.id) as PaymentInitResponse;
       if (response.authorizationUrl) {
         const result = await WebBrowser.openBrowserAsync(response.authorizationUrl);
-        await WebBrowser.dismissBrowser();
         if (result.type === 'dismiss' || result.type === 'cancel') {
           setActing(true);
           try {
@@ -311,7 +310,6 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       const response = await initializeRepayment(loan!.id, amt) as PaymentInitResponse;
       if (response.authorizationUrl) {
         const result = await WebBrowser.openBrowserAsync(response.authorizationUrl);
-        await WebBrowser.dismissBrowser();
         if (result.type === 'dismiss' || result.type === 'cancel') {
           setActing(true);
           try {
