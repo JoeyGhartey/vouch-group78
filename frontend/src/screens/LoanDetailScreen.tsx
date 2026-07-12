@@ -48,6 +48,8 @@ interface Loan {
   gracePeriodEnd?: string;
   borrowerSigned?: boolean;
   lenderSigned?: boolean;
+  borrowerMaxInterestRate: number;
+  borrowerTrustTier: string;
 }
 
 interface Profile {
@@ -115,12 +117,19 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   modal: { backgroundColor: c.surface, borderRadius: 16, padding: 24 },
   modalTitle: { color: c.dark, fontSize: 20, fontWeight: '700', textAlign: 'center' },
   modalSub: { color: c.muted, fontSize: 13, textAlign: 'center', marginTop: 4, marginBottom: 16 },
+  trustTierBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: c.bg, borderRadius: 8, padding: 10, marginBottom: 8,
+    borderWidth: 1, borderColor: c.border,
+  },
+  trustTierBannerText: { color: c.muted, fontSize: 12, flex: 1 },
   label: { color: c.muted, fontSize: 13, marginBottom: 6, marginTop: 12 },
   input: {
     backgroundColor: c.bg, borderRadius: 12, padding: 14,
     fontSize: 15, color: c.dark, borderWidth: 1, borderColor: c.border,
   },
   calcText: { color: c.success, fontSize: 13, marginTop: 8, textAlign: 'center' },
+  rateErrorText: { color: c.danger, fontSize: 12, marginTop: 6 },
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
   cancelText: { color: c.muted, fontSize: 15 },
   actionRow: { flexDirection: 'row', gap: 10 },
@@ -589,6 +598,12 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Fund This Loan</Text>
             <Text style={styles.modalSub}>GHS {loan.amount} to {loan.borrowerName}</Text>
+            <View style={styles.trustTierBanner}>
+              <Ionicons name="shield-checkmark-outline" size={16} color={colors.muted} />
+              <Text style={styles.trustTierBannerText}>
+                Borrower trust tier: {loan.borrowerTrustTier} — max rate: {loan.borrowerMaxInterestRate}%
+              </Text>
+            </View>
             <Text style={styles.label}>Interest Rate (%)</Text>
             <TextInput
               style={styles.input}
@@ -598,12 +613,21 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               onChangeText={setInterestRate}
               keyboardType="numeric"
             />
+            {parseFloat(interestRate) > loan.borrowerMaxInterestRate && (
+              <Text style={styles.rateErrorText}>
+                Exceeds the {loan.borrowerMaxInterestRate}% max for this borrower
+              </Text>
+            )}
             {parseFloat(interestRate) > 0 && (
               <Text style={styles.calcText}>
                 Total repayment: GHS {(loan.amount * (1 + parseFloat(interestRate || '0') / 100)).toFixed(2)}
               </Text>
             )}
-            <TouchableOpacity style={styles.primaryBtn} onPress={handleFund} disabled={acting}>
+            <TouchableOpacity
+              style={[styles.primaryBtn, parseFloat(interestRate) > loan.borrowerMaxInterestRate && { opacity: 0.5 }]}
+              onPress={handleFund}
+              disabled={acting || parseFloat(interestRate) > loan.borrowerMaxInterestRate}
+            >
               {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Confirm & Fund</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowFund(false)}>

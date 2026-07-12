@@ -139,6 +139,14 @@ public class LoanService {
             throw new RuntimeException("Interest rate cannot exceed 50% to prevent predatory lending");
         }
 
+        Double borrowerTrustScore = authServiceClient.getUserTrustScore(loan.getBorrowerId());
+        InterestRateTier tier = computeInterestRateTier(borrowerTrustScore);
+
+        if (request.getInterestRate() > tier.maxRate()) {
+            throw new RuntimeException("Interest rate of " + request.getInterestRate() + "% exceeds the maximum allowed for this borrower's trust tier. "
+                    + "Borrower trust score: " + String.format("%.0f", borrowerTrustScore) + " (" + tier.label() + "), max allowed rate: " + tier.maxRate() + "%");
+        }
+
         loan.setLenderId(lenderId);
         loan.setInterestRate(request.getInterestRate());
 
@@ -718,10 +726,20 @@ public class LoanService {
         return result;
     }
 
+    private record InterestRateTier(String label, double maxRate) {}
+
+    private InterestRateTier computeInterestRateTier(Double trustScore) {
+        if (trustScore >= 90) return new InterestRateTier("Excellent (90+)", 5);
+        if (trustScore >= 70) return new InterestRateTier("Good (70-89)", 10);
+        if (trustScore >= 50) return new InterestRateTier("Fair (50-69)", 15);
+        return new InterestRateTier("Low (<50)", 25);
+    }
+
     private LoanResponse mapToLoanResponse(Loan loan, String message) {
         String borrowerName = authServiceClient.getUserName(loan.getBorrowerId());
         String lenderName = loan.getLenderId() != null ? authServiceClient.getUserName(loan.getLenderId()) : null;
         LoanAgreement agreement = loanAgreementRepository.findByLoan(loan).orElse(null);
+        InterestRateTier borrowerTier = computeInterestRateTier(authServiceClient.getUserTrustScore(loan.getBorrowerId()));
         return LoanResponse.builder()
                 .id(loan.getId())
                 .borrowerName(borrowerName)
@@ -748,6 +766,8 @@ public class LoanService {
                 .message(message)
                 .borrowerSigned(agreement != null ? agreement.getBorrowerSigned() : false)
                 .lenderSigned(agreement != null ? agreement.getLenderSigned() : false)
+                .borrowerMaxInterestRate(borrowerTier.maxRate())
+                .borrowerTrustTier(borrowerTier.label())
                 .build();
     }
 
