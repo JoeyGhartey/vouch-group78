@@ -133,10 +133,11 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   legendAmount: { fontSize: 13, color: c.dark, fontWeight: '700', width: 90, textAlign: 'right' },
   limitRow: { marginBottom: 14 },
   limitHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  limitCat: { fontSize: 13, fontWeight: '700', color: c.dark },
-  limitAmt: { fontSize: 12, color: c.muted },
-  limitBar: { height: 5, backgroundColor: c.border, borderRadius: 3, overflow: 'hidden' },
+  limitCat: { fontSize: 15, fontWeight: '800', color: c.dark },
+  limitAmt: { fontSize: 14, fontWeight: '700', color: c.muted },
+  limitBar: { height: 8, backgroundColor: c.border, borderRadius: 4, overflow: 'hidden' },
   limitFill: { height: '100%', borderRadius: 3 },
+  limitSpentText: { fontSize: 12, color: c.muted, marginTop: 6 },
   txCard: { backgroundColor: c.surface, borderRadius: 14, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: c.border },
   txIconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   txInfo: { flex: 1 },
@@ -154,7 +155,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   label: { fontSize: 12, color: c.muted, fontWeight: '600', marginBottom: 6, marginTop: 14 },
   input: { backgroundColor: c.bg, borderRadius: 10, padding: 14, fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border },
   typeRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
-  typeBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1.5, borderColor: c.border, alignItems: 'center' },
+  typeBtn: { flex: 1, flexDirection: 'row', justifyContent: 'center', padding: 12, borderRadius: 10, borderWidth: 1.5, borderColor: c.border, alignItems: 'center' },
   typeSel: { backgroundColor: c.buttonDark, borderColor: c.buttonDark },
   typeText: { fontSize: 13, fontWeight: '600', color: c.muted },
   typeTextSel: { color: c.buttonDarkText },
@@ -268,6 +269,12 @@ export default function ExpensesScreen() {
     Utilities: colors.statusOrange, Shopping: colors.accent, Other: colors.slate400,
   }[category || ''] || colors.muted);
 
+  const getLimitColor = (percentUsed: number): string => {
+    if (percentUsed > 80) return colors.danger;
+    if (percentUsed >= 50) return colors.warning;
+    return colors.success;
+  };
+
   const categoryChartData = summary?.categoryBreakdown
     ? Object.entries(summary.categoryBreakdown)
         .sort((a, b) => (b[1] as number) - (a[1] as number))
@@ -286,18 +293,21 @@ export default function ExpensesScreen() {
 
   const handleAdd = async (): Promise<void> => {
     if (!newExpense.amount || parseFloat(newExpense.amount) <= 0) { showAlert('error', 'Error', 'Enter a valid amount'); return; }
-    if (!newExpense.description.trim()) { showAlert('error', 'Error', 'Enter a description'); return; }
+    const descriptionOptional = newExpense.type === 'EXPENSE' && !!newExpense.category;
+    if (!newExpense.description.trim() && !descriptionOptional) { showAlert('error', 'Error', 'Enter a description'); return; }
+    const finalDescription = newExpense.description.trim() || newExpense.category;
     setAdding(true);
     try {
       await addPersonalExpense({
         amount: parseFloat(newExpense.amount),
-        description: newExpense.description,
+        description: finalDescription,
         category: isIncome ? 'Income' : newExpense.category,
         type: newExpense.type,
       });
       setShowAdd(false);
       setNewExpense({ amount: '', description: '', category: 'Food', type: 'EXPENSE' });
       loadData();
+      showAlert('success', isIncome ? 'Income Added' : 'Expense Added', `GHS ${parseFloat(newExpense.amount).toFixed(2)} recorded.`);
     } catch (e) {
       const msg = (e as Error).message;
       if (msg.includes('Spending limit exceeded')) {
@@ -309,7 +319,7 @@ export default function ExpensesScreen() {
           try {
             await addPersonalExpense({
               amount: parseFloat(newExpense.amount),
-              description: newExpense.description,
+              description: finalDescription,
               category: isIncome ? 'Income' : newExpense.category,
               type: newExpense.type,
               overrideLimit: true,
@@ -627,12 +637,30 @@ export default function ExpensesScreen() {
                 <Text style={styles.emptyText}>Set monthly spending limits to track your budget</Text>
               </View>
             ) : (
-              limits.map((l) => (
-                <View key={l.id} style={styles.card}>
-                  <Text style={styles.limitCat}>{l.category}</Text>
-                  <Text style={styles.limitAmt}>GHS {l.monthlyLimit} / month</Text>
-                </View>
-              ))
+              limits.map((l) => {
+                const data = summary?.spendingLimits?.[l.category];
+                const spent = data?.spent ?? 0;
+                const percentUsed = data?.percentUsed ?? 0;
+                return (
+                  <View key={l.id} style={styles.card}>
+                    <View style={styles.limitRow}>
+                      <View style={styles.limitHeader}>
+                        <Text style={styles.limitCat}>{l.category}</Text>
+                        <Text style={styles.limitAmt}>{percentUsed.toFixed(0)}%</Text>
+                      </View>
+                      <View style={styles.limitBar}>
+                        <View style={[styles.limitFill, {
+                          width: `${Math.min(percentUsed, 100)}%` as any,
+                          backgroundColor: getLimitColor(percentUsed),
+                        }]} />
+                      </View>
+                      <Text style={styles.limitSpentText}>
+                        GHS {spent.toFixed(0)} spent of GHS {l.monthlyLimit} limit
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
             )}
           </View>
         )}
@@ -652,17 +680,24 @@ export default function ExpensesScreen() {
 
                 {/* Type toggle */}
                 <View style={styles.typeRow}>
-                  {['EXPENSE', 'INCOME'].map((t) => (
-                    <TouchableOpacity
-                      key={t}
-                      style={[styles.typeBtn, newExpense.type === t && styles.typeSel]}
-                      onPress={() => setNewExpense({ ...newExpense, type: t, description: '', category: 'Food' })}
-                    >
-                      <Text style={[styles.typeText, newExpense.type === t && styles.typeTextSel]}>
-                        {t === 'EXPENSE' ? '💸 Expense' : '💰 Income'}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {['EXPENSE', 'INCOME'].map((t) => {
+                    const selected = newExpense.type === t;
+                    const icon = t === 'EXPENSE'
+                      ? (selected ? 'trending-down' : 'trending-down-outline')
+                      : (selected ? 'trending-up' : 'trending-up-outline');
+                    return (
+                      <TouchableOpacity
+                        key={t}
+                        style={[styles.typeBtn, selected && styles.typeSel]}
+                        onPress={() => setNewExpense({ ...newExpense, type: t, description: '', category: 'Food' })}
+                      >
+                        <Ionicons name={icon} size={16} color={selected ? colors.buttonDarkText : colors.muted} style={{ marginRight: 6 }} />
+                        <Text style={[styles.typeText, selected && styles.typeTextSel]}>
+                          {t === 'EXPENSE' ? 'Expense' : 'Income'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
 
                 {/* Income banner */}
@@ -687,7 +722,9 @@ export default function ExpensesScreen() {
                 />
 
                 {/* Description placeholder changes based on type */}
-                <Text style={styles.label}>Description *</Text>
+                <Text style={styles.label}>
+                  {isIncome || !newExpense.category ? 'Description *' : 'Description'}
+                </Text>
                 <TextInput
                   style={styles.input}
                   placeholder={isIncome ? 'Source of income (e.g. Salary, Freelance)' : 'What was this for?'}
