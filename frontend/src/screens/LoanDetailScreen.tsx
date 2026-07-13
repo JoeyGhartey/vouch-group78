@@ -505,9 +505,9 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             <Text style={styles.btnText}>Repay via Paystack</Text>
           </TouchableOpacity>
         )}
-        {loan.status === 'REQUESTED' && isBorrower && (
+        {['REQUESTED', 'AGREEMENT_PENDING'].includes(loan.status) && isBorrower && (
           <TouchableOpacity style={styles.dangerBtn} onPress={handleCancel}>
-            <Text style={styles.dangerBtnText}>Cancel Request</Text>
+            <Text style={styles.dangerBtnText}>Cancel Loan</Text>
           </TouchableOpacity>
         )}
         {loan.status === 'GRACE_PERIOD' && isLender && (

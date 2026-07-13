@@ -376,17 +376,20 @@ public class LoanService {
             throw new RuntimeException("Only the borrower can cancel a loan request");
         }
 
-        if (loan.getStatus() != Loan.LoanStatus.REQUESTED) {
-            throw new RuntimeException("Only pending loan requests can be cancelled");
+        if (loan.getStatus() != Loan.LoanStatus.REQUESTED
+                && loan.getStatus() != Loan.LoanStatus.AGREEMENT_PENDING) {
+            throw new RuntimeException("Only loans that haven't been disbursed yet can be cancelled");
         }
+
+        loanAgreementRepository.findByLoan(loan).ifPresent(loanAgreementRepository::delete);
 
         loan.setStatus(Loan.LoanStatus.CANCELLED);
         loan = loanRepository.save(loan);
 
         if (loan.getLenderId() != null) {
             String borrowerName = authServiceClient.getUserName(userId);
-            notificationServiceClient.send(loan.getLenderId(), "Loan Request Cancelled",
-                    borrowerName + " cancelled their loan request for GHS " + loan.getAmount(),
+            notificationServiceClient.send(loan.getLenderId(), "Loan Cancelled",
+                    borrowerName + " cancelled a GHS " + loan.getAmount() + " loan you were funding.",
                     "LOAN_CANCELLED", loan.getId());
         }
 

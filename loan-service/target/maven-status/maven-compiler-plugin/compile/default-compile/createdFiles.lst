@@ -44,6 +44,7 @@ com\vouch\loan\repository\LoanRepository.class
 com\vouch\loan\entity\LoanAgreement.class
 com\vouch\loan\config\GlobalExceptionHandler.class
 com\vouch\loan\dto\FundLoanRequest.class
+com\vouch\loan\service\LoanService$InterestRateTier.class
 com\vouch\loan\service\CircleService.class
 com\vouch\loan\service\LoanSchedulerService.class
 com\vouch\loan\LoanServiceApplication.class
