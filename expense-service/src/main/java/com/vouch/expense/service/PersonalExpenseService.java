@@ -78,12 +78,22 @@ public class PersonalExpenseService {
 
         List<SpendingLimit> limits = spendingLimitRepository.findByUserId(userId);
         Map<String, Object> limitStatus = new HashMap<>();
+        LocalDateTime now = LocalDateTime.now();
         for (SpendingLimit l : limits) {
-            double spent = cats.getOrDefault(l.getCategory(), 0.0);
+            LocalDateTime effectivePeriodStart = (l.getPeriodStart() == null || now.isAfter(l.getPeriodStart().plusDays(30)))
+                    ? now : l.getPeriodStart();
+            LocalDateTime periodEnd = effectivePeriodStart.plusDays(30);
+            double spent = personalExpenseRepository
+                    .findByUserIdAndCategoryAndCreatedAtBetween(userId, l.getCategory(), effectivePeriodStart, periodEnd)
+                    .stream()
+                    .filter(t -> t.getType() == PersonalExpense.TransactionType.EXPENSE)
+                    .mapToDouble(PersonalExpense::getAmount)
+                    .sum();
             Map<String, Object> s = new HashMap<>();
             s.put("limit", l.getMonthlyLimit()); s.put("spent", spent); s.put("remaining", l.getMonthlyLimit() - spent);
             s.put("percentUsed", Math.round(spent / l.getMonthlyLimit() * 100 * 10.0) / 10.0);
             s.put("exceeded", spent > l.getMonthlyLimit());
+            s.put("periodStart", effectivePeriodStart);
             limitStatus.put(l.getCategory(), s);
         }
 
@@ -128,6 +138,18 @@ public class PersonalExpenseService {
         if (!limit.getUserId().equals(userId)) throw new RuntimeException("Not yours");
         spendingLimitRepository.delete(limit);
         return "Spending limit deleted";
+    }
+
+    public Map<String, Object> resetSpendingLimit(String phone, Long limitId) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        SpendingLimit limit = spendingLimitRepository.findById(limitId).orElseThrow(() -> new RuntimeException("Not found"));
+        if (!limit.getUserId().equals(userId)) throw new RuntimeException("Not yours");
+        limit.setPeriodStart(LocalDateTime.now());
+        limit.setLastNotifiedThreshold(0);
+        spendingLimitRepository.save(limit);
+        Map<String, Object> r = new HashMap<>();
+        r.put("category", limit.getCategory()); r.put("periodStart", limit.getPeriodStart()); r.put("message", "Spending limit reset");
+        return r;
     }
 
     private void checkSpendingLimit(Long userId, String category, double newAmount, boolean overrideLimit) {

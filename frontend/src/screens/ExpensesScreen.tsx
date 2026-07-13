@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput, Modal, ScrollView,
@@ -8,7 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { getPersonalTransactions, addPersonalExpense, getMonthlySummary, getSpendingLimits, setSpendingLimit } from '../services/api';
+import { getPersonalTransactions, addPersonalExpense, getMonthlySummary, getSpendingLimits, setSpendingLimit, deleteSpendingLimit, resetSpendingLimit } from '../services/api';
 import { aggregateTransactions, ChartPeriod } from '../utils/chartData';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
@@ -132,7 +132,10 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   legendPercent: { fontSize: 12, color: c.muted, marginRight: 10, width: 36, textAlign: 'right' },
   legendAmount: { fontSize: 13, color: c.dark, fontWeight: '700', width: 90, textAlign: 'right' },
   limitRow: { marginBottom: 14 },
-  limitHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  limitHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  limitHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  limitHeaderActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  limitActionBtn: { padding: 4 },
   limitCat: { fontSize: 15, fontWeight: '800', color: c.dark },
   limitAmt: { fontSize: 14, fontWeight: '700', color: c.muted },
   limitBar: { height: 8, backgroundColor: c.border, borderRadius: 4, overflow: 'hidden' },
@@ -180,6 +183,8 @@ export default function ExpensesScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { showAlert } = useAppAlert();
   const { confirm } = useConfirmModal();
+  const deletingLimitRef = useRef(false);
+  const resettingLimitRef = useRef(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [limits, setLimits] = useState<LimitRecord[]>([]);
@@ -350,6 +355,36 @@ export default function ExpensesScreen() {
       loadData();
     } catch (e) {
       showAlert('error', 'Error', (e as Error).message);
+    }
+  };
+
+  const handleDeleteLimit = async (limitId: number, category: string): Promise<void> => {
+    if (deletingLimitRef.current) return;
+    deletingLimitRef.current = true;
+    try {
+      const ok = await confirm('Delete Limit', `Delete this spending limit for ${category}?`, 'Delete');
+      if (!ok) return;
+      await deleteSpendingLimit(limitId);
+      loadData();
+    } catch (e) {
+      showAlert('error', 'Error', (e as Error).message);
+    } finally {
+      deletingLimitRef.current = false;
+    }
+  };
+
+  const handleResetLimit = async (limitId: number, category: string): Promise<void> => {
+    if (resettingLimitRef.current) return;
+    resettingLimitRef.current = true;
+    try {
+      const ok = await confirm('Reset Limit', `Reset tracking for this ${category} limit? This clears spend history for the current period without changing the limit amount.`, 'Reset');
+      if (!ok) return;
+      await resetSpendingLimit(limitId);
+      loadData();
+    } catch (error) {
+      showAlert('error', 'Error', (error as Error).message);
+    } finally {
+      resettingLimitRef.current = false;
     }
   };
 
@@ -645,8 +680,18 @@ export default function ExpensesScreen() {
                   <View key={l.id} style={styles.card}>
                     <View style={styles.limitRow}>
                       <View style={styles.limitHeader}>
-                        <Text style={styles.limitCat}>{l.category}</Text>
+                        <View style={styles.limitHeaderLeft}>
+                          <Text style={styles.limitCat}>{l.category}</Text>
+                        </View>
                         <Text style={styles.limitAmt}>{percentUsed.toFixed(0)}%</Text>
+                        <View style={styles.limitHeaderActions}>
+                          <TouchableOpacity style={styles.limitActionBtn} onPress={() => handleResetLimit(l.id, l.category)}>
+                            <Ionicons name="refresh-outline" size={18} color={colors.muted} />
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.limitActionBtn} onPress={() => handleDeleteLimit(l.id, l.category)}>
+                            <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                       <View style={styles.limitBar}>
                         <View style={[styles.limitFill, {

@@ -163,6 +163,7 @@ export const getMonthlySummary = (year: number, month: number) => request(`/expe
 export const setSpendingLimit = (data: unknown) => request('/expenses/personal/limits', 'POST', data);
 export const getSpendingLimits = () => request('/expenses/personal/limits');
 export const deleteSpendingLimit = (limitId: number) => request(`/expenses/personal/limits/${limitId}`, 'DELETE');
+export const resetSpendingLimit = (limitId: number) => request(`/expenses/personal/limits/${limitId}/reset`, 'POST');
 
 // Notifications
 export const getNotifications = () => request('/notifications');

@@ -48,4 +48,9 @@ public class PersonalExpenseController {
     public ResponseEntity<Map<String, String>> deleteSpendingLimit(Authentication auth, @PathVariable Long limitId) {
         return ResponseEntity.ok(Map.of("message", personalExpenseService.deleteSpendingLimit(auth.getName(), limitId)));
     }
+
+    @PostMapping("/limits/{limitId}/reset")
+    public ResponseEntity<Map<String, Object>> resetSpendingLimit(Authentication auth, @PathVariable Long limitId) {
+        return ResponseEntity.ok(personalExpenseService.resetSpendingLimit(auth.getName(), limitId));
+    }
 }
