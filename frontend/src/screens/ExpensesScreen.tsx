@@ -8,7 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { getPersonalTransactions, addPersonalExpense, getMonthlySummary, getSpendingLimits, setSpendingLimit, deleteSpendingLimit, resetSpendingLimit } from '../services/api';
+import { getPersonalTransactions, addPersonalExpense, getMonthlySummary, getSpendingLimits, setSpendingLimit, deleteSpendingLimit, resetSpendingLimit, deletePersonalTransaction } from '../services/api';
 import { aggregateTransactions, ChartPeriod } from '../utils/chartData';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
@@ -147,6 +147,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   txDesc: { fontSize: 14, fontWeight: '600', color: c.dark },
   txMeta: { fontSize: 11, color: c.muted, marginTop: 2 },
   txAmt: { fontSize: 14, fontWeight: '800' },
+  txDeleteBtn: { padding: 4 },
   emptyCard: { backgroundColor: c.surface, borderRadius: 14, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: c.border },
   emptyTitle: { fontSize: 15, fontWeight: '700', color: c.dark, marginTop: 12, marginBottom: 4 },
   emptyText: { fontSize: 12, color: c.muted, textAlign: 'center' },
@@ -185,6 +186,7 @@ export default function ExpensesScreen() {
   const { confirm } = useConfirmModal();
   const deletingLimitRef = useRef(false);
   const resettingLimitRef = useRef(false);
+  const deletingTxRef = useRef(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [limits, setLimits] = useState<LimitRecord[]>([]);
@@ -386,6 +388,21 @@ export default function ExpensesScreen() {
       showAlert('error', 'Error', (error as Error).message);
     } finally {
       resettingLimitRef.current = false;
+    }
+  };
+
+  const handleDeleteTransaction = async (transactionId: number, description: string): Promise<void> => {
+    if (deletingTxRef.current) return;
+    deletingTxRef.current = true;
+    try {
+      const ok = await confirm('Delete Transaction', `Delete "${description}"?`, 'Delete');
+      if (!ok) return;
+      await deletePersonalTransaction(transactionId);
+      loadData();
+    } catch (e) {
+      showAlert('error', 'Error', (e as Error).message);
+    } finally {
+      deletingTxRef.current = false;
     }
   };
 
@@ -653,6 +670,9 @@ export default function ExpensesScreen() {
                   <Text style={[styles.txAmt, { color: tx.type === 'INCOME' ? colors.success : colors.danger }]}>
                     {tx.type === 'INCOME' ? '+' : '-'}GHS {tx.amount}
                   </Text>
+                  <TouchableOpacity style={styles.txDeleteBtn} onPress={() => handleDeleteTransaction(tx.id, tx.description)}>
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                  </TouchableOpacity>
                 </View>
               ))
             )}

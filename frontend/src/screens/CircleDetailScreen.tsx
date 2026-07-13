@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { PieChart } from 'react-native-chart-kit';
 import {
   getCircle, inviteMember, leaveCircle,
-  getCircleLoans, getCircleExpenses, getCircleBalances, getCircleInsights,
+  getCircleLoans, getCircleExpenses, getCircleBalances, getCircleInsights, deleteSharedExpense,
   requestPayment, confirmPayment,
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
@@ -139,6 +139,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   expenseTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
   expenseDesc: { fontSize: 16, fontWeight: '700', color: c.dark, flex: 1, marginRight: 8 },
   expenseAmount: { fontSize: 20, fontWeight: '800', color: c.dark, textAlign: 'right' },
+  expenseAmountRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   expenseMeta: { fontSize: 12, color: c.muted },
   categoryBadge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 8 },
   categoryBadgeText: { fontSize: 10, fontWeight: '700' },
@@ -280,6 +281,18 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
       setConfirmError(prev => ({ ...prev, [splitId]: (error as Error).message }));
     } finally {
       setConfirmingId(null);
+    }
+  };
+
+  const handleDeleteExpense = async (expenseId: number, description: string): Promise<void> => {
+    const ok = await confirm('Delete Expense', `Delete "${description}"? This removes it for everyone in the circle.`, 'Delete');
+    if (!ok) return;
+    try {
+      await deleteSharedExpense(expenseId);
+      showAlert('success', 'Deleted', 'Shared expense removed.');
+      loadData();
+    } catch (error) {
+      showAlert('error', 'Error', (error as Error).message);
     }
   };
 
@@ -495,7 +508,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
               </View>
             ) : (
               expenses.map((expense) => {
-                const settledCount = expense.splits.filter(s => s.settled || s.userId === expense.paidById).length;
+                const settledCount = expense.splits.filter(s => s.settled).length;
                 const totalCount = expense.splits.length;
                 const progress = totalCount > 0 ? settledCount / totalCount : 0;
                 const categoryColor = getCategoryColor(expense.category);
@@ -504,7 +517,17 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                     <TouchableOpacity activeOpacity={0.7} onPress={() => setExpandedExpense(expandedExpense === expense.expenseId ? null : expense.expenseId)}>
                       <View style={styles.expenseTop}>
                         <Text style={styles.expenseDesc}>{expense.description}</Text>
-                        <Text style={styles.expenseAmount}>GHS {expense.totalAmount}</Text>
+                        <View style={styles.expenseAmountRow}>
+                          <Text style={styles.expenseAmount}>GHS {expense.totalAmount}</Text>
+                          {user?.id === expense.paidById && (
+                            <TouchableOpacity
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              onPress={(e) => { e.stopPropagation(); handleDeleteExpense(expense.expenseId, expense.description); }}
+                            >
+                              <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                            </TouchableOpacity>
+                          )}
+                        </View>
                       </View>
                       {expense.category && (
                         <View style={[styles.categoryBadge, { backgroundColor: `${categoryColor}18` }]}>
@@ -534,7 +557,6 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                           const memberInfo = circle.members.find(m => m.userId === split.userId);
                           const name = memberInfo ? `${memberInfo.firstName} ${memberInfo.lastName}` : `User #${split.userId}`;
                           const isMe = user?.id === split.userId;
-                          const isPayer = split.userId === expense.paidById;
                           const isCurrentUserPayer = user?.id === expense.paidById;
                           return (
                             <View key={split.id} style={styles.splitRow}>
@@ -545,7 +567,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                                 <Text style={[styles.splitName, isMe && { fontWeight: '700' }]}>{name}{isMe ? ' (You)' : ''}</Text>
                                 <Text style={styles.splitAmount}>GHS {split.amountOwed.toFixed(2)}</Text>
                               </View>
-                              {split.settled || isPayer ? (
+                              {split.settled ? (
                                 <View style={styles.settledBadge}>
                                   <Ionicons name="checkmark-circle" size={14} color={colors.success} />
                                   <Text style={styles.settledText}>Settled</Text>

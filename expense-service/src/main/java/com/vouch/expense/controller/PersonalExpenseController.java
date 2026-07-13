@@ -29,6 +29,11 @@ public class PersonalExpenseController {
         return ResponseEntity.ok(personalExpenseService.getTransactions(auth.getName()));
     }
 
+    @DeleteMapping("/{transactionId}")
+    public ResponseEntity<Map<String, String>> deleteTransaction(Authentication auth, @PathVariable Long transactionId) {
+        return ResponseEntity.ok(Map.of("message", personalExpenseService.deleteTransaction(auth.getName(), transactionId)));
+    }
+
     @GetMapping("/summary/{year}/{month}")
     public ResponseEntity<Map<String, Object>> getMonthlySummary(Authentication auth, @PathVariable int year, @PathVariable int month) {
         return ResponseEntity.ok(personalExpenseService.getMonthlySummary(auth.getName(), year, month));

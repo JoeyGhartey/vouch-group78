@@ -140,6 +140,14 @@ public class PersonalExpenseService {
         return "Spending limit deleted";
     }
 
+    public String deleteTransaction(String phone, Long transactionId) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        PersonalExpense expense = personalExpenseRepository.findById(transactionId).orElseThrow(() -> new RuntimeException("Not found"));
+        if (!expense.getUserId().equals(userId)) throw new RuntimeException("Not yours");
+        personalExpenseRepository.delete(expense);
+        return "Transaction deleted";
+    }
+
     public Map<String, Object> resetSpendingLimit(String phone, Long limitId) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
         SpendingLimit limit = spendingLimitRepository.findById(limitId).orElseThrow(() -> new RuntimeException("Not found"));

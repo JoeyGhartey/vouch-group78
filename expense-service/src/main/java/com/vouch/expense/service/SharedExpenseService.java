@@ -29,6 +29,7 @@ public class SharedExpenseService {
     @Transactional
     public Map<String, Object> createSharedExpense(String phone, SharedExpenseRequest request) {
         Long paidById = authServiceClient.getUserIdByPhone(phone);
+        boolean payerAlreadyPaid = request.getPayerAlreadyPaid() == null || request.getPayerAlreadyPaid();
 
         SharedExpense expense = SharedExpense.builder()
                 .circleId(request.getCircleId()).paidById(paidById)
@@ -43,13 +44,13 @@ public class SharedExpenseService {
         if (request.getCustomSplits() != null && !request.getCustomSplits().isEmpty()) {
             for (Map.Entry<Long, Double> entry : request.getCustomSplits().entrySet()) {
                 splits.add(ExpenseSplit.builder().sharedExpense(expense).userId(entry.getKey())
-                        .amountOwed(entry.getValue()).settled(entry.getKey().equals(paidById)).build());
+                        .amountOwed(entry.getValue()).settled(entry.getKey().equals(paidById) && payerAlreadyPaid).build());
             }
         } else {
             double splitAmount = request.getTotalAmount() / participantIds.size();
             for (Long pid : participantIds) {
                 splits.add(ExpenseSplit.builder().sharedExpense(expense).userId(pid)
-                        .amountOwed(splitAmount).settled(pid.equals(paidById)).build());
+                        .amountOwed(splitAmount).settled(pid.equals(paidById) && payerAlreadyPaid).build());
             }
         }
         expenseSplitRepository.saveAll(splits);
@@ -167,5 +168,14 @@ public class SharedExpenseService {
         }
 
         return "Payment confirmed. Split settled.";
+    }
+
+    @Transactional
+    public String deleteSharedExpense(String phone, Long expenseId) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        SharedExpense expense = sharedExpenseRepository.findById(expenseId).orElseThrow(() -> new RuntimeException("Expense not found"));
+        if (!userId.equals(expense.getPaidById())) throw new RuntimeException("Only the person who created this expense can delete it");
+        sharedExpenseRepository.delete(expense);
+        return "Shared expense deleted";
     }
 }

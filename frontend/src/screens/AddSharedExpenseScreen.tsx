@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Switch,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -60,6 +60,12 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   },
   memberAvatarText: { color: c.buttonDarkText, fontSize: 13, fontWeight: '700' },
   memberName: { fontSize: 14, fontWeight: '600', color: c.muted },
+  paidToggleRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: c.surface, borderRadius: 12, padding: 14, marginTop: 16,
+    borderWidth: 1, borderColor: c.border,
+  },
+  paidToggleText: { fontSize: 14, fontWeight: '600', color: c.dark, flex: 1, marginRight: 12 },
   preview: {
     backgroundColor: c.surface, borderRadius: 14, padding: 16,
     marginTop: 20, borderWidth: 1, borderColor: c.border,
@@ -83,6 +89,7 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
   const [selectedMembers, setSelectedMembers] = useState<number[]>(
     members ? members.map((m) => m.userId) : []
   );
+  const [payerAlreadyPaid, setPayerAlreadyPaid] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(false);
 
   const toggleMember = (userId: number): void => {
@@ -100,6 +107,7 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
         circleId, description: category,
         totalAmount: parseFloat(amount),
         category, participantIds: selectedMembers,
+        payerAlreadyPaid,
       });
       showAlert('success', 'Success', 'Shared expense created');
       navigation.goBack();
@@ -169,6 +177,16 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
               </TouchableOpacity>
             );
           })}
+
+          <View style={styles.paidToggleRow}>
+            <Text style={styles.paidToggleText}>I have already paid my share</Text>
+            <Switch
+              value={payerAlreadyPaid}
+              onValueChange={setPayerAlreadyPaid}
+              trackColor={{ false: colors.border, true: colors.success }}
+              thumbColor={colors.surface}
+            />
+          </View>
 
           {parseFloat(amount) > 0 && selectedMembers.length > 0 && (
             <View style={styles.preview}>

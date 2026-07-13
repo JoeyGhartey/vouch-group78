@@ -153,12 +153,14 @@ export const createSharedExpense = (data: unknown) => request('/expenses/shared'
 export const getCircleExpenses = (circleId: number) => request(`/expenses/shared/circle/${circleId}`);
 export const getCircleBalances = (circleId: number) => request(`/expenses/shared/circle/${circleId}/balances`);
 export const settleExpense = (splitId: number) => request(`/expenses/shared/settle/${splitId}`, 'POST');
+export const deleteSharedExpense = (expenseId: number) => request(`/expenses/shared/${expenseId}`, 'DELETE');
 export const requestPayment = (splitId: number) => request(`/expenses/shared/splits/${splitId}/request-payment`, 'POST');
 export const confirmPayment = (splitId: number) => request(`/expenses/shared/splits/${splitId}/confirm-payment`, 'POST');
 
 // Personal Expenses
 export const addPersonalExpense = (data: unknown) => request('/expenses/personal', 'POST', data);
 export const getPersonalTransactions = () => request('/expenses/personal');
+export const deletePersonalTransaction = (transactionId: number) => request(`/expenses/personal/${transactionId}`, 'DELETE');
 export const getMonthlySummary = (year: number, month: number) => request(`/expenses/personal/summary/${year}/${month}`);
 export const setSpendingLimit = (data: unknown) => request('/expenses/personal/limits', 'POST', data);
 export const getSpendingLimits = () => request('/expenses/personal/limits');
