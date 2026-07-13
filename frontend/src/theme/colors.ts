@@ -22,6 +22,7 @@ export interface ColorScheme {
   statusPurple: string;
   statusOrange: string;
   statusTeal: string;
+  statusRose: string;
 
   // Alert/feedback
   successGreen: string;
@@ -70,6 +71,7 @@ export const lightColors: ColorScheme = {
   statusPurple: '#9C27B0',
   statusOrange: '#FF9800',
   statusTeal: '#0d9488',
+  statusRose: '#e11d48',
 
   successGreen: '#22c55e',
   errorRed: '#ef4444',
@@ -113,6 +115,7 @@ export const darkColors: ColorScheme = {
   statusPurple: '#c084fc',
   statusOrange: '#fb923c',
   statusTeal: '#2dd4bf',
+  statusRose: '#fb7185',
 
   successGreen: '#4ade80',
   errorRed: '#f87171',

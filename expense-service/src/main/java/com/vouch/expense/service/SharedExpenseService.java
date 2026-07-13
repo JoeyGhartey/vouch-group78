@@ -1,11 +1,13 @@
 package com.vouch.expense.service;
 
 import com.vouch.expense.dto.SharedExpenseRequest;
+import com.vouch.expense.dto.InternalTransactionRequest;
 import com.vouch.expense.entity.ExpenseSplit;
 import com.vouch.expense.entity.SharedExpense;
 import com.vouch.expense.repository.ExpenseSplitRepository;
 import com.vouch.expense.repository.SharedExpenseRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,12 +17,14 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SharedExpenseService {
 
     private final SharedExpenseRepository sharedExpenseRepository;
     private final ExpenseSplitRepository expenseSplitRepository;
     private final AuthServiceClient authServiceClient;
     private final NotificationServiceClient notificationServiceClient;
+    private final PersonalExpenseService personalExpenseService;
 
     @Transactional
     public Map<String, Object> createSharedExpense(String phone, SharedExpenseRequest request) {
@@ -152,6 +156,16 @@ public class SharedExpenseService {
         if (!userId.equals(expense.getPaidById())) throw new RuntimeException("Only the person who paid can confirm this payment");
         split.setSettled(true); split.setSettledAt(LocalDateTime.now());
         expenseSplitRepository.save(split);
+
+        try {
+            personalExpenseService.addInternalTransaction(new InternalTransactionRequest(
+                    split.getUserId(), "Paid share - " + expense.getDescription(), split.getAmountOwed(), "Shared Expense", "EXPENSE"));
+            personalExpenseService.addInternalTransaction(new InternalTransactionRequest(
+                    expense.getPaidById(), "Received share - " + expense.getDescription(), split.getAmountOwed(), "Shared Expense", "INCOME"));
+        } catch (Exception e) {
+            log.warn("Failed to log personal transactions for split {}: {}", splitId, e.getMessage());
+        }
+
         return "Payment confirmed. Split settled.";
     }
 }
