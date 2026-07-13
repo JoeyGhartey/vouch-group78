@@ -544,14 +544,14 @@ public class LoanService {
 
     public List<LoanResponse> getMyLoansAsBorrower(String phone) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
-        return loanRepository.findByBorrowerId(userId).stream()
+        return loanRepository.findByBorrowerIdOrderByCreatedAtDesc(userId).stream()
                 .map(l -> mapToLoanResponse(l, null))
                 .collect(Collectors.toList());
     }
 
     public List<LoanResponse> getMyLoansAsLender(String phone) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
-        return loanRepository.findByLenderId(userId).stream()
+        return loanRepository.findByLenderIdOrderByCreatedAtDesc(userId).stream()
                 .map(l -> mapToLoanResponse(l, null))
                 .collect(Collectors.toList());
     }
@@ -773,7 +773,7 @@ public class LoanService {
 
     public Map<String, Object> getBorrowerInsights(String phone) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
-        List<Loan> loans = loanRepository.findByBorrowerId(userId).stream()
+        List<Loan> loans = loanRepository.findByBorrowerIdOrderByCreatedAtDesc(userId).stream()
                 .filter(l -> FUNDED_STATUSES.contains(l.getStatus()))
                 .collect(Collectors.toList());
 
@@ -800,7 +800,7 @@ public class LoanService {
 
     public Map<String, Object> getLenderInsights(String phone) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
-        List<Loan> loans = loanRepository.findByLenderId(userId).stream()
+        List<Loan> loans = loanRepository.findByLenderIdOrderByCreatedAtDesc(userId).stream()
                 .filter(l -> FUNDED_STATUSES.contains(l.getStatus()))
                 .collect(Collectors.toList());
 
