@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -6,7 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { View, Text } from 'react-native';
+import { hasSeenOnboarding } from '../utils/onboardingStorage';
 
+import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
@@ -24,7 +26,7 @@ import AdminScreen from '../screens/AdminScreen';
 import HelpScreen from '../screens/HelpScreen';
 
 export type RootStackParamList = {
-  Main: undefined;
+  Main: { screen?: keyof TabParamList } | undefined;
   Notifications: undefined;
   CircleDetail: { circleId: number };
   RequestLoan: { circleId: number };
@@ -32,6 +34,7 @@ export type RootStackParamList = {
   AddSharedExpense: { circleId: number; members: { userId: number; firstName: string; lastName: string }[] };
   Admin: undefined;
   Help: undefined;
+  Onboarding: undefined;
   Login: undefined;
   Register: undefined;
   ForgotPassword: undefined;
@@ -79,8 +82,13 @@ function MainTabs() {
 export default function AppNavigator() {
   const { user, loading } = useAuth();
   const { colors } = useTheme();
+  const [onboardingSeen, setOnboardingSeen] = useState<boolean | null>(null);
 
-  if (loading) {
+  useEffect(() => {
+    hasSeenOnboarding().then(setOnboardingSeen);
+  }, []);
+
+  if (loading || onboardingSeen === null) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }}>
         <Text style={{ color: colors.accent, fontSize: 36, fontWeight: 'bold' }}>VOUCH</Text>
@@ -90,7 +98,10 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator
+        screenOptions={{ headerShown: false }}
+        initialRouteName={!user ? (onboardingSeen ? 'Login' : 'Onboarding') : undefined}
+      >
         {user ? (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
@@ -104,6 +115,7 @@ export default function AppNavigator() {
           </>
         ) : (
           <>
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />

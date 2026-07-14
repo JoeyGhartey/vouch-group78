@@ -127,9 +127,14 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.heroCardBg, marginHorizontal: 16, marginTop: 16,
     borderRadius: 20, overflow: 'hidden',
   },
+  heroLabelRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 20, paddingTop: 18,
+  },
+  heroLabel: { fontSize: 11, fontWeight: '800', color: c.accent, letterSpacing: 1.2 },
   eyeBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 20, paddingTop: 18, paddingBottom: 4,
+    paddingHorizontal: 20, paddingTop: 10, paddingBottom: 4,
   },
   eyeText: { fontSize: 13, color: HERO_SUBTLE, fontWeight: '500' },    // was 12
   amountsRow: {
@@ -161,9 +166,19 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   statDivider: { borderRightWidth: 1, borderRightColor: HERO_BORDER },
   statVal: { fontSize: 20, fontWeight: '800', color: '#FFFFFF' },      // was 17
   statLbl: { fontSize: 11, color: HERO_MUTED, fontWeight: '600', marginTop: 3 }, // was 10
-  statsRowSecondary: {
-    flexDirection: 'row', justifyContent: 'center', borderTopWidth: 1, borderTopColor: HERO_BORDER,
+  spendingCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: c.surface, marginHorizontal: 16, marginTop: 10,
+    borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border,
   },
+  spendingLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  spendingIconBox: {
+    width: 36, height: 36, borderRadius: 10, backgroundColor: c.bg,
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: c.border,
+  },
+  spendingLabel: { fontSize: 12, color: c.muted, fontWeight: '600' },
+  spendingSub: { fontSize: 11, color: c.muted, marginTop: 1 },
+  spendingValue: { fontSize: 17, fontWeight: '800', color: c.dark },
 
   activityHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -395,6 +410,11 @@ export default function HomeScreen({ navigation }: Props) {
       {/* Hero Card */}
       <View style={styles.heroCard}>
 
+        <View style={styles.heroLabelRow}>
+          <Ionicons name="people" size={13} color={colors.accent} />
+          <Text style={styles.heroLabel}>CIRCLE LENDING</Text>
+        </View>
+
         <TouchableOpacity style={styles.eyeBtn} onPress={() => setAmountsVisible(v => !v)}>
           <Ionicons name={amountsVisible ? 'eye-outline' : 'eye-off-outline'} size={20} color="#94a3b8" />
           <Text style={styles.eyeText}>{amountsVisible ? 'Hide balances' : 'Show balances'}</Text>
@@ -468,13 +488,30 @@ export default function HomeScreen({ navigation }: Props) {
           ))}
         </View>
 
-        <View style={styles.statsRowSecondary}>
-          <View style={styles.statItem}>
-            <Text style={styles.statVal}>{amountsVisible ? `GHS ${thisMonthSpend.toFixed(0)}` : maskAmount}</Text>
-            <Text style={styles.statLbl}>Spent This Month</Text>
+      </View>
+
+      {/* Personal Spending — kept visually separate from circle lending above */}
+      <TouchableOpacity
+        style={styles.spendingCard}
+        onPress={() => navigation.navigate('Main', { screen: 'ExpensesTab' })}
+        activeOpacity={0.7}
+      >
+        <View style={styles.spendingLeft}>
+          <View style={styles.spendingIconBox}>
+            <Ionicons name="wallet-outline" size={18} color={colors.accent} />
+          </View>
+          <View>
+            <Text style={styles.spendingLabel}>PERSONAL SPENDING</Text>
+            <Text style={styles.spendingSub}>This month</Text>
           </View>
         </View>
-      </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={styles.spendingValue}>
+            {amountsVisible ? `GHS ${thisMonthSpend.toFixed(0)}` : maskAmount}
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+        </View>
+      </TouchableOpacity>
 
       {/* Recent Activity */}
       <TouchableOpacity style={styles.activityHeader} onPress={toggleActivity} activeOpacity={0.7}>

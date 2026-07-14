@@ -77,21 +77,22 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   activeTabText: { color: c.accent },
   section: { padding: 16, gap: 12 },
   chartHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  trendControlsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 },
   chartSectionLabel: { fontSize: 11, fontWeight: '700', color: c.muted, letterSpacing: 1 },
   periodPillRow: { flexDirection: 'row', backgroundColor: c.bg, borderRadius: 8, borderWidth: 1, borderColor: c.border, padding: 2 },
   periodPillBtn: { paddingVertical: 4, paddingHorizontal: 9, borderRadius: 6 },
-  periodPillBtnActive: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
+  periodPillBtnActive: { backgroundColor: c.goldBgTint, borderWidth: 1, borderColor: c.accent },
   periodPillText: { fontSize: 10, fontWeight: '600', color: c.muted },
-  periodPillTextActive: { color: c.dark },
+  periodPillTextActive: { color: c.accentDark },
   chartTotalValue: { fontSize: 26, fontWeight: '900', color: c.dark, marginTop: 4, marginBottom: 14 },
   chartCard: {
     backgroundColor: c.surface, borderRadius: 14, padding: 16,
-    borderWidth: 1, borderColor: c.border,
+    borderWidth: 1, borderColor: c.border, borderTopWidth: 3, borderTopColor: c.accent,
   },
   chartLabel: { fontSize: 13, fontWeight: '700', marginBottom: 4 },
   tappedPoint: { fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 6 },
   customBtn: { paddingVertical: 8, paddingHorizontal: 14, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: c.border, marginTop: 8 },
-  customBtnActive: { backgroundColor: c.surface, borderColor: c.accent },
+  customBtnActive: { backgroundColor: c.goldBgTint, borderColor: c.accent },
   customBtnText: { fontSize: 12, fontWeight: '600', color: c.muted },
   customBtnTextActive: { color: c.accent },
   customRow: { flexDirection: 'row', gap: 10, marginTop: 10, justifyContent: 'center' },
@@ -118,11 +119,12 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   netRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'baseline', marginTop: 14, gap: 6 },
   netLabel: { fontSize: 12, color: c.muted, fontWeight: '600' },
   netValue: { fontSize: 15, fontWeight: '800' },
-  card: { backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border },
+  card: { backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, borderTopWidth: 3, borderTopColor: c.accent },
   cardTitle: { fontSize: 14, fontWeight: '700', color: c.dark, marginBottom: 12 },
+  manageSectionLabel: { fontSize: 12, fontWeight: '700', color: c.muted, letterSpacing: 0.8, marginBottom: 10 },
   recapCard: {
-    backgroundColor: c.surface, borderRadius: 14, padding: 16,
-    borderWidth: 1, borderColor: c.border, marginTop: 12,
+    backgroundColor: c.goldBgTint, borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: c.border, borderTopWidth: 3, borderTopColor: c.accent, marginTop: 12,
   },
   recapText: { fontSize: 14, color: c.dark, lineHeight: 21 },
   recapHighlight: { fontWeight: '700', color: c.dark },
@@ -192,7 +194,7 @@ export default function ExpensesScreen() {
   const [limits, setLimits] = useState<LimitRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<string>('summary');
+  const [activeTab, setActiveTab] = useState<string>('overview');
   const [showAdd, setShowAdd] = useState<boolean>(false);
   const [showLimit, setShowLimit] = useState<boolean>(false);
   const [adding, setAdding] = useState<boolean>(false);
@@ -204,6 +206,8 @@ export default function ExpensesScreen() {
   const [customTo, setCustomTo] = useState<string>('');
   const [showCustomRange, setShowCustomRange] = useState<boolean>(false);
   const [pickerField, setPickerField] = useState<'from' | 'to' | null>(null);
+  const [chartView, setChartView] = useState<'trend' | 'category'>('trend');
+  const [showCustomModal, setShowCustomModal] = useState<boolean>(false);
 
   const toDateInputString = (d: Date): string =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -272,9 +276,10 @@ export default function ExpensesScreen() {
   const screenWidth = Dimensions.get('window').width;
 
   const getCategoryColor = (category?: string): string => ({
-    Food: colors.success, Transport: colors.statusBlue, Entertainment: colors.statusPurple,
-    Utilities: colors.statusOrange, Shopping: colors.accent, Loan: colors.statusTeal,
-    'Shared Expense': colors.statusRose, Other: colors.slate400,
+    Food: colors.accent, Loan: colors.accentDark, Shopping: colors.warning,
+    Entertainment: colors.statusOrange, Transport: `${colors.accent}B3`,
+    Utilities: `${colors.warning}B3`, 'Shared Expense': `${colors.statusOrange}B3`,
+    Other: colors.slate400,
   }[category || ''] || colors.muted);
 
   const getLimitColor = (percentUsed: number): string => {
@@ -426,7 +431,7 @@ export default function ExpensesScreen() {
       </View>
 
       <View style={styles.tabRow}>
-        {['summary', 'transactions', 'limits'].map((t) => (
+        {['overview', 'manage'].map((t) => (
           <TouchableOpacity key={t} style={[styles.tab, activeTab === t && styles.activeTab]} onPress={() => setActiveTab(t)}>
             <Text style={[styles.tabText, activeTab === t && styles.activeTabText]}>
               {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -439,8 +444,8 @@ export default function ExpensesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Summary Tab */}
-        {activeTab === 'summary' && summary && (
+        {/* Overview Tab — view-only: summary cards, recap, charts */}
+        {activeTab === 'overview' && summary && (
           <View style={styles.section}>
             <Text style={styles.summaryMonth}>
               {new Date(year, month - 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
@@ -499,154 +504,174 @@ export default function ExpensesScreen() {
               <View style={styles.chartHeaderRow}>
                 <Text style={styles.chartSectionLabel}>SPENDING ACTIVITY</Text>
                 <View style={styles.periodPillRow}>
-                  {(['day', 'week', 'month', 'year'] as const).map((p) => (
-                    <TouchableOpacity key={p} style={[styles.periodPillBtn, chartPeriod === p && styles.periodPillBtnActive]} onPress={() => { setChartPeriod(p); setShowCustomRange(false); }}>
-                      <Text style={[styles.periodPillText, chartPeriod === p && styles.periodPillTextActive]}>
-                        {({ day: 'D', week: 'W', month: 'M', year: 'Y' } as const)[p]}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  <TouchableOpacity style={[styles.periodPillBtn, chartView === 'trend' && styles.periodPillBtnActive]} onPress={() => setChartView('trend')}>
+                    <Text style={[styles.periodPillText, chartView === 'trend' && styles.periodPillTextActive]}>Trend</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.periodPillBtn, chartView === 'category' && styles.periodPillBtnActive]} onPress={() => setChartView('category')}>
+                    <Text style={[styles.periodPillText, chartView === 'category' && styles.periodPillTextActive]}>Category</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-              <Text style={styles.chartTotalValue}>GHS {periodTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
 
-              <TouchableOpacity
-                style={[styles.customBtn, chartPeriod === 'custom' && styles.customBtnActive]}
-                onPress={() => { setChartPeriod('custom'); setShowCustomRange(true); }}
-              >
-                <Text style={[styles.customBtnText, chartPeriod === 'custom' && styles.customBtnTextActive]}>Custom Range</Text>
-              </TouchableOpacity>
-              {showCustomRange && (
-                <View style={styles.customRow}>
-                  <TouchableOpacity style={styles.customInput} onPress={() => setPickerField('from')}>
-                    <Text style={[styles.customInputText, { color: customFrom ? colors.dark : colors.muted }]}>
-                      {customFrom || 'From (YYYY-MM-DD)'}
+              {chartView === 'trend' ? (
+                <>
+                  <View style={styles.trendControlsRow}>
+                    <View style={styles.periodPillRow}>
+                      {(['day', 'week', 'month', 'year'] as const).map((p) => (
+                        <TouchableOpacity key={p} style={[styles.periodPillBtn, chartPeriod === p && styles.periodPillBtnActive]} onPress={() => { setChartPeriod(p); setShowCustomRange(false); }}>
+                          <Text style={[styles.periodPillText, chartPeriod === p && styles.periodPillTextActive]}>
+                            {({ day: 'D', week: 'W', month: 'M', year: 'Y' } as const)[p]}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.customBtn, chartPeriod === 'custom' && styles.customBtnActive]}
+                      onPress={() => { setChartPeriod('custom'); setShowCustomRange(true); setShowCustomModal(true); }}
+                    >
+                      <Text style={[styles.customBtnText, chartPeriod === 'custom' && styles.customBtnTextActive]}>
+                        {chartPeriod === 'custom' && customFrom && customTo ? `${customFrom} → ${customTo}` : 'Custom'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={styles.chartTotalValue}>GHS {periodTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+
+                  {chartPeriod === 'custom' && (!customFrom || !customTo) ? (
+                    <View style={styles.customEmptyState}>
+                      <Text style={styles.customEmptyText}>Tap Custom above to choose a date range</Text>
+                    </View>
+                  ) : (
+                    <LineChart
+                      data={{ labels: chartLabels, datasets: [{ data: chartData.datasets[1].data }] }}
+                      width={screenWidth - 64}
+                      height={180}
+                      fromZero
+                      bezier
+                      withInnerLines
+                      withHorizontalLabels={false}
+                      withDots={chartPointCount <= 60}
+                      yAxisLabel=""
+                      yAxisSuffix=""
+                      onDataPointClick={({ value, index }: { value: number; index: number }) => setTappedPoint({ label: chartData.labels[index], value, type: 'Expenses' })}
+                      chartConfig={{
+                        backgroundColor: colors.surface,
+                        backgroundGradientFrom: colors.surface,
+                        backgroundGradientTo: colors.surface,
+                        decimalPlaces: 0,
+                        color: () => colors.accentDark,
+                        labelColor: () => colors.muted,
+                        propsForDots: { r: chartPointCount > 30 ? '2' : '4', strokeWidth: '2', stroke: colors.accentDark },
+                        propsForLabels: { fontSize: 9 },
+                        propsForBackgroundLines: { stroke: colors.border, strokeWidth: 1, strokeDasharray: '' },
+                      }}
+                      style={{ borderRadius: 10, paddingBottom: 4, paddingRight: 24 }}
+                    />
+                  )}
+
+                  {tappedPoint && (
+                    <Text style={[styles.tappedPoint, { color: colors.accentDark }]}>
+                      GHS {tappedPoint.value.toFixed(2)} on {tappedPoint.label}
                     </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.customInput} onPress={() => setPickerField('to')}>
-                    <Text style={[styles.customInputText, { color: customTo ? colors.dark : colors.muted }]}>
-                      {customTo || 'To (YYYY-MM-DD)'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {pickerField && Platform.OS === 'android' && (
-                <DateTimePicker
-                  value={(pickerField === 'from' ? customFrom : customTo) ? new Date(`${pickerField === 'from' ? customFrom : customTo}T00:00:00`) : new Date()}
-                  mode="date"
-                  display="default"
-                  onChange={handleDateChange}
-                />
-              )}
-
-              {pickerField && Platform.OS === 'ios' && (
-                <View style={styles.iosPickerCard}>
-                  <DateTimePicker
-                    value={(pickerField === 'from' ? customFrom : customTo) ? new Date(`${pickerField === 'from' ? customFrom : customTo}T00:00:00`) : new Date()}
-                    mode="date"
-                    display="inline"
-                    onChange={handleDateChange}
-                  />
-                  <TouchableOpacity style={styles.iosPickerDoneBtn} onPress={() => setPickerField(null)}>
-                    <Text style={styles.iosPickerDoneText}>Done</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {chartPeriod === 'custom' && (!customFrom || !customTo) ? (
-                <View style={styles.customEmptyState}>
-                  <Text style={styles.customEmptyText}>Enter a date range above to view your expenses</Text>
-                </View>
+                  )}
+                </>
               ) : (
-                <LineChart
-                  data={{ labels: chartLabels, datasets: [{ data: chartData.datasets[1].data }] }}
-                  width={screenWidth - 64}
-                  height={180}
-                  fromZero
-                  bezier
-                  withInnerLines
-                  withHorizontalLabels={false}
-                  withDots={chartPointCount <= 60}
-                  yAxisLabel=""
-                  yAxisSuffix=""
-                  onDataPointClick={({ value, index }: { value: number; index: number }) => setTappedPoint({ label: chartData.labels[index], value, type: 'Expenses' })}
-                  chartConfig={{
-                    backgroundColor: colors.surface,
-                    backgroundGradientFrom: colors.surface,
-                    backgroundGradientTo: colors.surface,
-                    decimalPlaces: 0,
-                    color: () => colors.danger,
-                    labelColor: () => colors.muted,
-                    propsForDots: { r: chartPointCount > 30 ? '2' : '4', strokeWidth: '2', stroke: colors.danger },
-                    propsForLabels: { fontSize: 9 },
-                    propsForBackgroundLines: { stroke: colors.border, strokeWidth: 1, strokeDasharray: '' },
-                  }}
-                  style={{ borderRadius: 10, paddingBottom: 4, paddingRight: 24 }}
-                />
-              )}
-
-              {tappedPoint && (
-                <Text style={[styles.tappedPoint, { color: colors.danger }]}>
-                  GHS {tappedPoint.value.toFixed(2)} on {tappedPoint.label}
-                </Text>
+                categoryChartData.length > 0 ? (
+                  <>
+                    <PieChart
+                      data={categoryChartData}
+                      width={screenWidth - 72}
+                      height={180}
+                      chartConfig={{
+                        color: () => colors.dark,
+                        labelColor: () => colors.muted,
+                      }}
+                      accessor="population"
+                      backgroundColor="transparent"
+                      paddingLeft="8"
+                      hasLegend={false}
+                    />
+                    {categoryChartData.map((item, i) => (
+                      <View key={i} style={styles.legendRow}>
+                        <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                        <Text style={styles.legendCategory}>{item.name}</Text>
+                        <Text style={styles.legendPercent}>{item.percentage}%</Text>
+                        <Text style={styles.legendAmount}>GHS {item.population.toFixed(2)}</Text>
+                      </View>
+                    ))}
+                  </>
+                ) : (
+                  <View style={styles.customEmptyState}>
+                    <Text style={styles.customEmptyText}>No category data yet</Text>
+                  </View>
+                )
               )}
             </View>
 
-            {categoryChartData.length > 0 && (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Spending by Category</Text>
-                <PieChart
-                  data={categoryChartData}
-                  width={screenWidth - 72}
-                  height={180}
-                  chartConfig={{
-                    color: () => colors.dark,
-                    labelColor: () => colors.muted,
-                  }}
-                  accessor="population"
-                  backgroundColor="transparent"
-                  paddingLeft="8"
-                  hasLegend={false}
-                />
-                {categoryChartData.map((item, i) => (
-                  <View key={i} style={styles.legendRow}>
-                    <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                    <Text style={styles.legendCategory}>{item.name}</Text>
-                    <Text style={styles.legendPercent}>{item.percentage}%</Text>
-                    <Text style={styles.legendAmount}>GHS {item.population.toFixed(2)}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
+            {/* Custom Range picker — modal instead of inline expansion */}
+            <Modal visible={showCustomModal} animationType="slide" transparent>
+              <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                <View style={styles.modalBg}>
+                  <View style={styles.modal}>
+                    <Text style={styles.modalTitle}>Custom Date Range</Text>
+                    <View style={styles.customRow}>
+                      <TouchableOpacity style={styles.customInput} onPress={() => setPickerField('from')}>
+                        <Text style={[styles.customInputText, { color: customFrom ? colors.dark : colors.muted }]}>
+                          {customFrom || 'From (YYYY-MM-DD)'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.customInput} onPress={() => setPickerField('to')}>
+                        <Text style={[styles.customInputText, { color: customTo ? colors.dark : colors.muted }]}>
+                          {customTo || 'To (YYYY-MM-DD)'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
 
-            {summary.spendingLimits && Object.keys(summary.spendingLimits).length > 0 && (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Spending Limits</Text>
-                {Object.entries(summary.spendingLimits).map(([cat, data]) => (
-                  <View key={cat} style={styles.limitRow}>
-                    <View style={styles.limitHeader}>
-                      <Text style={styles.limitCat}>{cat}</Text>
-                      <Text style={[styles.limitAmt, (data as SpendingLimitData).exceeded && { color: colors.danger }]}>
-                        GHS {(data as SpendingLimitData).spent?.toFixed(0)} / {(data as SpendingLimitData).limit}
-                      </Text>
-                    </View>
-                    <View style={styles.limitBar}>
-                      <View style={[styles.limitFill, {
-                        width: `${Math.min((data as SpendingLimitData).percentUsed, 100)}%` as any,
-                        backgroundColor: (data as SpendingLimitData).exceeded ? colors.danger : colors.success,
-                      }]} />
-                    </View>
+                    {pickerField && Platform.OS === 'android' && (
+                      <DateTimePicker
+                        value={(pickerField === 'from' ? customFrom : customTo) ? new Date(`${pickerField === 'from' ? customFrom : customTo}T00:00:00`) : new Date()}
+                        mode="date"
+                        display="default"
+                        onChange={handleDateChange}
+                      />
+                    )}
+
+                    {pickerField && Platform.OS === 'ios' && (
+                      <View style={styles.iosPickerCard}>
+                        <DateTimePicker
+                          value={(pickerField === 'from' ? customFrom : customTo) ? new Date(`${pickerField === 'from' ? customFrom : customTo}T00:00:00`) : new Date()}
+                          mode="date"
+                          display="inline"
+                          onChange={handleDateChange}
+                        />
+                        <TouchableOpacity style={styles.iosPickerDoneBtn} onPress={() => setPickerField(null)}>
+                          <Text style={styles.iosPickerDoneText}>Done</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+
+                    <TouchableOpacity
+                      style={styles.primaryBtn}
+                      disabled={!customFrom || !customTo}
+                      onPress={() => setShowCustomModal(false)}
+                    >
+                      <Text style={styles.primaryBtnText}>Apply</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowCustomModal(false)}>
+                      <Text style={styles.cancelText}>Close</Text>
+                    </TouchableOpacity>
                   </View>
-                ))}
-              </View>
-            )}
+                </View>
+              </KeyboardAvoidingView>
+            </Modal>
+
           </View>
         )}
 
-        {/* Transactions Tab */}
-        {activeTab === 'transactions' && (
+        {/* Manage Tab — actionable: transactions + spending limits */}
+        {activeTab === 'manage' && (
           <View style={styles.section}>
+            <Text style={styles.manageSectionLabel}>TRANSACTIONS</Text>
             {sortedTransactions.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Ionicons name="receipt-outline" size={36} color={colors.muted} />
@@ -676,12 +701,8 @@ export default function ExpensesScreen() {
                 </View>
               ))
             )}
-          </View>
-        )}
 
-        {/* Limits Tab */}
-        {activeTab === 'limits' && (
-          <View style={styles.section}>
+            <Text style={[styles.manageSectionLabel, { marginTop: 20 }]}>SPENDING LIMITS</Text>
             <TouchableOpacity style={styles.primaryBtn} onPress={() => setShowLimit(true)}>
               <Ionicons name="add-circle-outline" size={18} color={colors.buttonDarkText} style={{ marginRight: 6 }} />
               <Text style={styles.primaryBtnText}>Set Spending Limit</Text>

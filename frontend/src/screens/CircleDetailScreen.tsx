@@ -167,11 +167,11 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   balanceRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.border },
   balanceKey: { fontSize: 13, color: c.muted, flex: 1 },
   balanceAmount: { fontSize: 13, fontWeight: '700', color: c.danger },
-  insightHero: { backgroundColor: c.surface, borderRadius: 14, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: c.border },
+  insightHero: { backgroundColor: c.goldBgTint, borderRadius: 14, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: c.border, borderTopWidth: 3, borderTopColor: c.accent },
   insightHealthLabel: { fontSize: 11, color: c.slate400, fontWeight: '600', letterSpacing: 0.8 },
   healthBadge: { borderRadius: 999, paddingHorizontal: 20, paddingVertical: 8, marginTop: 10 },
   healthBadgeText: { fontSize: 26, fontWeight: '900' },
-  categoryChartCard: { backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, alignItems: 'center' },
+  categoryChartCard: { backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, borderTopWidth: 3, borderTopColor: c.accent, alignItems: 'center' },
   categoryChartTitle: { fontSize: 14, fontWeight: '700', color: c.dark, alignSelf: 'flex-start', marginBottom: 4 },
   legendList: { width: '100%', marginTop: 14, gap: 2 },
   legendRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border },
@@ -334,9 +334,10 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   }[status] || colors.muted);
 
   const getCategoryColor = (category?: string): string => ({
-    Food: colors.success, Transport: colors.statusBlue, Entertainment: colors.statusPurple,
-    Utilities: colors.statusOrange, Shopping: colors.accent, Loan: colors.statusTeal,
-    'Shared Expense': colors.statusRose, Other: colors.slate400,
+    Food: colors.accent, Loan: colors.accentDark, Shopping: colors.warning,
+    Entertainment: colors.statusOrange, Transport: `${colors.accent}B3`,
+    Utilities: `${colors.warning}B3`, 'Shared Expense': `${colors.statusOrange}B3`,
+    Other: colors.slate400,
   }[category || ''] || colors.muted);
 
   const getInitials = (fullName: string): string => {
@@ -657,14 +658,14 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
             <View style={styles.statGrid}>
               {([
                 ['Total Loans', insights.totalLoans, 'document-text-outline', colors.accent],
-                ['Active Loans', insights.activeLoans, 'time-outline', colors.statusBlue],
+                ['Active Loans', insights.activeLoans, 'time-outline', colors.accent],
                 ['Repaid', insights.repaidLoans, 'checkmark-done-outline', colors.success],
                 ['Defaulted', insights.defaultedLoans, 'warning-outline', colors.danger],
                 ['Repayment Rate', `${insights.circleRepaymentRate}%`, 'trending-up-outline', colors.success],
-                ['Total Circulated', `GHS ${insights.totalAmountCirculated}`, 'cash-outline', colors.dark],
+                ['Total Circulated', `GHS ${insights.totalAmountCirculated}`, 'cash-outline', colors.accent],
                 ['Avg Trust Score', insights.averageTrustScore, 'shield-checkmark-outline', colors.accent],
-                ...(insights.topLender ? [['Top Lender', insights.topLender, 'star-outline', colors.warning]] : []),
-                ...(insights.topBorrower ? [['Top Borrower', insights.topBorrower, 'person-outline', colors.statusPurple]] : []),
+                ...(insights.topLender ? [['Top Lender', insights.topLender, 'star-outline', colors.accent]] : []),
+                ...(insights.topBorrower ? [['Top Borrower', insights.topBorrower, 'person-outline', colors.accent]] : []),
               ] as [string, string | number, keyof typeof Ionicons.glyphMap, string][]).map(([label, value, icon, color], i) => (
                 <View key={i} style={styles.statCard}>
                   <View style={[styles.statCardIconBox, { backgroundColor: `${color}18` }]}>

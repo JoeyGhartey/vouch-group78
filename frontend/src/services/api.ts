@@ -1,10 +1,27 @@
 import * as SecureStore from 'expo-secure-store';
 
-// TODO: Revert to Render URL before next deployment
-// const API_URL = 'https://vouch-api-gateway.onrender.com/api';
-const API_URL = 'http://172.20.10.2:8080/api';
-// const API_URL = 'http://10.0.2.2:8080/api'; // Android emulator
-// const API_URL = 'http://YOUR_IP:8080/api'; // Physical device
+// No api-gateway deployed — each service is called directly on its own host.
+// This mirrors the routing rules that would otherwise live in api-gateway/application.yml.
+const SERVICE_URLS: Record<string, string> = {
+  auth: 'https://auth-service-production-a5aa.up.railway.app/api',
+  profile: 'https://auth-service-production-a5aa.up.railway.app/api',
+  notifications: 'https://notification-service-production-17f2.up.railway.app/api',
+  circles: 'https://loan-service-production-fc1e.up.railway.app/api',
+  loans: 'https://loan-service-production-fc1e.up.railway.app/api',
+  payments: 'https://payment-service-production-3e1d.up.railway.app/api',
+  disputes: 'https://dispute-service-production.up.railway.app/api',
+  expenses: 'https://expense-service-u749.onrender.com/api',
+};
+
+const resolveBaseUrl = (endpoint: string): string => {
+  const segment = endpoint.split('/').filter(Boolean)[0] ?? '';
+  const base = SERVICE_URLS[segment];
+  if (!base) {
+    throw new Error(`No service URL configured for endpoint segment "${segment}" (from "${endpoint}")`);
+  }
+  return base;
+};
+
 let token: string | null = null;
 
 export const setToken = (newToken: string): void => {
@@ -73,7 +90,7 @@ const request = async <T = unknown>(
 
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${endpoint}`, { ...config, signal: controller.signal });
+    response = await fetch(`${resolveBaseUrl(endpoint)}${endpoint}`, { ...config, signal: controller.signal });
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw new Error('Request timed out — please try again');
     throw e;
