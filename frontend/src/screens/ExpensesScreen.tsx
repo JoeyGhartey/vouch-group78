@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput, Modal, ScrollView,
-  KeyboardAvoidingView, Platform, Dimensions,
+  KeyboardAvoidingView, Platform, Dimensions, TouchableWithoutFeedback,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { LineChart, PieChart } from 'react-native-chart-kit';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { getPersonalTransactions, addPersonalExpense, getMonthlySummary, getSpendingLimits, setSpendingLimit, deleteSpendingLimit, resetSpendingLimit, deletePersonalTransaction } from '../services/api';
 import { aggregateTransactions, ChartPeriod } from '../utils/chartData';
+import { getCustomCategories, addCustomCategory, formatCategoryName } from '../utils/customCategories';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
 import { useTheme } from '../context/ThemeContext';
@@ -172,6 +173,19 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
   cancelText: { color: c.muted, fontSize: 14 },
 
+  saveCategoryRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginTop: 4, padding: 12, borderRadius: 12,
+    backgroundColor: c.goldBgTint, borderWidth: 1, borderColor: c.border,
+  },
+  saveCategoryCheckbox: {
+    width: 20, height: 20, borderRadius: 5,
+    borderWidth: 2, borderColor: c.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  saveCategoryCheckboxChecked: { backgroundColor: c.accent, borderColor: c.accent },
+  saveCategoryText: { fontSize: 12, color: c.dark, fontWeight: '600', flex: 1 },
+
   // Income banner
   incomeBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -208,6 +222,22 @@ export default function ExpensesScreen() {
   const [pickerField, setPickerField] = useState<'from' | 'to' | null>(null);
   const [chartView, setChartView] = useState<'trend' | 'category'>('trend');
   const [showCustomModal, setShowCustomModal] = useState<boolean>(false);
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [saveAsCategory, setSaveAsCategory] = useState<boolean>(false);
+
+  useEffect(() => {
+    getCustomCategories().then(setCustomCategories);
+  }, []);
+
+  // Built-in categories plus any the user has permanently saved on this device,
+  // with "Other" always pinned last as the fallback/catch-all.
+  const allCategories = useMemo(() => {
+    const base = CATEGORIES.slice(0, -1);
+    const extras = customCategories.filter(
+      (cc) => !base.some((b) => b.toLowerCase() === cc.toLowerCase())
+    );
+    return [...base, ...extras, 'Other'];
+  }, [customCategories]);
 
   const toDateInputString = (d: Date): string =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -309,16 +339,32 @@ export default function ExpensesScreen() {
     const descriptionOptional = newExpense.type === 'EXPENSE' && !!newExpense.category;
     if (!newExpense.description.trim() && !descriptionOptional) { showAlert('error', 'Error', 'Enter a description'); return; }
     const finalDescription = newExpense.description.trim() || newExpense.category;
+
+    // If "Other" was picked and the user opted to save it, the typed description
+    // becomes a real category from now on instead of being tagged generically "Other".
+    const isOtherWithSave = !isIncome && newExpense.category === 'Other' && saveAsCategory && !!newExpense.description.trim();
+    const resolvedCategory = isOtherWithSave ? formatCategoryName(newExpense.description) : newExpense.category;
+    const finalCategory = isIncome ? 'Income' : resolvedCategory;
+
+    const persistCategoryIfNeeded = async (): Promise<void> => {
+      if (isOtherWithSave) {
+        const updated = await addCustomCategory(resolvedCategory);
+        setCustomCategories(updated);
+      }
+    };
+
     setAdding(true);
     try {
       await addPersonalExpense({
         amount: parseFloat(newExpense.amount),
         description: finalDescription,
-        category: isIncome ? 'Income' : newExpense.category,
+        category: finalCategory,
         type: newExpense.type,
       });
       setShowAdd(false);
       setNewExpense({ amount: '', description: '', category: 'Food', type: 'EXPENSE' });
+      setSaveAsCategory(false);
+      await persistCategoryIfNeeded();
       loadData();
       showAlert('success', isIncome ? 'Income Added' : 'Expense Added', `GHS ${parseFloat(newExpense.amount).toFixed(2)} recorded.`);
     } catch (e) {
@@ -333,11 +379,13 @@ export default function ExpensesScreen() {
             await addPersonalExpense({
               amount: parseFloat(newExpense.amount),
               description: finalDescription,
-              category: isIncome ? 'Income' : newExpense.category,
+              category: finalCategory,
               type: newExpense.type,
               overrideLimit: true,
             });
             setNewExpense({ amount: '', description: '', category: 'Food', type: 'EXPENSE' });
+            setSaveAsCategory(false);
+            await persistCategoryIfNeeded();
             loadData();
             showAlert('success', 'Expense Added', 'Your expense was added, exceeding the spending limit.');
           } catch (retryError) {
@@ -609,9 +657,11 @@ export default function ExpensesScreen() {
             </View>
 
             {/* Custom Range picker — modal instead of inline expansion */}
-            <Modal visible={showCustomModal} animationType="slide" transparent>
+            <Modal visible={showCustomModal} animationType="slide" transparent onRequestClose={() => setShowCustomModal(false)}>
               <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                <View style={styles.modalBg}>
+                <TouchableWithoutFeedback onPress={() => setShowCustomModal(false)}>
+                  <View style={styles.modalBg}>
+                  <TouchableWithoutFeedback onPress={() => {}}>
                   <View style={styles.modal}>
                     <Text style={styles.modalTitle}>Custom Date Range</Text>
                     <View style={styles.customRow}>
@@ -661,7 +711,9 @@ export default function ExpensesScreen() {
                       <Text style={styles.cancelText}>Close</Text>
                     </TouchableOpacity>
                   </View>
-                </View>
+                  </TouchableWithoutFeedback>
+                  </View>
+                </TouchableWithoutFeedback>
               </KeyboardAvoidingView>
             </Modal>
 
@@ -756,9 +808,11 @@ export default function ExpensesScreen() {
       </ScrollView>
 
       {/* Add Transaction Modal */}
-      <Modal visible={showAdd} animationType="slide" transparent>
+      <Modal visible={showAdd} animationType="slide" transparent onRequestClose={() => setShowAdd(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableWithoutFeedback onPress={() => setShowAdd(false)}>
           <View style={styles.modalBg}>
+            <TouchableWithoutFeedback onPress={() => {}}>
             <View style={styles.modal}>
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 <Text style={styles.modalTitle}>
@@ -776,7 +830,7 @@ export default function ExpensesScreen() {
                       <TouchableOpacity
                         key={t}
                         style={[styles.typeBtn, selected && styles.typeSel]}
-                        onPress={() => setNewExpense({ ...newExpense, type: t, description: '', category: 'Food' })}
+                        onPress={() => { setNewExpense({ ...newExpense, type: t, description: '', category: 'Food' }); setSaveAsCategory(false); }}
                       >
                         <Ionicons name={icon} size={16} color={selected ? colors.buttonDarkText : colors.muted} style={{ marginRight: 6 }} />
                         <Text style={[styles.typeText, selected && styles.typeTextSel]}>
@@ -825,12 +879,27 @@ export default function ExpensesScreen() {
                   <>
                     <Text style={styles.label}>Category</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 4, marginBottom: 8 }}>
-                      {CATEGORIES.map((cat) => (
-                        <TouchableOpacity key={cat} style={[styles.catChip, newExpense.category === cat && styles.catChipSel]} onPress={() => setNewExpense({ ...newExpense, category: cat })}>
+                      {allCategories.map((cat) => (
+                        <TouchableOpacity
+                          key={cat}
+                          style={[styles.catChip, newExpense.category === cat && styles.catChipSel]}
+                          onPress={() => { setNewExpense({ ...newExpense, category: cat }); if (cat !== 'Other') setSaveAsCategory(false); }}
+                        >
                           <Text style={[styles.catChipText, newExpense.category === cat && styles.catChipTextSel]}>{cat}</Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
+
+                    {newExpense.category === 'Other' && newExpense.description.trim().length > 0 && (
+                      <TouchableOpacity style={styles.saveCategoryRow} onPress={() => setSaveAsCategory((v) => !v)} activeOpacity={0.7}>
+                        <View style={[styles.saveCategoryCheckbox, saveAsCategory && styles.saveCategoryCheckboxChecked]}>
+                          {saveAsCategory && <Ionicons name="checkmark" size={13} color={colors.buttonDarkText} />}
+                        </View>
+                        <Text style={styles.saveCategoryText}>
+                          Save "{formatCategoryName(newExpense.description)}" as a category for next time
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </>
                 )}
 
@@ -846,24 +915,28 @@ export default function ExpensesScreen() {
                         {isIncome ? 'Add Income' : 'Save Expense'}
                       </Text>}
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowAdd(false)}>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => { setShowAdd(false); setSaveAsCategory(false); }}>
                   <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>
+            </TouchableWithoutFeedback>
           </View>
+          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
 
       {/* Set Limit Modal */}
-      <Modal visible={showLimit} animationType="slide" transparent>
+      <Modal visible={showLimit} animationType="slide" transparent onRequestClose={() => setShowLimit(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableWithoutFeedback onPress={() => setShowLimit(false)}>
           <View style={styles.modalBg}>
+            <TouchableWithoutFeedback onPress={() => {}}>
             <View style={styles.modal}>
               <Text style={styles.modalTitle}>Set Spending Limit</Text>
               <Text style={styles.label}>Category</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 4, marginBottom: 8 }}>
-                {CATEGORIES.map((cat) => (
+                {allCategories.map((cat) => (
                   <TouchableOpacity key={cat} style={[styles.catChip, newLimit.category === cat && styles.catChipSel]} onPress={() => setNewLimit({ ...newLimit, category: cat })}>
                     <Text style={[styles.catChipText, newLimit.category === cat && styles.catChipTextSel]}>{cat}</Text>
                   </TouchableOpacity>
@@ -878,7 +951,9 @@ export default function ExpensesScreen() {
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
             </View>
+            </TouchableWithoutFeedback>
           </View>
+          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
     </View>

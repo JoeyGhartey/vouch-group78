@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput, Modal,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, TouchableWithoutFeedback,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -194,13 +194,15 @@ export default function AdminScreen({ navigation }: Props) {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      <Modal visible={showResolve} animationType="slide" transparent>
+      <Modal visible={showResolve} animationType="slide" transparent onRequestClose={() => setShowResolve(false)}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
+          <TouchableWithoutFeedback onPress={() => setShowResolve(false)}>
           <View style={styles.modalBg}>
             <ScrollView style={{ width: '100%' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }} keyboardShouldPersistTaps="handled">
+              <TouchableWithoutFeedback onPress={() => {}}>
               <View style={styles.modal}>
                 <Text style={styles.modalTitle}>Resolve Dispute</Text>
                 {selectedDispute && (
@@ -256,8 +258,10 @@ export default function AdminScreen({ navigation }: Props) {
                   <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
               </View>
+              </TouchableWithoutFeedback>
             </ScrollView>
           </View>
+          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
     </View>

@@ -71,7 +71,7 @@ export const AppAlertHost: React.FC<{ children: React.ReactNode }> = ({ children
     <AlertContext.Provider value={showAlert}>
       {children}
       <Modal visible={alert.visible} transparent animationType="none">
-        <TouchableWithoutFeedback onPress={alert.type === 'error' ? dismiss : undefined}>
+        <TouchableWithoutFeedback onPress={dismiss}>
           <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
             <Animated.View style={[styles.card, { borderLeftColor: accentColor, transform: [{ scale: scaleAnim }] }]}>
               <View style={styles.header}>

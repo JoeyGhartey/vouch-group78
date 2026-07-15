@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,25 +38,54 @@ const getPasswordStrength = (pwd: string, c: ColorScheme): { score: number; labe
   return { score: 4, label: 'Strong', color: c.success };
 };
 
+const HERO_TEXT_MUTED = '#8a8f98';
+
 const createStyles = (c: ColorScheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
-  scroll: { flexGrow: 1, padding: 24, paddingTop: 60 },
-  logoSection: { alignItems: 'center', marginBottom: 32 },
-  logoBox: {
-    width: 64, height: 64, borderRadius: 20,
-    backgroundColor: c.dark, justifyContent: 'center', alignItems: 'center', marginBottom: 12,
+  scroll: { flexGrow: 1, paddingBottom: 32 },
+  heroSection: {
+    backgroundColor: '#000000',
+    paddingTop: 68, paddingBottom: 40, paddingHorizontal: 28,
+    borderBottomRightRadius: 64,
   },
-  logoText: { fontSize: 32, fontWeight: '900', color: c.accent },
-  logoName: { fontSize: 24, fontWeight: '900', color: c.dark, letterSpacing: 6 },
-  logoSub: { fontSize: 12, color: c.muted, marginTop: 4 },
-  form: { backgroundColor: c.surface, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: c.border },
-  formTitle: { fontSize: 20, fontWeight: '700', color: c.dark, marginBottom: 4 },
-  formSub: { fontSize: 13, color: c.muted, marginBottom: 16 },
-  row: { flexDirection: 'row', gap: 10 },
+  logoRow: { flexDirection: 'row', alignItems: 'center' },
+  logoImage: { width: 44, height: 48, marginRight: 10 },
+  logoName: { fontSize: 15, fontWeight: '800', color: c.accent, letterSpacing: 4 },
+  headline: {
+    fontSize: 34, fontWeight: '800', color: '#FFFFFF',
+    marginTop: 22, letterSpacing: -0.8, lineHeight: 38, maxWidth: '85%',
+  },
+  logoSub: { fontSize: 13, color: HERO_TEXT_MUTED, marginTop: 8 },
+  form: {
+    backgroundColor: c.surface, borderTopLeftRadius: 4, borderTopRightRadius: 28,
+    borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
+    padding: 22, paddingTop: 20,
+    marginHorizontal: 16, marginTop: -20,
+    borderWidth: 1, borderColor: c.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12, shadowRadius: 20, elevation: 8,
+  },
+  row: { flexDirection: 'row', gap: 16 },
   half: { flex: 1 },
-  label: { fontSize: 12, color: c.muted, fontWeight: '600', marginBottom: 6, marginTop: 14 },
-  input: { backgroundColor: c.bg, borderRadius: 10, padding: 14, fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border },
-  inputDisabled: { backgroundColor: c.border, color: c.muted, opacity: 0.6 },
+  sectionHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginTop: 30, marginBottom: 10,
+    paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  sectionHeaderFirst: { marginTop: 4 },
+  sectionIconBox: {
+    width: 24, height: 24, borderRadius: 7,
+    backgroundColor: c.goldBgTint, justifyContent: 'center', alignItems: 'center',
+  },
+  sectionHeaderText: { fontSize: 12, fontWeight: '800', color: c.accentDark, letterSpacing: 1.2, textTransform: 'uppercase' },
+  label: { fontSize: 11, color: c.muted, fontWeight: '700', marginBottom: 6, marginTop: 18, letterSpacing: 0.6, textTransform: 'uppercase' },
+  labelFirst: { marginTop: 0 },
+  input: {
+    backgroundColor: 'transparent', borderRadius: 0, paddingVertical: 10, paddingHorizontal: 2,
+    fontSize: 16, color: c.dark, borderBottomWidth: 1.5, borderColor: c.border,
+  },
+  inputDisabled: { color: c.muted, opacity: 0.6 },
+
   providerRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
   providerBtn: {
     flex: 1, padding: 13, borderRadius: 10,
@@ -75,8 +104,8 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   // Checkbox
   checkboxRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    marginTop: 10, padding: 12, borderRadius: 10,
-    backgroundColor: c.bg, borderWidth: 1, borderColor: c.border,
+    marginTop: 16, padding: 12, borderRadius: 12,
+    backgroundColor: c.goldBgTint, borderWidth: 1, borderColor: c.border,
   },
   checkbox: {
     width: 20, height: 20, borderRadius: 5,
@@ -88,17 +117,23 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   checkboxLabelChecked: { color: c.dark, fontWeight: '600' },
 
   // Password strength
-  strengthRow: { flexDirection: 'row', gap: 4, marginTop: 8 },
+  strengthRow: { flexDirection: 'row', gap: 4, marginTop: 10 },
   strengthBar: { flex: 1, height: 4, borderRadius: 4, backgroundColor: c.border },
   strengthLabel: { fontSize: 11, fontWeight: '600', marginTop: 4 },
-  rulesBox: { marginTop: 8, gap: 3 },
-  ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  rulesBox: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, rowGap: 6 },
+  ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '50%' },
   ruleDot: { width: 6, height: 6, borderRadius: 3 },
   ruleText: { fontSize: 11 },
+  matchText: { fontSize: 11, fontWeight: '600', marginTop: 6 },
 
-  btn: { backgroundColor: c.buttonDark, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
+  btn: {
+    backgroundColor: c.buttonDark, borderRadius: 12, padding: 16,
+    alignItems: 'center', marginTop: 28,
+    shadowColor: c.accent, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 10, elevation: 4,
+  },
   btnText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700' },
-  linkBtn: { alignItems: 'center', marginTop: 20 },
+  linkBtn: { alignItems: 'center', marginTop: 18 },
   linkText: { color: c.muted, fontSize: 14 },
   linkBold: { color: c.accent, fontWeight: '700' },
 });
@@ -116,7 +151,7 @@ export default function RegisterScreen({ navigation }: Props) {
   const [momoNumber, setMomoNumber] = useState<string>('');
   const [momoSameAsPhone, setMomoSameAsPhone] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
-  const { signIn } = useAuth();
+  const { signIn, setJustRegistered } = useAuth();
   const { showAlert } = useAppAlert();
 
   const strength = getPasswordStrength(password, colors);
@@ -141,10 +176,15 @@ export default function RegisterScreen({ navigation }: Props) {
 
   // Keep MoMo number in sync if phone changes while checkbox is checked
   const handlePhoneChange = (value: string): void => {
-    setPhone(value);
+    const digitsOnly = value.replace(/[^0-9]/g, '').slice(0, 10);
+    setPhone(digitsOnly);
     if (momoSameAsPhone) {
-      setMomoNumber(value);
+      setMomoNumber(digitsOnly);
     }
+  };
+
+  const handleMomoNumberChange = (value: string): void => {
+    setMomoNumber(value.replace(/[^0-9]/g, '').slice(0, 10));
   };
 
   const handleRegister = async (): Promise<void> => {
@@ -172,8 +212,10 @@ export default function RegisterScreen({ navigation }: Props) {
         firstName, lastName, phone, email, password,
         momoProvider, momoNumber: momoNumber || phone,
       }) as { token: string; [key: string]: unknown };
+      setJustRegistered(true);
       await signIn(response);
     } catch (error) {
+      setJustRegistered(false);
       showAlert('error', 'Registration Failed', (error as Error).message || 'Could not create account');
     } finally {
       setLoading(false);
@@ -186,27 +228,32 @@ export default function RegisterScreen({ navigation }: Props) {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-        {/* Logo */}
-        <View style={styles.logoSection}>
-          <View style={styles.logoBox}>
-            <Text style={styles.logoText}>V</Text>
+        {/* Hero */}
+        <View style={styles.heroSection}>
+          <View style={styles.logoRow}>
+            <Image source={require('../../assets/logo.png')} style={styles.logoImage} resizeMode="contain" />
+            <Text style={styles.logoName}>VOUCH</Text>
           </View>
-          <Text style={styles.logoName}>VOUCH</Text>
+          <Text style={styles.headline}>Join your circle.</Text>
           <Text style={styles.logoSub}>Inner Circle Lending</Text>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
-          <Text style={styles.formTitle}>Create account</Text>
-          <Text style={styles.formSub}>Join Vouch and start lending with trust</Text>
+          <View style={[styles.sectionHeader, styles.sectionHeaderFirst]}>
+            <View style={styles.sectionIconBox}>
+              <Ionicons name="person-outline" size={13} color={colors.accentDark} />
+            </View>
+            <Text style={styles.sectionHeaderText}>Personal Details</Text>
+          </View>
 
           <View style={styles.row}>
             <View style={styles.half}>
-              <Text style={styles.label}>First Name *</Text>
+              <Text style={[styles.label, styles.labelFirst]}>First Name *</Text>
               <TextInput style={styles.input} placeholder="First name" placeholderTextColor={colors.muted} value={firstName} onChangeText={setFirstName} />
             </View>
             <View style={styles.half}>
-              <Text style={styles.label}>Last Name *</Text>
+              <Text style={[styles.label, styles.labelFirst]}>Last Name *</Text>
               <TextInput style={styles.input} placeholder="Last name" placeholderTextColor={colors.muted} value={lastName} onChangeText={setLastName} />
             </View>
           </View>
@@ -219,12 +266,20 @@ export default function RegisterScreen({ navigation }: Props) {
             value={phone}
             onChangeText={handlePhoneChange}
             keyboardType="phone-pad"
+            maxLength={10}
           />
 
           <Text style={styles.label}>Email</Text>
           <TextInput style={styles.input} placeholder="your@email.com" placeholderTextColor={colors.muted} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
 
-          <Text style={styles.label}>MoMo Provider</Text>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIconBox}>
+              <Ionicons name="wallet-outline" size={13} color={colors.accentDark} />
+            </View>
+            <Text style={styles.sectionHeaderText}>Mobile Money</Text>
+          </View>
+
+          <Text style={[styles.label, styles.labelFirst]}>MoMo Provider</Text>
           <View style={styles.providerRow}>
             {providers.map((p) => {
               const providerColors = PROVIDER_STYLES[p];
@@ -255,18 +310,26 @@ export default function RegisterScreen({ navigation }: Props) {
             </Text>
           </TouchableOpacity>
 
-          <Text style={styles.label}>MoMo Number</Text>
+          <Text style={[styles.label, styles.labelFirst]}>MoMo Number</Text>
           <TextInput
             style={[styles.input, momoSameAsPhone && styles.inputDisabled]}
             placeholder="Same as phone if left empty"
             placeholderTextColor={colors.muted}
             value={momoNumber}
-            onChangeText={setMomoNumber}
+            onChangeText={handleMomoNumberChange}
             keyboardType="phone-pad"
             editable={!momoSameAsPhone}
+            maxLength={10}
           />
 
-          <Text style={styles.label}>Password *</Text>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIconBox}>
+              <Ionicons name="lock-closed-outline" size={13} color={colors.accentDark} />
+            </View>
+            <Text style={styles.sectionHeaderText}>Security</Text>
+          </View>
+
+          <Text style={[styles.label, styles.labelFirst]}>Password *</Text>
           <TextInput
             style={styles.input}
             placeholder="At least 6 characters"
@@ -317,6 +380,11 @@ export default function RegisterScreen({ navigation }: Props) {
             onChangeText={setConfirmPassword}
             secureTextEntry
           />
+          {confirmPassword.length > 0 && (
+            <Text style={[styles.matchText, { color: confirmPassword === password ? colors.success : colors.danger }]}>
+              {confirmPassword === password ? 'Passwords match' : "Passwords don't match"}
+            </Text>
+          )}
 
           <TouchableOpacity style={[styles.btn, loading && { opacity: 0.6 }]} onPress={handleRegister} disabled={loading}>
             {loading ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Create Account</Text>}
@@ -326,8 +394,6 @@ export default function RegisterScreen({ navigation }: Props) {
             <Text style={styles.linkText}>Already have an account? <Text style={styles.linkBold}>Log In</Text></Text>
           </TouchableOpacity>
         </View>
-
-        <View style={{ height: 40 }} />
       </ScrollView>
     </KeyboardAvoidingView>
   );

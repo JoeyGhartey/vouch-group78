@@ -15,6 +15,8 @@ interface UserProfile {
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
+  justRegistered: boolean;
+  setJustRegistered: (value: boolean) => void;
   signIn: (loginResponse: { token: string; [key: string]: unknown }) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -24,6 +26,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [justRegistered, setJustRegistered] = useState<boolean>(false);
 
   const syncPushToken = async (): Promise<void> => {
     try {
@@ -68,7 +71,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, justRegistered, setJustRegistered, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

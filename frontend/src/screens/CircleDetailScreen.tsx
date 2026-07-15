@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput, Modal,
-  KeyboardAvoidingView, Platform, Dimensions,
+  KeyboardAvoidingView, Platform, Dimensions, TouchableWithoutFeedback,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -193,15 +193,41 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   input: { backgroundColor: c.bg, borderRadius: 10, padding: 14, fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border },
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
   cancelBtnText: { color: c.muted, fontSize: 14 },
-  memberDetailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border },
-  memberDetailLabel: { fontSize: 13, color: c.muted },
-  memberDetailValue: { fontSize: 13, fontWeight: '700', color: c.dark },
-  memberDetailScore: { fontSize: 32, fontWeight: '800', color: c.dark, textAlign: 'center', marginVertical: 4 },
-  memberDetailScoreLabel: { fontSize: 11, color: c.muted, textAlign: 'center', marginBottom: 16 },
-  memberDetailAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: c.buttonDark, justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 8 },
-  memberDetailAvatarText: { color: c.buttonDarkText, fontSize: 20, fontWeight: '700' },
-  memberDetailName: { fontSize: 17, fontWeight: '700', color: c.dark, textAlign: 'center', marginBottom: 2 },
-  memberDetailRole: { fontSize: 12, color: c.muted, textAlign: 'center', marginBottom: 12 },
+  memberModal: {
+    backgroundColor: c.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    paddingBottom: 28, overflow: 'hidden',
+  },
+  memberModalHandle: {
+    width: 40, height: 4, borderRadius: 2, backgroundColor: c.border,
+    alignSelf: 'center', marginTop: 10, marginBottom: 4,
+  },
+  memberDetailHero: {
+    alignItems: 'center', backgroundColor: c.goldBgTint,
+    paddingTop: 20, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  memberDetailAvatar: {
+    width: 68, height: 68, borderRadius: 34, backgroundColor: c.buttonDark,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 10,
+    borderWidth: 3, borderColor: c.accent,
+  },
+  memberDetailAvatarText: { color: c.buttonDarkText, fontSize: 24, fontWeight: '700' },
+  memberDetailName: { fontSize: 18, fontWeight: '800', color: c.dark, textAlign: 'center', marginBottom: 8 },
+  memberRoleBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: c.surface, borderWidth: 1, borderColor: c.accent,
+    borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5,
+  },
+  memberRoleBadgeText: { fontSize: 11, fontWeight: '700', color: c.accentDark, letterSpacing: 0.4 },
+  memberScoreSection: { alignItems: 'center', paddingVertical: 20 },
+  memberDetailScore: { fontSize: 40, fontWeight: '900', color: c.dark },
+  memberDetailScoreLabel: { fontSize: 11, color: c.muted, fontWeight: '700', letterSpacing: 0.8, marginTop: 2 },
+  memberStatGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 20 },
+  memberPhoneRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginHorizontal: 20, marginTop: 16, padding: 14,
+    backgroundColor: c.bg, borderRadius: 12, borderWidth: 1, borderColor: c.border,
+  },
+  memberPhoneText: { fontSize: 14, fontWeight: '600', color: c.dark },
 });
 
 export default function CircleDetailScreen({ route, navigation }: Props) {
@@ -232,20 +258,18 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
 
   const loadData = async (): Promise<void> => {
     try {
-      const [circleData, loansData, expensesData, balancesData] = await Promise.all([
+      const [circleData, loansData, expensesData, balancesData, insightsData] = await Promise.all([
         getCircle(circleId),
         getCircleLoans(circleId).catch(() => []),
         getCircleExpenses(circleId).catch(() => []),
         getCircleBalances(circleId).catch(() => ({ balances: {} })),
+        getCircleInsights(circleId).catch(() => null),
       ]);
       setCircle(circleData as Circle);
       setLoans(loansData as Loan[]);
       setExpenses(expensesData as Expense[]);
       setBalances((balancesData as { balances: Record<string, number> }).balances || {});
-      try {
-        const insightsData = await getCircleInsights(circleId);
-        setInsights(insightsData as Insights);
-      } catch (e) {}
+      if (insightsData) setInsights(insightsData as Insights);
     } catch (error) {
       console.error('Error loading circle:', error);
     } finally {
@@ -683,64 +707,96 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
       </ScrollView>
 
       {/* Invite Modal */}
-      <Modal visible={showInvite} animationType="slide" transparent>
+      <Modal visible={showInvite} animationType="slide" transparent onRequestClose={() => setShowInvite(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={styles.modalBg}>
-            <View style={styles.modal}>
-              <Text style={styles.modalTitle}>Invite to {circle.name}</Text>
-              <Text style={styles.label}>Phone Number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 0551234567"
-                placeholderTextColor={colors.muted}
-                value={invitePhone}
-                onChangeText={(text) => { setInvitePhone(text); setInviteError(''); }}
-                keyboardType="phone-pad"
-              />
-              {inviteError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{inviteError}</Text>}
-              <TouchableOpacity style={[styles.primaryBtn, { marginTop: 20 }, inviting && { opacity: 0.6 }]} onPress={handleInvite} disabled={inviting}>
-                {inviting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.primaryBtnText}>Send Invite</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowInvite(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
+          <TouchableWithoutFeedback onPress={() => setShowInvite(false)}>
+            <View style={styles.modalBg}>
+              <TouchableWithoutFeedback onPress={() => {}}>
+                <View style={styles.modal}>
+                  <Text style={styles.modalTitle}>Invite to {circle.name}</Text>
+                  <Text style={styles.label}>Phone Number</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. 0551234567"
+                    placeholderTextColor={colors.muted}
+                    value={invitePhone}
+                    onChangeText={(text) => { setInvitePhone(text); setInviteError(''); }}
+                    keyboardType="phone-pad"
+                  />
+                  {inviteError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{inviteError}</Text>}
+                  <TouchableOpacity style={[styles.primaryBtn, { marginTop: 20 }, inviting && { opacity: 0.6 }]} onPress={handleInvite} disabled={inviting}>
+                    {inviting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.primaryBtnText}>Send Invite</Text>}
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowInvite(false)}>
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableWithoutFeedback>
             </View>
-          </View>
+          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
 
       {/* Member Detail Modal */}
       <Modal visible={selectedMember !== null} animationType="slide" transparent onRequestClose={() => setSelectedMember(null)}>
-        <View style={styles.modalBg}>
-          <View style={styles.modal}>
-            {selectedMember && (
-              <>
-                <View style={styles.memberDetailAvatar}>
-                  <Text style={styles.memberDetailAvatarText}>{selectedMember.firstName[0]}{selectedMember.lastName[0]}</Text>
-                </View>
-                <Text style={styles.memberDetailName}>{selectedMember.firstName} {selectedMember.lastName}</Text>
-                <Text style={styles.memberDetailRole}>{selectedMember.memberRole === 'CREATOR' ? 'Admin' : 'Member'}</Text>
-                <Text style={styles.memberDetailScore}>{selectedMember.circleTrustScore?.toFixed(0)}</Text>
-                <Text style={styles.memberDetailScoreLabel}>Circle Trust Score</Text>
-                {([
-                  ['Phone', selectedMember.phone ?? '—'],
-                  ['Loans Given', selectedMember.loansGivenInCircle],
-                  ['Loans Received', selectedMember.loansReceivedInCircle],
-                  ['Repaid On Time', selectedMember.loansRepaidInCircle],
-                  ['Defaults', selectedMember.defaultsInCircle],
-                ] as [string, string | number][]).map(([label, value]) => (
-                  <View key={label} style={styles.memberDetailRow}>
-                    <Text style={styles.memberDetailLabel}>{label}</Text>
-                    <Text style={styles.memberDetailValue}>{value}</Text>
-                  </View>
-                ))}
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => setSelectedMember(null)}>
-                  <Text style={styles.cancelBtnText}>Close</Text>
-                </TouchableOpacity>
-              </>
-            )}
+        <TouchableWithoutFeedback onPress={() => setSelectedMember(null)}>
+          <View style={styles.modalBg}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={styles.memberModal}>
+                <View style={styles.memberModalHandle} />
+                {selectedMember && (
+                  <>
+                    <View style={styles.memberDetailHero}>
+                      <View style={styles.memberDetailAvatar}>
+                        <Text style={styles.memberDetailAvatarText}>{selectedMember.firstName[0]}{selectedMember.lastName[0]}</Text>
+                      </View>
+                      <Text style={styles.memberDetailName}>{selectedMember.firstName} {selectedMember.lastName}</Text>
+                      <View style={styles.memberRoleBadge}>
+                        <Ionicons name={selectedMember.memberRole === 'CREATOR' ? 'shield-checkmark' : 'person'} size={12} color={colors.accentDark} />
+                        <Text style={styles.memberRoleBadgeText}>
+                          {selectedMember.memberRole === 'CREATOR' ? 'ADMIN' : 'MEMBER'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.memberScoreSection}>
+                      <Text style={styles.memberDetailScore}>{selectedMember.circleTrustScore?.toFixed(0)}</Text>
+                      <Text style={styles.memberDetailScoreLabel}>CIRCLE TRUST SCORE</Text>
+                    </View>
+
+                    <View style={styles.memberStatGrid}>
+                      {([
+                        ['Loans Given', selectedMember.loansGivenInCircle, 'trending-up-outline', colors.accent],
+                        ['Loans Received', selectedMember.loansReceivedInCircle, 'trending-down-outline', colors.accent],
+                        ['Repaid On Time', selectedMember.loansRepaidInCircle, 'checkmark-done-outline', colors.success],
+                        ['Defaults', selectedMember.defaultsInCircle, 'warning-outline', colors.danger],
+                      ] as [string, string | number, keyof typeof Ionicons.glyphMap, string][]).map(([label, value, icon, color]) => (
+                        <View key={label} style={styles.statCard}>
+                          <View style={[styles.statCardIconBox, { backgroundColor: `${color}18` }]}>
+                            <Ionicons name={icon} size={18} color={color} />
+                          </View>
+                          <Text style={styles.statCardValue}>{value}</Text>
+                          <Text style={styles.statCardLabel}>{label}</Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    {selectedMember.phone && (
+                      <View style={styles.memberPhoneRow}>
+                        <Ionicons name="call-outline" size={16} color={colors.muted} />
+                        <Text style={styles.memberPhoneText}>{selectedMember.phone}</Text>
+                      </View>
+                    )}
+
+                    <TouchableOpacity style={styles.cancelBtn} onPress={() => setSelectedMember(null)}>
+                      <Text style={styles.cancelBtnText}>Close</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </TouchableWithoutFeedback>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </View>
   );

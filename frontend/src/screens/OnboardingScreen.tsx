@@ -9,6 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import { ColorScheme } from '../theme/colors';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { markOnboardingSeen } from '../utils/onboardingStorage';
+import { useAuth } from '../context/AuthContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Onboarding'>;
@@ -74,10 +75,12 @@ export default function OnboardingScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const scrollRef = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);
+  const { setJustRegistered } = useAuth();
 
   const finish = async (): Promise<void> => {
     await markOnboardingSeen();
-    navigation.replace('Login');
+    setJustRegistered(false);
+    navigation.replace('Main');
   };
 
   const handleNext = (): void => {

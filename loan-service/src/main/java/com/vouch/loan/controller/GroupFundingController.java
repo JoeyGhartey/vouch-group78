@@ -16,10 +16,20 @@ public class GroupFundingController {
     private final GroupFundingService groupFundingService;
 
     @PostMapping("/contribute")
-    public ResponseEntity<Map<String, Object>> contribute(Authentication auth, @RequestBody Map<String, Object> body) {
-        Long loanId = Long.valueOf(body.get("loanId").toString());
-        Double amount = Double.valueOf(body.get("amount").toString());
-        Double interestRate = Double.valueOf(body.get("interestRate").toString());
+    public ResponseEntity<Map<String, Object>> contribute(Authentication auth, @RequestBody(required = false) Map<String, Object> body) {
+        if (body == null || body.get("loanId") == null || body.get("amount") == null || body.get("interestRate") == null) {
+            throw new RuntimeException("loanId, amount and interestRate are required");
+        }
+        Long loanId;
+        Double amount;
+        Double interestRate;
+        try {
+            loanId = Long.valueOf(body.get("loanId").toString());
+            amount = Double.valueOf(body.get("amount").toString());
+            interestRate = Double.valueOf(body.get("interestRate").toString());
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("loanId, amount and interestRate must be valid numbers");
+        }
         return ResponseEntity.ok(groupFundingService.contributeToLoan(auth.getName(), loanId, amount, interestRate));
     }
 

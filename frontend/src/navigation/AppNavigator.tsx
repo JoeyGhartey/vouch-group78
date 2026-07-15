@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { View, Text } from 'react-native';
-import { hasSeenOnboarding } from '../utils/onboardingStorage';
+import { View, Text, Image } from 'react-native';
 
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -80,30 +79,36 @@ function MainTabs() {
 }
 
 export default function AppNavigator() {
-  const { user, loading } = useAuth();
+  const { user, loading, justRegistered } = useAuth();
   const { colors } = useTheme();
-  const [onboardingSeen, setOnboardingSeen] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    hasSeenOnboarding().then(setOnboardingSeen);
-  }, []);
-
-  if (loading || onboardingSeen === null) {
+  if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: colors.accent, fontSize: 36, fontWeight: 'bold' }}>VOUCH</Text>
+      <View style={{ flex: 1, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center' }}>
+        <Image
+          source={require('../../assets/logo.png')}
+          style={{ width: 88, height: 96, marginBottom: 14 }}
+          resizeMode="contain"
+        />
+        <Text style={{ color: colors.accent, fontSize: 15, fontWeight: '800', letterSpacing: 4 }}>VOUCH</Text>
       </View>
     );
   }
+
+  // Onboarding shows for every fresh signup, regardless of whether this
+  // device has seen it before (it's not a "first time on this phone" flag,
+  // it's a "you just created an account" flag).
+  const showOnboardingNow = justRegistered;
 
   return (
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{ headerShown: false }}
-        initialRouteName={!user ? (onboardingSeen ? 'Login' : 'Onboarding') : undefined}
+        initialRouteName={user ? (showOnboardingNow ? 'Onboarding' : 'Main') : 'Login'}
       >
         {user ? (
           <>
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="CircleDetail" component={CircleDetailScreen} />
@@ -115,7 +120,6 @@ export default function AppNavigator() {
           </>
         ) : (
           <>
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />

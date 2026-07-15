@@ -26,7 +26,7 @@ public class GroupFundingService {
     @Transactional
     public Map<String, Object> contributeToLoan(String phone, Long loanId, Double amount, Double interestRate) {
         Long lenderId = authServiceClient.getUserIdByPhone(phone);
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (lenderId.equals(loan.getBorrowerId())) {
@@ -219,7 +219,7 @@ public class GroupFundingService {
     @Transactional
     public Map<String, Object> signGroupAgreement(String phone, Long loanId) {
         Long signerId = authServiceClient.getUserIdByPhone(phone);
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (loan.getStatus() != Loan.LoanStatus.AGREEMENT_PENDING) {
@@ -273,7 +273,7 @@ public class GroupFundingService {
     @Transactional
     public Map<String, Object> disburseGroupLoan(String phone, Long loanId) {
         Long requesterId = authServiceClient.getUserIdByPhone(phone);
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (loan.getStatus() != Loan.LoanStatus.AGREEMENT_SIGNED) {

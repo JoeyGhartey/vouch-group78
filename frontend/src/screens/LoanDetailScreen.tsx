@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, TextInput, Modal,
+  ActivityIndicator, TextInput, Modal, TouchableWithoutFeedback,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -523,8 +523,10 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       </View>
 
       {/* Terms & Conditions Modal */}
-      <Modal visible={showTerms} animationType="slide" transparent>
+      <Modal visible={showTerms} animationType="slide" transparent onRequestClose={() => setShowTerms(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowTerms(false)}>
         <View style={styles.modalBg}>
+          <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Loan Agreement</Text>
             <Text style={styles.modalSub}>Please read and accept before signing</Text>
@@ -589,12 +591,16 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+          </TouchableWithoutFeedback>
         </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Fund Modal */}
-      <Modal visible={showFund} animationType="slide" transparent>
+      <Modal visible={showFund} animationType="slide" transparent onRequestClose={() => setShowFund(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowFund(false)}>
         <View style={styles.modalBg}>
+          <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Fund This Loan</Text>
             <Text style={styles.modalSub}>GHS {loan.amount} to {loan.borrowerName}</Text>
@@ -634,12 +640,16 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+          </TouchableWithoutFeedback>
         </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Counter-Offer Modal */}
-      <Modal visible={showCounterOffer} animationType="slide" transparent>
+      <Modal visible={showCounterOffer} animationType="slide" transparent onRequestClose={() => setShowCounterOffer(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowCounterOffer(false)}>
         <View style={styles.modalBg}>
+          <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Propose Different Rate</Text>
             <Text style={styles.modalSub}>Current rate: {loan.interestRate}%</Text>
@@ -659,12 +669,16 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+          </TouchableWithoutFeedback>
         </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Repay Modal */}
-      <Modal visible={showRepay} animationType="slide" transparent>
+      <Modal visible={showRepay} animationType="slide" transparent onRequestClose={() => setShowRepay(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowRepay(false)}>
         <View style={styles.modalBg}>
+          <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Repay Loan</Text>
             <Text style={styles.modalSub}>Outstanding: GHS {totalOwed.toFixed(2)}</Text>
@@ -684,12 +698,16 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+          </TouchableWithoutFeedback>
         </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Dispute Modal */}
-      <Modal visible={showDispute} animationType="slide" transparent>
+      <Modal visible={showDispute} animationType="slide" transparent onRequestClose={() => setShowDispute(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowDispute(false)}>
         <View style={styles.modalBg}>
+          <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Open Dispute</Text>
             <Text style={styles.label}>Reason *</Text>
@@ -717,7 +735,9 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+          </TouchableWithoutFeedback>
         </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       <View style={{ height: 40 }} />

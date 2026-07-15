@@ -57,7 +57,8 @@ public class AuthServiceClient {
     }
 
     public Double getUserTrustScore(Long userId) {
-        return ((Number) getUserInfo(userId).get("trustScore")).doubleValue();
+        Object trustScore = getUserInfo(userId).get("trustScore");
+        return trustScore instanceof Number ? ((Number) trustScore).doubleValue() : 50.0;
     }
 
     public void updateUserStats(Long userId, Double trustScore, Integer loansRepaidOnTime, Integer defaults) {

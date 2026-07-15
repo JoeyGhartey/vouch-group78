@@ -51,7 +51,8 @@ public class LoanService {
         if (Boolean.TRUE.equals(borrowerInfo.get("borrowingSuspended"))) {
             throw new RuntimeException("Your borrowing is currently suspended");
         }
-        Double trustScore = ((Number) borrowerInfo.get("trustScore")).doubleValue();
+        Object trustScoreRaw = borrowerInfo.get("trustScore");
+        double trustScore = trustScoreRaw instanceof Number ? ((Number) trustScoreRaw).doubleValue() : 50.0;
         if (trustScore < 20) {
             throw new RuntimeException("Your trust score is too low to borrow. Repay outstanding loans to recover.");
         }
@@ -82,8 +83,12 @@ public class LoanService {
         }
 
         LocalDateTime dueDate = null;
-        if (request.getDueDate() != null) {
-            dueDate = LocalDateTime.parse(request.getDueDate(), DateTimeFormatter.ISO_DATE_TIME);
+        if (request.getDueDate() != null && !request.getDueDate().isBlank()) {
+            try {
+                dueDate = LocalDateTime.parse(request.getDueDate(), DateTimeFormatter.ISO_DATE_TIME);
+            } catch (java.time.format.DateTimeParseException e) {
+                throw new RuntimeException("Invalid due date format. Expected an ISO date-time, e.g. 2026-08-01T00:00:00");
+            }
             if (dueDate.isBefore(LocalDateTime.now())) {
                 throw new RuntimeException("Due date cannot be in the past");
             }
@@ -119,7 +124,7 @@ public class LoanService {
     @Transactional
     public LoanResponse fundLoan(String phone, FundLoanRequest request) {
         Long lenderId = authServiceClient.getUserIdByPhone(phone);
-        Loan loan = loanRepository.findById(request.getLoanId())
+        Loan loan = loanRepository.findByIdForUpdate(request.getLoanId())
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (loan.getStatus() != Loan.LoanStatus.REQUESTED) {
@@ -164,7 +169,7 @@ public class LoanService {
     @Transactional
     public LoanResponse signAgreement(String phone, Long loanId) {
         Long signerId = authServiceClient.getUserIdByPhone(phone);
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (loan.getStatus() != Loan.LoanStatus.AGREEMENT_PENDING) {
@@ -204,7 +209,7 @@ public class LoanService {
     @Transactional
     public LoanResponse disburseLoan(String phone, Long loanId) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (loan.getStatus() != Loan.LoanStatus.AGREEMENT_SIGNED) {
@@ -259,7 +264,7 @@ public class LoanService {
     @Transactional
     public LoanResponse repayLoan(String phone, Long loanId, Double amount) {
         Long borrowerId = authServiceClient.getUserIdByPhone(phone);
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (!borrowerId.equals(loan.getBorrowerId())) {
@@ -326,7 +331,7 @@ public class LoanService {
     @Transactional
     public LoanResponse defaultLoan(String phone, Long loanId) {
         Long lenderId = authServiceClient.getUserIdByPhone(phone);
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (loan.getLenderId() == null || !lenderId.equals(loan.getLenderId())) {
@@ -369,7 +374,7 @@ public class LoanService {
     @Transactional
     public LoanResponse cancelLoan(String phone, Long loanId) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (!userId.equals(loan.getBorrowerId())) {
@@ -399,7 +404,7 @@ public class LoanService {
     @Transactional
     public LoanResponse rejectAgreement(Long loanId, String borrowerPhone) {
         Long borrowerId = authServiceClient.getUserIdByPhone(borrowerPhone);
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (!borrowerId.equals(loan.getBorrowerId())) {
@@ -433,7 +438,7 @@ public class LoanService {
     @Transactional
     public LoanResponse proposeCounterOffer(Long loanId, String borrowerPhone, Double newRate) {
         Long borrowerId = authServiceClient.getUserIdByPhone(borrowerPhone);
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (!borrowerId.equals(loan.getBorrowerId())) {
@@ -473,7 +478,7 @@ public class LoanService {
     @Transactional
     public LoanResponse respondToCounterOffer(Long loanId, String lenderPhone, boolean accept) {
         Long lenderId = authServiceClient.getUserIdByPhone(lenderPhone);
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (loan.getLenderId() == null || !lenderId.equals(loan.getLenderId())) {
@@ -626,7 +631,7 @@ public class LoanService {
 
     @Transactional
     public Map<String, Object> setLoanDisputed(Long loanId) {
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
         loan.setStatus(Loan.LoanStatus.DISPUTED);
         loanRepository.save(loan);
@@ -638,7 +643,7 @@ public class LoanService {
 
     @Transactional
     public Map<String, Object> completeDisbursement(Long loanId) {
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (loan.getStatus() != Loan.LoanStatus.AGREEMENT_SIGNED) {
@@ -682,11 +687,20 @@ public class LoanService {
 
     @Transactional
     public Map<String, Object> completeRepayment(Long loanId, Double amount) {
-        Loan loan = loanRepository.findById(loanId)
+        if (amount == null || amount <= 0) {
+            throw new RuntimeException("Repayment amount must be a positive number");
+        }
+
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
-        loan.setAmountRepaid(Math.round((loan.getAmountRepaid() + amount) * 100.0) / 100.0);
         double totalOwed = loan.getTotalRepaymentAmount() + loan.getOverdueInterestAccrued();
+        double alreadyOwed = totalOwed - loan.getAmountRepaid();
+        if (amount > alreadyOwed + 0.01) {
+            throw new RuntimeException("Repayment amount exceeds total owed. Owed: " + String.format("%.2f", alreadyOwed));
+        }
+
+        loan.setAmountRepaid(Math.round((loan.getAmountRepaid() + amount) * 100.0) / 100.0);
 
         expenseServiceClient.logTransaction(
                 loan.getBorrowerId(),
@@ -732,6 +746,7 @@ public class LoanService {
     private record InterestRateTier(String label, double maxRate) {}
 
     private InterestRateTier computeInterestRateTier(Double trustScore) {
+        if (trustScore == null) trustScore = 50.0;
         if (trustScore >= 90) return new InterestRateTier("Excellent (90+)", 5);
         if (trustScore >= 70) return new InterestRateTier("Good (70-89)", 10);
         if (trustScore >= 50) return new InterestRateTier("Fair (50-69)", 15);
