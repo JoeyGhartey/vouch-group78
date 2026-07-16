@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../context/ThemeContext';
 import { ColorScheme } from '../theme/colors';
+import { fonts } from '../theme/fonts';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { markOnboardingSeen } from '../utils/onboardingStorage';
 import { useAuth } from '../context/AuthContext';
@@ -49,7 +50,7 @@ const SLIDES: Slide[] = [
 const createStyles = (c: ColorScheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
   skipBtn: { position: 'absolute', top: 56, right: 20, zIndex: 10, padding: 8 },
-  skipText: { color: c.muted, fontSize: 14, fontWeight: '600' },
+  skipText: { color: c.muted, fontSize: 14, fontWeight: '600', fontFamily: fonts.semibold },
   slide: { width, flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   iconCircle: {
     width: 120, height: 120, borderRadius: 60,
@@ -58,7 +59,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     shadowColor: c.dark, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
   },
-  title: { fontSize: 24, fontWeight: '800', color: c.dark, textAlign: 'center', marginBottom: 16 },
+  title: { fontSize: 24, fontWeight: '800', fontFamily: fonts.extrabold, color: c.dark, textAlign: 'center', marginBottom: 16 },
   body: { fontSize: 15, color: c.muted, textAlign: 'center', lineHeight: 22, paddingHorizontal: 8 },
   footer: { paddingHorizontal: 24, paddingBottom: 40, paddingTop: 8 },
   dots: { flexDirection: 'row', justifyContent: 'center', marginBottom: 24 },
@@ -67,7 +68,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   nextBtn: {
     backgroundColor: c.buttonDark, borderRadius: 12, padding: 16, alignItems: 'center',
   },
-  nextText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700' },
+  nextText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700', fontFamily: fonts.bold },
 });
 
 export default function OnboardingScreen({ navigation }: Props) {

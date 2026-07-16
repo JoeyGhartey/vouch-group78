@@ -10,8 +10,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,8 +40,8 @@ public class LoanService {
 
     @Transactional
     public LoanResponse requestLoan(String phone, LoanRequest request) {
-        Long borrowerId = authServiceClient.getUserIdByPhone(phone);
-        Map<String, Object> borrowerInfo = authServiceClient.getUserInfo(borrowerId);
+        Map<String, Object> borrowerInfo = authServiceClient.getUserInfoByPhone(phone);
+        Long borrowerId = ((Number) borrowerInfo.get("id")).longValue();
         Circle circle = circleRepository.findById(request.getCircleId())
                 .orElseThrow(() -> new RuntimeException("Circle not found"));
 
@@ -535,8 +537,10 @@ public class LoanService {
         Circle circle = circleRepository.findById(circleId)
                 .orElseThrow(() -> new RuntimeException("Circle not found"));
         circleService.validateMembership(circle, userId);
-        return loanRepository.findByCircle(circle).stream()
-                .map(l -> mapToLoanResponse(l, null))
+        List<Loan> loans = loanRepository.findByCircle(circle);
+        Map<Long, Map<String, Object>> users = fetchUsersForLoans(loans);
+        return loans.stream()
+                .map(l -> mapToLoanResponse(l, null, users))
                 .collect(Collectors.toList());
     }
 
@@ -545,22 +549,28 @@ public class LoanService {
         Circle circle = circleRepository.findById(circleId)
                 .orElseThrow(() -> new RuntimeException("Circle not found"));
         circleService.validateMembership(circle, userId);
-        return loanRepository.findByCircleAndStatus(circle, Loan.LoanStatus.REQUESTED).stream()
-                .map(l -> mapToLoanResponse(l, null))
+        List<Loan> loans = loanRepository.findByCircleAndStatus(circle, Loan.LoanStatus.REQUESTED);
+        Map<Long, Map<String, Object>> users = fetchUsersForLoans(loans);
+        return loans.stream()
+                .map(l -> mapToLoanResponse(l, null, users))
                 .collect(Collectors.toList());
     }
 
     public List<LoanResponse> getMyLoansAsBorrower(String phone) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
-        return loanRepository.findByBorrowerIdOrderByCreatedAtDesc(userId).stream()
-                .map(l -> mapToLoanResponse(l, null))
+        List<Loan> loans = loanRepository.findByBorrowerIdOrderByCreatedAtDesc(userId);
+        Map<Long, Map<String, Object>> users = fetchUsersForLoans(loans);
+        return loans.stream()
+                .map(l -> mapToLoanResponse(l, null, users))
                 .collect(Collectors.toList());
     }
 
     public List<LoanResponse> getMyLoansAsLender(String phone) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
-        return loanRepository.findByLenderIdOrderByCreatedAtDesc(userId).stream()
-                .map(l -> mapToLoanResponse(l, null))
+        List<Loan> loans = loanRepository.findByLenderIdOrderByCreatedAtDesc(userId);
+        Map<Long, Map<String, Object>> users = fetchUsersForLoans(loans);
+        return loans.stream()
+                .map(l -> mapToLoanResponse(l, null, users))
                 .collect(Collectors.toList());
     }
 
@@ -573,10 +583,14 @@ public class LoanService {
     }
 
     private void generateAgreement(Loan loan) {
-        String borrowerName = authServiceClient.getUserName(loan.getBorrowerId());
-        String borrowerPhone = authServiceClient.getUserPhone(loan.getBorrowerId());
-        String lenderName = authServiceClient.getUserName(loan.getLenderId());
-        String lenderPhone = authServiceClient.getUserPhone(loan.getLenderId());
+        Map<Long, Map<String, Object>> users = authServiceClient.getUsersInfo(
+                List.of(loan.getBorrowerId(), loan.getLenderId()));
+        Map<String, Object> borrowerInfo = users.get(loan.getBorrowerId());
+        Map<String, Object> lenderInfo = users.get(loan.getLenderId());
+        String borrowerName = AuthServiceClient.nameOf(borrowerInfo);
+        String borrowerPhone = borrowerInfo != null ? (String) borrowerInfo.get("phone") : null;
+        String lenderName = AuthServiceClient.nameOf(lenderInfo);
+        String lenderPhone = lenderInfo != null ? (String) lenderInfo.get("phone") : null;
 
         String terms = "This digital loan agreement is entered into by both parties voluntarily. " +
                 "The borrower agrees to repay the principal amount plus agreed interest by the specified due date. " +
@@ -753,11 +767,28 @@ public class LoanService {
         return new InterestRateTier("Low (<50)", 25);
     }
 
+    private Map<Long, Map<String, Object>> fetchUsersForLoans(List<Loan> loans) {
+        Set<Long> userIds = new HashSet<>();
+        for (Loan loan : loans) {
+            userIds.add(loan.getBorrowerId());
+            if (loan.getLenderId() != null) {
+                userIds.add(loan.getLenderId());
+            }
+        }
+        return authServiceClient.getUsersInfo(userIds);
+    }
+
     private LoanResponse mapToLoanResponse(Loan loan, String message) {
-        String borrowerName = authServiceClient.getUserName(loan.getBorrowerId());
-        String lenderName = loan.getLenderId() != null ? authServiceClient.getUserName(loan.getLenderId()) : null;
+        return mapToLoanResponse(loan, message, fetchUsersForLoans(List.of(loan)));
+    }
+
+    private LoanResponse mapToLoanResponse(Loan loan, String message, Map<Long, Map<String, Object>> users) {
+        Map<String, Object> borrowerInfo = users.get(loan.getBorrowerId());
+        Map<String, Object> lenderInfo = loan.getLenderId() != null ? users.get(loan.getLenderId()) : null;
+        String borrowerName = AuthServiceClient.nameOf(borrowerInfo);
+        String lenderName = AuthServiceClient.nameOf(lenderInfo);
         LoanAgreement agreement = loanAgreementRepository.findByLoan(loan).orElse(null);
-        InterestRateTier borrowerTier = computeInterestRateTier(authServiceClient.getUserTrustScore(loan.getBorrowerId()));
+        InterestRateTier borrowerTier = computeInterestRateTier(AuthServiceClient.trustScoreOf(borrowerInfo));
         return LoanResponse.builder()
                 .id(loan.getId())
                 .borrowerName(borrowerName)

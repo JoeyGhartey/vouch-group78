@@ -13,6 +13,7 @@ import {
   cancelLoan, defaultLoan, openDispute, getProfile,
   initializeDisbursement, initializeRepayment, verifyPayment,
   rejectAgreement, proposeCounterOffer, respondToCounterOffer,
+  getDisputeByLoan, escalateDispute,
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
@@ -54,6 +55,16 @@ interface Loan {
 
 interface Profile {
   id: number;
+}
+
+interface Dispute {
+  id: number;
+  status: string;
+  reason: string;
+  evidence?: string;
+  openedByName: string;
+  resolution?: string;
+  escalated?: boolean;
 }
 
 interface PaymentInitResponse {
@@ -190,6 +201,8 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   const [repayAmount, setRepayAmount] = useState<string>('');
   const [disputeReason, setDisputeReason] = useState<string>('');
   const [disputeEvidence, setDisputeEvidence] = useState<string>('');
+  const [dispute, setDispute] = useState<Dispute | null>(null);
+  const [escalating, setEscalating] = useState<boolean>(false);
   const confirmingRef = useRef(false);
 
   const loadData = async (): Promise<void> => {
@@ -197,6 +210,15 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       const [loanData, profileData] = await Promise.all([getLoan(loanId), getProfile()]);
       setLoan(loanData as Loan);
       setProfile(profileData as Profile);
+      if ((loanData as Loan).status === 'DISPUTED') {
+        try {
+          setDispute(await getDisputeByLoan(loanId) as Dispute);
+        } catch {
+          setDispute(null);
+        }
+      } else {
+        setDispute(null);
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -372,6 +394,25 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     }, 'Dispute opened.');
   };
 
+  const handleEscalate = async (): Promise<void> => {
+    const ok = await confirm(
+      'Escalate to Platform Admin',
+      "This bypasses your circle owner and sends the dispute straight to Vouch's platform team. Use this if you feel it isn't being handled fairly or quickly enough. Continue?",
+      'Escalate'
+    );
+    if (!ok) return;
+    setEscalating(true);
+    try {
+      await escalateDispute(dispute!.id);
+      showAlert('success', 'Escalated', "A platform admin has been notified and will review this dispute.");
+      loadData();
+    } catch (e) {
+      showAlert('error', 'Error', (e as Error).message);
+    } finally {
+      setEscalating(false);
+    }
+  };
+
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>;
   if (!loan) return <View style={styles.center}><Text style={{ color: colors.danger, fontSize: 16 }}>Loan not found</Text></View>;
 
@@ -388,6 +429,19 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
 
   const fmtDate = (d?: string): string =>
     d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+
+  const disputeStatusLabel = (d: Dispute): string => {
+    if (d.status === 'RESOLVED_BORROWER_FAVOR') return 'RESOLVED — BORROWER FAVOUR';
+    if (d.status === 'RESOLVED_LENDER_FAVOR') return 'RESOLVED — LENDER FAVOUR';
+    if (d.escalated) return 'ESCALATED — AWAITING ADMIN';
+    return 'OPEN — CIRCLE OWNER REVIEWING';
+  };
+
+  const disputeStatusColor = (d: Dispute): string => {
+    if (d.status.startsWith('RESOLVED')) return colors.success;
+    if (d.escalated) return colors.statusPurple;
+    return colors.warning;
+  };
 
   const details: [string, string][] = [
     ['Borrower', loan.borrowerName],
@@ -445,6 +499,44 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             GHS {loan.amountRepaid.toFixed(2)} / {(loan.totalRepaymentAmount + loan.overdueInterestAccrued).toFixed(2)}
           </Text>
           {totalOwed > 0 && <Text style={styles.remaining}>Remaining: GHS {totalOwed.toFixed(2)}</Text>}
+        </View>
+      )}
+
+      {dispute && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Dispute</Text>
+          <View style={[styles.badge, { backgroundColor: disputeStatusColor(dispute), alignSelf: 'flex-start', marginTop: 0, marginBottom: 12 }]}>
+            <Text style={styles.badgeText}>{disputeStatusLabel(dispute)}</Text>
+          </View>
+          <Text style={styles.rowLabel}>Opened by {dispute.openedByName}</Text>
+          <Text style={{ color: colors.dark, fontSize: 13, marginTop: 4, marginBottom: 10, lineHeight: 19 }}>{dispute.reason}</Text>
+          {dispute.evidence ? (
+            <>
+              <Text style={styles.rowLabel}>Evidence</Text>
+              <Text style={{ color: colors.dark, fontSize: 13, marginTop: 4, marginBottom: 10, lineHeight: 19 }}>{dispute.evidence}</Text>
+            </>
+          ) : null}
+          {dispute.status.startsWith('RESOLVED') && dispute.resolution && (
+            <>
+              <Text style={styles.rowLabel}>Resolution</Text>
+              <Text style={{ color: colors.dark, fontSize: 13, marginTop: 4, lineHeight: 19 }}>{dispute.resolution}</Text>
+            </>
+          )}
+          {!dispute.status.startsWith('RESOLVED') && dispute.escalated && (
+            <View style={styles.trustTierBanner}>
+              <Ionicons name="alert-circle-outline" size={16} color={colors.statusPurple} />
+              <Text style={styles.trustTierBannerText}>Escalated to a Vouch platform admin — your circle owner can no longer resolve this.</Text>
+            </View>
+          )}
+          {!dispute.status.startsWith('RESOLVED') && !dispute.escalated && (isBorrower || isLender) && (
+            <TouchableOpacity
+              style={[styles.outlineBtn, { marginTop: 4 }, escalating && { opacity: 0.6 }]}
+              onPress={handleEscalate}
+              disabled={escalating}
+            >
+              {escalating ? <ActivityIndicator color={colors.accent} /> : <Text style={styles.outlineText}>Escalate to Platform Admin</Text>}
+            </TouchableOpacity>
+          )}
         </View>
       )}
 

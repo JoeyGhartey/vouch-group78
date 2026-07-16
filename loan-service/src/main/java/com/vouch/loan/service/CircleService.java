@@ -232,8 +232,14 @@ public class CircleService {
 
     private CircleResponse mapToCircleResponse(Circle circle) {
         List<CircleMember> active = circleMemberRepository.findByCircleAndStatus(circle, CircleMember.MemberStatus.ACTIVE);
+        java.util.Set<Long> userIds = new java.util.HashSet<>();
+        for (CircleMember m : active) {
+            userIds.add(m.getUserId());
+        }
+        userIds.add(circle.getCreatorId());
+        Map<Long, Map<String, Object>> users = authServiceClient.getUsersInfo(userIds);
         List<CircleMemberResponse> members = active.stream().map(m -> {
-            Map<String, Object> userInfo = authServiceClient.getUserInfo(m.getUserId());
+            Map<String, Object> userInfo = users.getOrDefault(m.getUserId(), Map.of());
             return CircleMemberResponse.builder()
                     .userId(m.getUserId())
                     .firstName((String) userInfo.get("firstName"))
@@ -244,7 +250,7 @@ public class CircleService {
                     .loansReceivedInCircle(m.getLoansReceivedInCircle()).loansRepaidInCircle(m.getLoansRepaidInCircle())
                     .defaultsInCircle(m.getDefaultsInCircle()).build();
         }).collect(Collectors.toList());
-        String creatorName = authServiceClient.getUserName(circle.getCreatorId());
+        String creatorName = AuthServiceClient.nameOf(users.get(circle.getCreatorId()));
         return CircleResponse.builder().id(circle.getId()).name(circle.getName()).description(circle.getDescription())
                 .creatorName(creatorName).creatorId(circle.getCreatorId()).maxLoanAmount(circle.getMaxLoanAmount())
                 .groupFundingThreshold(circle.getGroupFundingThreshold()).minTrustScore(circle.getMinTrustScore())

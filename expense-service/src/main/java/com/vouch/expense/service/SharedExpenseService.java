@@ -55,7 +55,12 @@ public class SharedExpenseService {
         }
         expenseSplitRepository.saveAll(splits);
 
-        String payerName = authServiceClient.getUserName(paidById);
+        Set<Long> memberIds = new HashSet<>(participantIds);
+        for (ExpenseSplit s : splits) {
+            memberIds.add(s.getUserId());
+        }
+        Map<Long, Map<String, Object>> members = authServiceClient.getUsersInfo(memberIds);
+        String payerName = AuthServiceClient.nameOf(members.get(paidById));
         for (Long pid : participantIds) {
             if (!pid.equals(paidById)) {
                 notificationServiceClient.send(pid, "Shared Expense",
@@ -69,7 +74,7 @@ public class SharedExpenseService {
         response.put("totalAmount", expense.getTotalAmount()); response.put("paidBy", payerName);
         response.put("splits", splits.stream().map(s -> {
             Map<String, Object> sm = new HashMap<>();
-            sm.put("userId", s.getUserId()); sm.put("name", authServiceClient.getUserName(s.getUserId()));
+            sm.put("userId", s.getUserId()); sm.put("name", AuthServiceClient.nameOf(members.get(s.getUserId())));
             sm.put("amountOwed", s.getAmountOwed()); sm.put("settled", s.getSettled()); return sm;
         }).collect(Collectors.toList()));
         response.put("message", "Shared expense created successfully");
@@ -78,11 +83,17 @@ public class SharedExpenseService {
 
     public List<Map<String, Object>> getCircleExpenses(String phone, Long circleId) {
         authServiceClient.getUserIdByPhone(phone);
-        return sharedExpenseRepository.findByCircleIdOrderByCreatedAtDesc(circleId).stream().map(expense -> {
+        List<SharedExpense> expenses = sharedExpenseRepository.findByCircleIdOrderByCreatedAtDesc(circleId);
+        Set<Long> payerIds = new HashSet<>();
+        for (SharedExpense expense : expenses) {
+            payerIds.add(expense.getPaidById());
+        }
+        Map<Long, Map<String, Object>> payers = authServiceClient.getUsersInfo(payerIds);
+        return expenses.stream().map(expense -> {
             Map<String, Object> map = new HashMap<>();
             map.put("expenseId", expense.getId()); map.put("description", expense.getDescription());
             map.put("totalAmount", expense.getTotalAmount()); map.put("category", expense.getCategory());
-            map.put("paidBy", authServiceClient.getUserName(expense.getPaidById()));
+            map.put("paidBy", AuthServiceClient.nameOf(payers.get(expense.getPaidById())));
             map.put("paidById", expense.getPaidById());
             map.put("createdAt", expense.getCreatedAt());
             map.put("splits", expense.getSplits().stream().map(s -> {
@@ -103,11 +114,22 @@ public class SharedExpenseService {
         List<SharedExpense> expenses = sharedExpenseRepository.findByCircleId(circleId);
         Map<String, Double> balances = new HashMap<>();
 
+        Set<Long> userIds = new HashSet<>();
         for (SharedExpense expense : expenses) {
-            String payerName = authServiceClient.getUserName(expense.getPaidById());
+            userIds.add(expense.getPaidById());
             for (ExpenseSplit split : expense.getSplits()) {
                 if (!split.getSettled() && !split.getUserId().equals(expense.getPaidById())) {
-                    String owerName = authServiceClient.getUserName(split.getUserId());
+                    userIds.add(split.getUserId());
+                }
+            }
+        }
+        Map<Long, Map<String, Object>> users = authServiceClient.getUsersInfo(userIds);
+
+        for (SharedExpense expense : expenses) {
+            String payerName = AuthServiceClient.nameOf(users.get(expense.getPaidById()));
+            for (ExpenseSplit split : expense.getSplits()) {
+                if (!split.getSettled() && !split.getUserId().equals(expense.getPaidById())) {
+                    String owerName = AuthServiceClient.nameOf(users.get(split.getUserId()));
                     String key = owerName + " → " + payerName;
                     balances.merge(key, split.getAmountOwed(), Double::sum);
                 }

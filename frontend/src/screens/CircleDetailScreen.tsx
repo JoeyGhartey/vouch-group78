@@ -12,7 +12,7 @@ import { PieChart } from 'react-native-chart-kit';
 import {
   getCircle, inviteMember, leaveCircle,
   getCircleLoans, getCircleExpenses, getCircleBalances, getCircleInsights, deleteSharedExpense,
-  requestPayment, confirmPayment,
+  requestPayment, confirmPayment, getCircleDisputes, resolveDispute,
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
@@ -45,6 +45,21 @@ interface Circle {
   memberCount: number;
   maxLoanAmount: number;
   members: CircleMember[];
+  creatorId: number;
+}
+
+interface Dispute {
+  id: number;
+  loanId: number;
+  loanAmount: number;
+  borrowerName: string;
+  lenderName: string;
+  openedByName: string;
+  reason: string;
+  evidence?: string;
+  status: string;
+  escalated?: boolean;
+  createdAt: string;
 }
 
 interface Loan {
@@ -193,6 +208,25 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   input: { backgroundColor: c.bg, borderRadius: 10, padding: 14, fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border },
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
   cancelBtnText: { color: c.muted, fontSize: 14 },
+  modalSub: { fontSize: 13, color: c.muted, textAlign: 'center', marginTop: -10, marginBottom: 16 },
+  disputeCard: { backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 12 },
+  disputeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  disputeBadge: { backgroundColor: c.dangerBgTint, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  disputeBadgeText: { fontSize: 10, fontWeight: '800', color: c.danger },
+  disputeDate: { fontSize: 12, color: c.muted },
+  disputeAmount: { fontSize: 20, fontWeight: '800', color: c.dark, marginBottom: 12 },
+  partiesRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  partyItem: { flex: 1 },
+  partyLabel: { fontSize: 11, color: c.muted, fontWeight: '600', marginBottom: 2 },
+  partyName: { fontSize: 14, fontWeight: '600', color: c.dark },
+  divider: { height: 1, backgroundColor: c.border, marginBottom: 12 },
+  reasonLabel: { fontSize: 11, color: c.muted, fontWeight: '600', marginBottom: 4 },
+  reasonText: { fontSize: 14, color: c.dark, marginBottom: 12, lineHeight: 20 },
+  outcomeRow: { flexDirection: 'row', gap: 10 },
+  outcomeBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1.5, borderColor: c.border, alignItems: 'center' },
+  outcomeBtnActive: { backgroundColor: c.buttonDark, borderColor: c.buttonDark },
+  outcomeBtnText: { fontSize: 13, fontWeight: '600', color: c.muted },
+  outcomeBtnTextActive: { color: c.buttonDarkText },
   memberModal: {
     backgroundColor: c.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     paddingBottom: 28, overflow: 'hidden',
@@ -255,21 +289,32 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   const [inviteError, setInviteError] = useState<string>('');
   const [inviting, setInviting] = useState<boolean>(false);
   const [selectedMember, setSelectedMember] = useState<CircleMember | null>(null);
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
+  const [showResolve, setShowResolve] = useState<boolean>(false);
+  const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
+  const [resolution, setResolution] = useState<string>('');
+  const [adminNotes, setAdminNotes] = useState<string>('');
+  const [outcome, setOutcome] = useState<string>('BORROWER_FAVOR');
+  const [resolving, setResolving] = useState<boolean>(false);
+
+  const isCreator = !!circle && user?.id === circle.creatorId;
 
   const loadData = async (): Promise<void> => {
     try {
-      const [circleData, loansData, expensesData, balancesData, insightsData] = await Promise.all([
+      const [circleData, loansData, expensesData, balancesData, insightsData, disputesData] = await Promise.all([
         getCircle(circleId),
         getCircleLoans(circleId).catch(() => []),
         getCircleExpenses(circleId).catch(() => []),
         getCircleBalances(circleId).catch(() => ({ balances: {} })),
         getCircleInsights(circleId).catch(() => null),
+        getCircleDisputes(circleId).catch(() => []),
       ]);
       setCircle(circleData as Circle);
       setLoans(loansData as Loan[]);
       setExpenses(expensesData as Expense[]);
       setBalances((balancesData as { balances: Record<string, number> }).balances || {});
       if (insightsData) setInsights(insightsData as Insights);
+      setDisputes(disputesData as Dispute[]);
     } catch (error) {
       console.error('Error loading circle:', error);
     } finally {
@@ -317,6 +362,24 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
       loadData();
     } catch (error) {
       showAlert('error', 'Error', (error as Error).message);
+    }
+  };
+
+  const handleResolveDispute = async (): Promise<void> => {
+    if (!resolution.trim()) { showAlert('error', 'Error', 'Enter a resolution'); return; }
+    setResolving(true);
+    try {
+      await resolveDispute(selectedDispute!.id, { outcome, resolution, adminNotes });
+      showAlert('success', 'Resolved', 'Dispute resolved. Both parties have been notified.');
+      setShowResolve(false);
+      setResolution('');
+      setAdminNotes('');
+      setOutcome('BORROWER_FAVOR');
+      loadData();
+    } catch (error) {
+      showAlert('error', 'Error', (error as Error).message);
+    } finally {
+      setResolving(false);
     }
   };
 
@@ -400,7 +463,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>;
   if (!circle) return <View style={styles.center}><Text style={{ color: colors.danger }}>Circle not found</Text></View>;
 
-  const tabs = ['members', 'loans', 'expenses', 'insights'];
+  const tabs = ['members', 'loans', 'expenses', 'insights', ...(isCreator ? ['disputes'] : [])];
 
   return (
     <View style={styles.container}>
@@ -703,8 +766,136 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
           </View>
         )}
 
+        {/* Disputes Tab — circle owner only */}
+        {activeTab === 'disputes' && isCreator && (
+          <View style={styles.section}>
+            {disputes.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Ionicons name="checkmark-circle-outline" size={32} color={colors.success} />
+                <Text style={styles.emptyTitle}>No open disputes</Text>
+              </View>
+            ) : (
+              disputes.map((dispute) => (
+                <View key={dispute.id} style={styles.disputeCard}>
+                  <View style={styles.disputeHeader}>
+                    <View style={[styles.disputeBadge, dispute.escalated && { backgroundColor: `${colors.statusPurple}18` }]}>
+                      <Text style={[styles.disputeBadgeText, dispute.escalated && { color: colors.statusPurple }]}>
+                        {dispute.escalated ? 'ESCALATED' : 'OPEN'}
+                      </Text>
+                    </View>
+                    <Text style={styles.disputeDate}>{formatExpenseDate(dispute.createdAt)}</Text>
+                  </View>
+                  <Text style={styles.disputeAmount}>GHS {dispute.loanAmount} Loan</Text>
+                  <View style={styles.partiesRow}>
+                    <View style={styles.partyItem}>
+                      <Text style={styles.partyLabel}>Borrower</Text>
+                      <Text style={styles.partyName}>{dispute.borrowerName}</Text>
+                    </View>
+                    <Ionicons name="arrow-forward" size={16} color={colors.muted} />
+                    <View style={styles.partyItem}>
+                      <Text style={styles.partyLabel}>Lender</Text>
+                      <Text style={styles.partyName}>{dispute.lenderName}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.divider} />
+                  <Text style={styles.reasonLabel}>Opened by {dispute.openedByName}</Text>
+                  <Text style={styles.reasonText}>{dispute.reason}</Text>
+                  {dispute.evidence ? (
+                    <>
+                      <Text style={styles.reasonLabel}>Evidence</Text>
+                      <Text style={styles.reasonText}>{dispute.evidence}</Text>
+                    </>
+                  ) : null}
+                  {dispute.escalated ? (
+                    <View style={styles.memberPhoneRow}>
+                      <Ionicons name="arrow-up-circle-outline" size={16} color={colors.statusPurple} />
+                      <Text style={styles.memberPhoneText}>A party escalated this to Vouch's platform admin — it's out of your hands now.</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.primaryBtn}
+                      onPress={() => { setSelectedDispute(dispute); setShowResolve(true); }}
+                    >
+                      <Text style={styles.primaryBtnText}>Review & Resolve</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Resolve Dispute Modal */}
+      <Modal visible={showResolve} animationType="slide" transparent onRequestClose={() => setShowResolve(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableWithoutFeedback onPress={() => setShowResolve(false)}>
+            <View style={styles.modalBg}>
+              <ScrollView style={{ width: '100%' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }} keyboardShouldPersistTaps="handled">
+                <TouchableWithoutFeedback onPress={() => {}}>
+                  <View style={styles.modal}>
+                    <Text style={styles.modalTitle}>Resolve Dispute</Text>
+                    {selectedDispute && (
+                      <Text style={styles.modalSub}>
+                        GHS {selectedDispute.loanAmount} · {selectedDispute.borrowerName} vs {selectedDispute.lenderName}
+                      </Text>
+                    )}
+                    <Text style={styles.label}>Outcome</Text>
+                    <View style={styles.outcomeRow}>
+                      <TouchableOpacity
+                        style={[styles.outcomeBtn, outcome === 'BORROWER_FAVOR' && styles.outcomeBtnActive]}
+                        onPress={() => setOutcome('BORROWER_FAVOR')}
+                      >
+                        <Text style={[styles.outcomeBtnText, outcome === 'BORROWER_FAVOR' && styles.outcomeBtnTextActive]}>
+                          Favour Borrower
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.outcomeBtn, outcome === 'LENDER_FAVOR' && styles.outcomeBtnActive]}
+                        onPress={() => setOutcome('LENDER_FAVOR')}
+                      >
+                        <Text style={[styles.outcomeBtnText, outcome === 'LENDER_FAVOR' && styles.outcomeBtnTextActive]}>
+                          Favour Lender
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.label}>Resolution *</Text>
+                    <TextInput
+                      style={[styles.input, { height: 80 }]}
+                      placeholder="Describe the resolution decision"
+                      placeholderTextColor={colors.muted}
+                      value={resolution}
+                      onChangeText={setResolution}
+                      multiline
+                    />
+                    <Text style={styles.label}>Notes</Text>
+                    <TextInput
+                      style={[styles.input, { height: 60 }]}
+                      placeholder="Internal notes (optional)"
+                      placeholderTextColor={colors.muted}
+                      value={adminNotes}
+                      onChangeText={setAdminNotes}
+                      multiline
+                    />
+                    <TouchableOpacity
+                      style={[styles.primaryBtn, { marginTop: 20 }, resolving && { opacity: 0.6 }]}
+                      onPress={handleResolveDispute}
+                      disabled={resolving}
+                    >
+                      {resolving ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.primaryBtnText}>Confirm Resolution</Text>}
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowResolve(false)}>
+                      <Text style={styles.cancelBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableWithoutFeedback>
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Invite Modal */}
       <Modal visible={showInvite} animationType="slide" transparent onRequestClose={() => setShowInvite(false)}>

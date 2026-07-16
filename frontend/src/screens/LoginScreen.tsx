@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { fonts } from '../theme/fonts';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -49,9 +50,9 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   },
   logoRow: { flexDirection: 'row', alignItems: 'center' },
   logoImage: { width: 44, height: 48, marginRight: 10 },
-  logoName: { fontSize: 15, fontWeight: '800', color: c.accent, letterSpacing: 4 },
+  logoName: { fontSize: 15, fontWeight: '800', fontFamily: fonts.extrabold, color: c.accent, letterSpacing: 4 },
   headline: {
-    fontSize: 34, fontWeight: '800', color: '#FFFFFF',
+    fontSize: 34, fontWeight: '800', fontFamily: fonts.extrabold, color: '#FFFFFF',
     marginTop: 22, letterSpacing: -0.8, lineHeight: 38, maxWidth: '85%',
   },
   logoSub: { fontSize: 13, color: HERO_TEXT_MUTED, marginTop: 8 },
@@ -71,9 +72,9 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   },
   toggleBtn: { paddingVertical: 14, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   toggleBtnActive: { borderBottomColor: c.accent },
-  toggleText: { fontSize: 13, fontWeight: '600', color: c.muted, letterSpacing: 0.3 },
-  toggleTextActive: { color: c.dark, fontWeight: '800' },
-  label: { fontSize: 11, color: c.muted, fontWeight: '700', marginBottom: 6, marginTop: 18, letterSpacing: 0.6, textTransform: 'uppercase' },
+  toggleText: { fontSize: 13, fontWeight: '600', fontFamily: fonts.semibold, color: c.muted, letterSpacing: 0.3 },
+  toggleTextActive: { color: c.dark, fontWeight: '800', fontFamily: fonts.extrabold },
+  label: { fontSize: 11, color: c.muted, fontWeight: '700', fontFamily: fonts.bold, marginBottom: 6, marginTop: 18, letterSpacing: 0.6, textTransform: 'uppercase' },
   input: {
     backgroundColor: 'transparent', borderRadius: 0, paddingVertical: 10, paddingHorizontal: 2,
     fontSize: 16, color: c.dark, borderBottomWidth: 1.5, borderColor: c.border,
@@ -82,7 +83,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     borderColor: c.danger,
   },
   errorText: {
-    fontSize: 11, color: c.danger, marginTop: 4, fontWeight: '500',
+    fontSize: 11, color: c.danger, marginTop: 4, fontWeight: '500', fontFamily: fonts.medium,
   },
   btn: {
     backgroundColor: c.buttonDark, borderRadius: 12, padding: 16,
@@ -90,12 +91,12 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     shadowColor: c.accent, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25, shadowRadius: 10, elevation: 4,
   },
-  btnText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700' },
+  btnText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700', fontFamily: fonts.bold },
   linkBtn: { alignItems: 'center', marginTop: 18 },
   linkText: { color: c.muted, fontSize: 14 },
-  linkBold: { color: c.accent, fontWeight: '700' },
+  linkBold: { color: c.accent, fontWeight: '700', fontFamily: fonts.bold },
   forgotBtn: { alignItems: 'flex-end', marginTop: 10 },
-  forgotText: { fontSize: 12, color: c.accent, fontWeight: '600' },
+  forgotText: { fontSize: 12, color: c.accent, fontWeight: '600', fontFamily: fonts.semibold },
 });
 
 export default function LoginScreen({ navigation }: Props) {
@@ -165,7 +166,7 @@ export default function LoginScreen({ navigation }: Props) {
             <Image source={require('../../assets/logo.png')} style={styles.logoImage} resizeMode="contain" />
             <Text style={styles.logoName}>VOUCH</Text>
           </View>
-          <Text style={styles.headline}>Welcome back to your circle.</Text>
+          <Text style={styles.headline}>Good to have you back.</Text>
           <Text style={styles.logoSub}>Inner Circle Lending</Text>
         </View>
 

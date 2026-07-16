@@ -47,8 +47,10 @@ public class DebtSimplificationService {
             netBalances.merge(creditorId, entry.getValue(), Double::sum);
         }
 
+        Map<Long, Map<String, Object>> users = authServiceClient.getUsersInfo(netBalances.keySet());
         for (Long userId : netBalances.keySet()) {
-            userNames.computeIfAbsent(userId, id -> authServiceClient.getUserName(id));
+            String name = AuthServiceClient.nameOf(users.get(userId));
+            if (name != null) userNames.put(userId, name);
         }
 
         List<long[]> debtors = new ArrayList<>();

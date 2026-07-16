@@ -109,12 +109,19 @@ public class GroupFundingService {
         loan.setStatus(Loan.LoanStatus.AGREEMENT_PENDING);
         loanRepository.save(loan);
 
+        Set<Long> participantIds = new HashSet<>();
+        for (LoanContribution c : contributions) {
+            participantIds.add(c.getLenderId());
+        }
+        participantIds.add(loan.getBorrowerId());
+        Map<Long, Map<String, Object>> participants = authServiceClient.getUsersInfo(participantIds);
+
         StringBuilder lenderNames = new StringBuilder();
         StringBuilder repaymentSchedule = new StringBuilder();
         repaymentSchedule.append("GROUP FUNDING BREAKDOWN:\n\n");
 
         for (LoanContribution c : contributions) {
-            String name = authServiceClient.getUserName(c.getLenderId());
+            String name = AuthServiceClient.nameOf(participants.get(c.getLenderId()));
             lenderNames.append(name).append(", ");
             double lenderRepayment = c.getAmount() * (1 + c.getInterestRate() / 100);
             repaymentSchedule.append("- ").append(name)
@@ -128,8 +135,9 @@ public class GroupFundingService {
         repaymentSchedule.append("\nTotal Repayment: GHS ").append(String.format("%.2f", totalRepayment));
 
         String lenderNamesStr = lenderNames.length() > 2 ? lenderNames.substring(0, lenderNames.length() - 2) : "Multiple Lenders";
-        String borrowerName = authServiceClient.getUserName(loan.getBorrowerId());
-        String borrowerPhone = authServiceClient.getUserPhone(loan.getBorrowerId());
+        Map<String, Object> borrowerInfo = participants.get(loan.getBorrowerId());
+        String borrowerName = AuthServiceClient.nameOf(borrowerInfo);
+        String borrowerPhone = borrowerInfo != null ? (String) borrowerInfo.get("phone") : null;
 
         LoanAgreement agreement = LoanAgreement.builder()
                 .loan(loan).borrowerName(borrowerName).borrowerPhone(borrowerPhone)
@@ -169,10 +177,15 @@ public class GroupFundingService {
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         List<LoanContribution> contributions = loanContributionRepository.findByLoan(loan);
+        Set<Long> lenderIds = new HashSet<>();
+        for (LoanContribution c : contributions) {
+            lenderIds.add(c.getLenderId());
+        }
+        Map<Long, Map<String, Object>> lenders = authServiceClient.getUsersInfo(lenderIds);
         List<Map<String, Object>> contributionList = contributions.stream().map(c -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", c.getId());
-            map.put("lenderName", authServiceClient.getUserName(c.getLenderId()));
+            map.put("lenderName", AuthServiceClient.nameOf(lenders.get(c.getLenderId())));
             map.put("lenderId", c.getLenderId());
             map.put("amount", c.getAmount());
             map.put("interestRate", c.getInterestRate());

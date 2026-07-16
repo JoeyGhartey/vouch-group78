@@ -18,6 +18,8 @@ public class DisputeResponse {
     private String resolution;
     private String resolvedByName;
     private LocalDateTime resolvedAt;
+    private Boolean escalated;
+    private LocalDateTime escalatedAt;
     private LocalDateTime createdAt;
     private String message;
 }

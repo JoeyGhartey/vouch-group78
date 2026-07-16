@@ -35,9 +35,24 @@ public class DisputeController {
         return ResponseEntity.ok(disputeService.getDispute(auth.getName(), disputeId));
     }
 
+    @GetMapping("/by-loan/{loanId}")
+    public ResponseEntity<DisputeResponse> getDisputeByLoan(Authentication auth, @PathVariable Long loanId) {
+        return ResponseEntity.ok(disputeService.getDisputeByLoanId(auth.getName(), loanId));
+    }
+
+    @PostMapping("/{disputeId}/escalate")
+    public ResponseEntity<DisputeResponse> escalateDispute(Authentication auth, @PathVariable Long disputeId) {
+        return ResponseEntity.ok(disputeService.escalateDispute(auth.getName(), disputeId));
+    }
+
     @GetMapping("/admin/open")
     public ResponseEntity<List<DisputeResponse>> getAllOpenDisputes(Authentication auth) {
         return ResponseEntity.ok(disputeService.getAllOpenDisputes(auth.getName()));
+    }
+
+    @GetMapping("/circle/{circleId}")
+    public ResponseEntity<List<DisputeResponse>> getCircleDisputes(Authentication auth, @PathVariable Long circleId) {
+        return ResponseEntity.ok(disputeService.getCircleDisputes(auth.getName(), circleId));
     }
 
     @PostMapping("/{disputeId}/resolve")

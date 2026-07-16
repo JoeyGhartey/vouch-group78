@@ -9,7 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/internal/users")
@@ -24,6 +26,26 @@ public class InternalUserController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return ResponseEntity.ok(buildResponse(user));
+    }
+
+    @PostMapping("/batch")
+    public ResponseEntity<List<UserProfileResponse>> getUsersByIds(@RequestBody Map<String, List<Long>> request) {
+        List<Long> userIds = request.get("userIds");
+        if (userIds == null || userIds.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+        List<UserProfileResponse> users = userRepository.findAllById(userIds).stream()
+                .map(this::buildResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(users);
+    }
+
+    @GetMapping("/admins")
+    public ResponseEntity<List<UserProfileResponse>> getAdmins() {
+        List<UserProfileResponse> admins = userRepository.findByRole(User.Role.ADMIN).stream()
+                .map(this::buildResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(admins);
     }
 
     @GetMapping("/phone/{phone}")

@@ -41,6 +41,18 @@ public class Dispute {
 
     private LocalDateTime resolvedAt;
 
+    // Escalation: a party can manually escalate past their circle owner to a
+    // platform admin, or a scheduled job auto-escalates after a timeout.
+    // escalatedById is null when the escalation was automatic (timeout).
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean escalated = false;
+
+    private LocalDateTime escalatedAt;
+
+    @Column(name = "escalated_by_id")
+    private Long escalatedById;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

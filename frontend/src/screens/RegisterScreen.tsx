@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { fonts } from '../theme/fonts';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Register'>;
@@ -50,9 +51,9 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   },
   logoRow: { flexDirection: 'row', alignItems: 'center' },
   logoImage: { width: 44, height: 48, marginRight: 10 },
-  logoName: { fontSize: 15, fontWeight: '800', color: c.accent, letterSpacing: 4 },
+  logoName: { fontSize: 15, fontWeight: '800', fontFamily: fonts.extrabold, color: c.accent, letterSpacing: 4 },
   headline: {
-    fontSize: 34, fontWeight: '800', color: '#FFFFFF',
+    fontSize: 34, fontWeight: '800', fontFamily: fonts.extrabold, color: '#FFFFFF',
     marginTop: 22, letterSpacing: -0.8, lineHeight: 38, maxWidth: '85%',
   },
   logoSub: { fontSize: 13, color: HERO_TEXT_MUTED, marginTop: 8 },
@@ -77,8 +78,8 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     width: 24, height: 24, borderRadius: 7,
     backgroundColor: c.goldBgTint, justifyContent: 'center', alignItems: 'center',
   },
-  sectionHeaderText: { fontSize: 12, fontWeight: '800', color: c.accentDark, letterSpacing: 1.2, textTransform: 'uppercase' },
-  label: { fontSize: 11, color: c.muted, fontWeight: '700', marginBottom: 6, marginTop: 18, letterSpacing: 0.6, textTransform: 'uppercase' },
+  sectionHeaderText: { fontSize: 12, fontWeight: '800', fontFamily: fonts.extrabold, color: c.accentDark, letterSpacing: 1.2, textTransform: 'uppercase' },
+  label: { fontSize: 11, color: c.muted, fontWeight: '700', fontFamily: fonts.bold, marginBottom: 6, marginTop: 18, letterSpacing: 0.6, textTransform: 'uppercase' },
   labelFirst: { marginTop: 0 },
   input: {
     backgroundColor: 'transparent', borderRadius: 0, paddingVertical: 10, paddingHorizontal: 2,
@@ -99,7 +100,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  providerText: { fontSize: 13, fontWeight: '700' },
+  providerText: { fontSize: 13, fontWeight: '700', fontFamily: fonts.bold },
 
   // Checkbox
   checkboxRow: {
@@ -114,17 +115,17 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   },
   checkboxChecked: { backgroundColor: c.accent, borderColor: c.accent },
   checkboxLabel: { fontSize: 13, color: c.muted, flex: 1 },
-  checkboxLabelChecked: { color: c.dark, fontWeight: '600' },
+  checkboxLabelChecked: { color: c.dark, fontWeight: '600', fontFamily: fonts.semibold },
 
   // Password strength
   strengthRow: { flexDirection: 'row', gap: 4, marginTop: 10 },
   strengthBar: { flex: 1, height: 4, borderRadius: 4, backgroundColor: c.border },
-  strengthLabel: { fontSize: 11, fontWeight: '600', marginTop: 4 },
+  strengthLabel: { fontSize: 11, fontWeight: '600', fontFamily: fonts.semibold, marginTop: 4 },
   rulesBox: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, rowGap: 6 },
   ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '50%' },
   ruleDot: { width: 6, height: 6, borderRadius: 3 },
   ruleText: { fontSize: 11 },
-  matchText: { fontSize: 11, fontWeight: '600', marginTop: 6 },
+  matchText: { fontSize: 11, fontWeight: '600', fontFamily: fonts.semibold, marginTop: 6 },
 
   btn: {
     backgroundColor: c.buttonDark, borderRadius: 12, padding: 16,
@@ -132,10 +133,10 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     shadowColor: c.accent, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25, shadowRadius: 10, elevation: 4,
   },
-  btnText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700' },
+  btnText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700', fontFamily: fonts.bold },
   linkBtn: { alignItems: 'center', marginTop: 18 },
   linkText: { color: c.muted, fontSize: 14 },
-  linkBold: { color: c.accent, fontWeight: '700' },
+  linkBold: { color: c.accent, fontWeight: '700', fontFamily: fonts.bold },
 });
 
 export default function RegisterScreen({ navigation }: Props) {
@@ -234,7 +235,7 @@ export default function RegisterScreen({ navigation }: Props) {
             <Image source={require('../../assets/logo.png')} style={styles.logoImage} resizeMode="contain" />
             <Text style={styles.logoName}>VOUCH</Text>
           </View>
-          <Text style={styles.headline}>Join your circle.</Text>
+          <Text style={styles.headline}>Borrow and lend on trust.</Text>
           <Text style={styles.logoSub}>Inner Circle Lending</Text>
         </View>
 

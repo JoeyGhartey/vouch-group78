@@ -1,6 +1,15 @@
 import React from 'react';
+import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
+import {
+  useFonts,
+  Manrope_400Regular,
+  Manrope_500Medium,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  Manrope_800ExtraBold,
+} from '@expo-google-fonts/manrope';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AppAlertHost } from './src/components/AppAlert';
 import { ConfirmModalHost } from './src/components/ConfirmModal';
@@ -32,6 +41,18 @@ function AppContent() {
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
+  });
+
+  if (!fontsLoaded) {
+    return <View style={{ flex: 1, backgroundColor: '#ffffff' }} />;
+  }
+
   return (
     <ThemeProvider>
       <AppContent />

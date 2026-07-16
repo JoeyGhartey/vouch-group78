@@ -210,4 +210,7 @@ export const verifyPayment = (reference: string) => request(`/payments/verify/${
 
 // Admin
 export const getAdminOpenDisputes = () => request('/disputes/admin/open');
+export const getCircleDisputes = (circleId: number) => request(`/disputes/circle/${circleId}`);
+export const getDisputeByLoan = (loanId: number) => request(`/disputes/by-loan/${loanId}`);
+export const escalateDispute = (disputeId: number) => request(`/disputes/${disputeId}/escalate`, 'POST');
 export const resolveDispute = (disputeId: number, data: unknown) => request(`/disputes/${disputeId}/resolve`, 'POST', data);

@@ -10,4 +10,5 @@ public interface DisputeRepository extends JpaRepository<Dispute, Long> {
     List<Dispute> findByStatus(Dispute.DisputeStatus status);
     Optional<Dispute> findByLoanId(Long loanId);
     Boolean existsByLoanIdAndStatusIn(Long loanId, List<Dispute.DisputeStatus> statuses);
+    List<Dispute> findByStatusInAndEscalatedFalse(List<Dispute.DisputeStatus> statuses);
 }

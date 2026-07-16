@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { View, Text, Image } from 'react-native';
+import { fonts } from '../theme/fonts';
 
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -87,10 +88,10 @@ export default function AppNavigator() {
       <View style={{ flex: 1, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center' }}>
         <Image
           source={require('../../assets/logo.png')}
-          style={{ width: 88, height: 96, marginBottom: 14 }}
+          style={{ width: 140, height: 155, marginBottom: 18 }}
           resizeMode="contain"
         />
-        <Text style={{ color: colors.accent, fontSize: 15, fontWeight: '800', letterSpacing: 4 }}>VOUCH</Text>
+        <Text style={{ color: colors.accent, fontSize: 22, fontFamily: fonts.extrabold, letterSpacing: 6 }}>VOUCH</Text>
       </View>
     );
   }
