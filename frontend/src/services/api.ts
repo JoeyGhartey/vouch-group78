@@ -126,7 +126,7 @@ const request = async <T = unknown>(
 export const register = (data: unknown) => request('/auth/register', 'POST', data);
 export const login = (data: unknown) => request('/auth/login', 'POST', data);
 export const forgotPassword = (identifier: string) => request('/auth/forgot-password', 'POST', { identifier });
-export const resetPassword = (identifier: string, newPassword: string) => request('/auth/reset-password', 'POST', { identifier, newPassword });
+export const resetPassword = (identifier: string, otp: string, newPassword: string) => request('/auth/reset-password', 'POST', { identifier, otp, newPassword });
 export const registerPushToken = (token: string) => request('/auth/push-token', 'POST', { token });
 
 // Profile

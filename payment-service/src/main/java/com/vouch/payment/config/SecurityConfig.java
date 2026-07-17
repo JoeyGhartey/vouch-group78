@@ -32,7 +32,6 @@ public class SecurityConfig {
                 .requestMatchers("/api/payments/webhook").permitAll()
                 .requestMatchers("/api/payments/callback").permitAll()
                 .requestMatchers("/api/payments/verify/**").permitAll()
-                .requestMatchers("/api/payments/simulate/**").permitAll()
                 .requestMatchers("/api/payments/health").permitAll()
                 .anyRequest().authenticated()
             )

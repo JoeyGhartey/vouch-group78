@@ -81,6 +81,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
   const [step, setStep] = useState<'identify' | 'reset'>('identify');
   const [identifier, setIdentifier] = useState<string>('');
   const [identifierError, setIdentifierError] = useState<string>('');
+  const [otp, setOtp] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
@@ -113,6 +114,9 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
   };
 
   const handleReset = async (): Promise<void> => {
+    if (!otp.trim()) {
+      showAlert('error', 'Error', 'Enter the 6-digit code sent to your device'); return;
+    }
     if (!newPassword) {
       showAlert('error', 'Error', 'Please enter a new password'); return;
     }
@@ -124,7 +128,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
     }
     setLoading(true);
     try {
-      const result = await resetPassword(identifier.trim(), newPassword) as { message: string };
+      const result = await resetPassword(identifier.trim(), otp.trim(), newPassword) as { message: string };
       showAlert('success', 'Password Reset', result.message);
       navigation.navigate('Login');
     } catch (error) {
@@ -175,7 +179,18 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
           ) : (
             <>
               <Text style={styles.formTitle}>Set New Password</Text>
-              <Text style={styles.formSub}>Choose a strong new password for your account.</Text>
+              <Text style={styles.formSub}>Enter the code sent to your device, then choose a new password.</Text>
+
+              <Text style={styles.label}>Verification Code</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="6-digit code"
+                placeholderTextColor={colors.muted}
+                value={otp}
+                onChangeText={setOtp}
+                keyboardType="number-pad"
+                maxLength={6}
+              />
 
               <Text style={styles.label}>New Password</Text>
               <TextInput

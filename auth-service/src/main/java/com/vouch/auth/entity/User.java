@@ -74,6 +74,15 @@ public class User {
 
     private String pushToken;
 
+    // Password-reset OTP: a hashed 6-digit code + expiry, set by forgotPassword
+    // and cleared after a successful (or expired) resetPassword. Never store the
+    // plain code — it's hashed with the same BCrypt encoder used for passwords.
+    private String resetOtpHash;
+    private LocalDateTime resetOtpExpiry;
+
+    @Builder.Default
+    private Integer resetOtpAttempts = 0;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

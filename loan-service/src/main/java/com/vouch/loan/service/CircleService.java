@@ -155,6 +155,7 @@ public class CircleService {
         CircleMember am = circleMemberRepository.findByCircleAndUserId(circle, approverId).orElseThrow(() -> new RuntimeException("Not a member"));
         if (am.getMemberRole() != CircleMember.MemberRole.CREATOR && am.getMemberRole() != CircleMember.MemberRole.ADMIN) throw new RuntimeException("No permission");
         CircleMember pm = circleMemberRepository.findById(memberId).orElseThrow(() -> new RuntimeException("Member not found"));
+        if (!pm.getCircle().getId().equals(circleId)) throw new RuntimeException("Member not found");
         if (pm.getStatus() != CircleMember.MemberStatus.PENDING) throw new RuntimeException("Not pending");
         pm.setStatus(CircleMember.MemberStatus.ACTIVE);
         circleMemberRepository.save(pm);

@@ -10,6 +10,9 @@ public class ResetPasswordRequest {
     @NotBlank(message = "Phone or email is required")
     private String identifier;
 
+    @NotBlank(message = "The code we sent to your device is required")
+    private String otp;
+
     @NotBlank(message = "New password is required")
     @Size(min = 6, message = "Password must be at least 6 characters")
     @Pattern(
