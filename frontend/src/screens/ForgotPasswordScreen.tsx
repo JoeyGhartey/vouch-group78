@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { forgotPassword, resetPassword } from '../services/api';
@@ -9,6 +9,7 @@ import { useAppAlert } from '../components/AppAlert';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { fonts } from '../theme/fonts';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
@@ -28,49 +29,77 @@ const getPasswordStrength = (pwd: string, c: ColorScheme): { score: number; labe
   return { score: 4, label: 'Strong', color: c.success };
 };
 
+const HERO_TEXT_MUTED = '#8a8f98';
+
 const createStyles = (c: ColorScheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-  logoSection: { alignItems: 'center', marginBottom: 48 },
-  logoBox: {
-    width: 72, height: 72, borderRadius: 22,
-    backgroundColor: c.buttonDark, justifyContent: 'center', alignItems: 'center',
-    marginBottom: 16, shadowColor: c.dark, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15, shadowRadius: 12, elevation: 6,
+  scroll: { flexGrow: 1, paddingBottom: 32 },
+  heroSection: {
+    backgroundColor: '#000000',
+    paddingTop: 68, paddingBottom: 40, paddingHorizontal: 28,
+    borderBottomRightRadius: 64,
   },
-  logoText: { fontSize: 36, fontWeight: '900', color: c.accent },
-  logoName: { fontSize: 28, fontWeight: '900', color: c.dark, letterSpacing: 6 },
-  logoSub: { fontSize: 13, color: c.muted, marginTop: 6 },
+  logoRow: { flexDirection: 'row', alignItems: 'center' },
+  logoImage: { width: 44, height: 48, marginRight: 10 },
+  logoName: { fontSize: 15, fontWeight: '800', fontFamily: fonts.extrabold, color: c.accent, letterSpacing: 4 },
+  headline: {
+    fontSize: 34, fontWeight: '800', fontFamily: fonts.extrabold, color: '#FFFFFF',
+    marginTop: 22, letterSpacing: -0.8, lineHeight: 38, maxWidth: '85%',
+  },
+  logoSub: { fontSize: 13, color: HERO_TEXT_MUTED, marginTop: 8 },
   form: {
-    backgroundColor: c.surface, borderRadius: 20, padding: 24,
+    backgroundColor: c.surface, borderTopLeftRadius: 4, borderTopRightRadius: 28,
+    borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
+    padding: 22, paddingTop: 20,
+    marginHorizontal: 16, marginTop: -20,
     borderWidth: 1, borderColor: c.border,
-    shadowColor: c.dark, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12, shadowRadius: 20, elevation: 8,
   },
-  formTitle: { fontSize: 20, fontWeight: '700', color: c.dark, marginBottom: 4 },
-  formSub: { fontSize: 13, color: c.muted, marginBottom: 20 },
-  label: { fontSize: 12, color: c.muted, fontWeight: '600', marginBottom: 6, marginTop: 16 },
+  formTitle: { fontSize: 18, fontWeight: '800', fontFamily: fonts.extrabold, color: c.dark, marginBottom: 4 },
+  formSub: { fontSize: 13, color: c.muted, marginBottom: 8, lineHeight: 19 },
+  label: { fontSize: 11, color: c.muted, fontWeight: '700', fontFamily: fonts.bold, marginBottom: 6, marginTop: 18, letterSpacing: 0.6, textTransform: 'uppercase' },
+  labelFirst: { marginTop: 4 },
   input: {
-    backgroundColor: c.bg, borderRadius: 12, padding: 14,
-    fontSize: 15, color: c.dark, borderWidth: 1, borderColor: c.border,
+    backgroundColor: 'transparent', borderRadius: 0, paddingVertical: 10, paddingHorizontal: 2,
+    fontSize: 16, color: c.dark, borderBottomWidth: 1.5, borderColor: c.border,
   },
   inputError: { borderColor: c.danger },
-  errorText: { fontSize: 11, color: c.danger, marginTop: 4, fontWeight: '500' },
-  strengthRow: { flexDirection: 'row', gap: 4, marginTop: 8 },
+  errorText: { fontSize: 11, color: c.danger, marginTop: 6, fontWeight: '500', fontFamily: fonts.medium },
+
+  channelRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginTop: 16, padding: 12, borderRadius: 12,
+    backgroundColor: c.goldBgTint, borderWidth: 1, borderColor: c.border,
+  },
+  channelIconBox: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: c.surface, justifyContent: 'center', alignItems: 'center',
+  },
+  channelText: { fontSize: 12, color: c.dark, flex: 1, lineHeight: 17 },
+  channelTextBold: { fontWeight: '700', fontFamily: fonts.bold },
+
+  strengthRow: { flexDirection: 'row', gap: 4, marginTop: 10 },
   strengthBar: { flex: 1, height: 4, borderRadius: 4, backgroundColor: c.border },
-  strengthLabel: { fontSize: 11, fontWeight: '600', marginTop: 4 },
-  rulesBox: { marginTop: 8, gap: 3 },
-  ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  strengthLabel: { fontSize: 11, fontWeight: '600', fontFamily: fonts.semibold, marginTop: 4 },
+  rulesBox: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, rowGap: 6 },
+  ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '50%' },
   ruleDot: { width: 6, height: 6, borderRadius: 3 },
   ruleText: { fontSize: 11 },
+  matchText: { fontSize: 11, fontWeight: '600', fontFamily: fonts.semibold, marginTop: 6 },
+
   btn: {
     backgroundColor: c.buttonDark, borderRadius: 12, padding: 16,
-    alignItems: 'center', marginTop: 24,
+    alignItems: 'center', marginTop: 26,
+    shadowColor: c.accent, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 10, elevation: 4,
   },
-  btnText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700' },
-  linkBtn: { alignItems: 'center', marginTop: 20 },
+  btnText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700', fontFamily: fonts.bold },
+  linkBtn: { alignItems: 'center', marginTop: 18 },
   linkText: { color: c.muted, fontSize: 14 },
-  linkBold: { color: c.accent, fontWeight: '700' },
+  linkBold: { color: c.accent, fontWeight: '700', fontFamily: fonts.bold },
+  backBtn: { alignItems: 'center', marginTop: 6 },
+  backText: { color: c.muted, fontSize: 13 },
 });
 
 export default function ForgotPasswordScreen({ navigation }: Props) {
@@ -85,6 +114,8 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
   const [newPassword, setNewPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+
+  const isEmail = identifier.includes('@');
 
   const strength = getPasswordStrength(newPassword, colors);
   const rules = [
@@ -103,11 +134,10 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
     setLoading(true);
     try {
       const result = await forgotPassword(identifier.trim()) as { message: string };
-      showAlert('success', 'Check Your Details', result.message);
+      showAlert('success', isEmail ? 'Check Your Email' : 'Check Your Notifications', result.message);
       setStep('reset');
     } catch (error) {
-      console.log('Forgot password error:', error);
-      showAlert('error', 'Error', (error as Error).message || 'Something went wrong');
+      setIdentifierError((error as Error).message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
@@ -115,7 +145,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 
   const handleReset = async (): Promise<void> => {
     if (!otp.trim()) {
-      showAlert('error', 'Error', 'Enter the 6-digit code sent to your device'); return;
+      showAlert('error', 'Error', 'Enter the 6-digit code we sent you'); return;
     }
     if (!newPassword) {
       showAlert('error', 'Error', 'Please enter a new password'); return;
@@ -142,21 +172,29 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-        <View style={styles.logoSection}>
-          <View style={styles.logoBox}>
-            <Text style={styles.logoText}>V</Text>
+        {/* Hero */}
+        <View style={styles.heroSection}>
+          <View style={styles.logoRow}>
+            <Image source={require('../../assets/logo.png')} style={styles.logoImage} resizeMode="contain" />
+            <Text style={styles.logoName}>VOUCH</Text>
           </View>
-          <Text style={styles.logoName}>VOUCH</Text>
+          <Text style={styles.headline}>
+            {step === 'identify' ? "Let's get you back in." : 'Set a new password.'}
+          </Text>
           <Text style={styles.logoSub}>Inner Circle Lending</Text>
         </View>
 
+        {/* Form */}
         <View style={styles.form}>
           {step === 'identify' ? (
             <>
               <Text style={styles.formTitle}>Forgot Password?</Text>
-              <Text style={styles.formSub}>Enter your phone number or email and we&apos;ll help you reset your password.</Text>
+              <Text style={styles.formSub}>
+                Enter the phone number or email on your account. Use your phone number to get a code by
+                push notification, or your email to get a code by email.
+              </Text>
 
-              <Text style={styles.label}>Phone or Email</Text>
+              <Text style={[styles.label, styles.labelFirst]}>Phone or Email</Text>
               <TextInput
                 style={[styles.input, identifierError ? styles.inputError : null]}
                 placeholder="e.g. 0241234567 or you@example.com"
@@ -178,10 +216,12 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
             </>
           ) : (
             <>
-              <Text style={styles.formTitle}>Set New Password</Text>
-              <Text style={styles.formSub}>Enter the code sent to your device, then choose a new password.</Text>
+              <Text style={styles.formTitle}>Enter Your Code</Text>
+              <Text style={styles.formSub}>
+                Enter the 6-digit code and choose a new password. Didn't get it? Check your {isEmail ? 'spam folder' : 'notification settings'} or go back and try again.
+              </Text>
 
-              <Text style={styles.label}>Verification Code</Text>
+              <Text style={[styles.label, styles.labelFirst]}>Verification Code</Text>
               <TextInput
                 style={styles.input}
                 placeholder="6-digit code"
@@ -241,6 +281,11 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
                 onChangeText={setConfirmPassword}
                 secureTextEntry
               />
+              {confirmPassword.length > 0 && (
+                <Text style={[styles.matchText, { color: confirmPassword === newPassword ? colors.success : colors.danger }]}>
+                  {confirmPassword === newPassword ? 'Passwords match' : "Passwords don't match"}
+                </Text>
+              )}
 
               <TouchableOpacity
                 style={[styles.btn, loading && { opacity: 0.6 }]}
@@ -248,6 +293,10 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
                 disabled={loading}
               >
                 {loading ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Reset Password</Text>}
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.backBtn} onPress={() => setStep('identify')}>
+                <Text style={styles.backText}>Wrong phone or email? Go back</Text>
               </TouchableOpacity>
             </>
           )}

@@ -13,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,7 +24,6 @@ import org.springframework.web.client.RestTemplate;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +38,7 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
     private final RestTemplate restTemplate;
+    private final JavaMailSender mailSender;
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByPhone(request.getPhone())) {
@@ -118,44 +120,52 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    // Sends a one-time 6-digit code straight to the user's own device via push
-    // notification (their pushToken is still on file from their last app login,
-    // even if they're currently logged out — that's the "forgot password but the
-    // app is still installed" case this is built for). There is no email/SMS
-    // provider wired into this project, so a device that never registered a push
-    // token has no recovery path here — that's a known, deliberate limitation,
-    // not an oversight: it beats the alternative of resetting any account with
-    // nothing but a phone number.
+    // Routed by what the user actually typed: a phone number gets the code via
+    // push notification (device-based — works as long as they've logged into
+    // the app before and have a pushToken on file), an email address gets the
+    // code by real email via sendOtpEmail. Deliberately NOT a generic
+    // "if an account exists..." response — told to explicitly confirm whether
+    // the identifier is on file, at the cost of allowing account enumeration.
     public Map<String, String> forgotPassword(ForgotPasswordRequest request) {
-        Optional<User> userOpt = userRepository.findByPhone(request.getIdentifier())
-                .or(() -> userRepository.findByEmail(request.getIdentifier()));
+        String identifier = request.getIdentifier().trim();
+        boolean isEmail = identifier.contains("@");
 
-        // Always return the same generic message regardless of whether the
-        // account exists or has a push token — never let this endpoint be used
-        // to enumerate valid phone numbers/emails.
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            if (user.getPushToken() != null && !user.getPushToken().isEmpty()) {
-                String otp = String.format("%06d", OTP_RANDOM.nextInt(1_000_000));
-                user.setResetOtpHash(passwordEncoder.encode(otp));
-                user.setResetOtpExpiry(LocalDateTime.now().plusMinutes(OTP_VALID_MINUTES));
-                user.setResetOtpAttempts(0);
-                userRepository.save(user);
-                sendOtpPush(user.getPushToken(), otp);
-            } else {
-                log.info("Password reset requested for an account with no registered device — nothing sent.");
-            }
+        if (isEmail) {
+            User user = userRepository.findByEmail(identifier)
+                    .orElseThrow(() -> new RuntimeException("No account found with that email address"));
+            String otp = generateAndStoreOtp(user);
+            sendOtpEmail(user.getEmail(), otp);
+            return Map.of("message", "Check your inbox — we've emailed a 6-digit code to " + user.getEmail() + ". It expires in 10 minutes.");
         }
 
-        return Map.of("message",
-                "If an account with that phone number or email exists and has Vouch installed, " +
-                "a 6-digit code has been sent to that device.");
+        User user = userRepository.findByPhone(identifier)
+                .orElseThrow(() -> new RuntimeException("No account found with that phone number"));
+        if (user.getPushToken() == null || user.getPushToken().isEmpty()) {
+            boolean hasEmail = user.getEmail() != null && !user.getEmail().isBlank();
+            throw new RuntimeException("This account has no device registered for push notifications." +
+                    (hasEmail ? " Try again using your email address instead." : " No email is on file for this account either — contact support."));
+        }
+        String otp = generateAndStoreOtp(user);
+        sendOtpPush(user.getPushToken(), otp);
+        return Map.of("message", "Check your notifications — we've sent a 6-digit code to your device. It expires in 10 minutes.");
+    }
+
+    private String generateAndStoreOtp(User user) {
+        String otp = String.format("%06d", OTP_RANDOM.nextInt(1_000_000));
+        user.setResetOtpHash(passwordEncoder.encode(otp));
+        user.setResetOtpExpiry(LocalDateTime.now().plusMinutes(OTP_VALID_MINUTES));
+        user.setResetOtpAttempts(0);
+        userRepository.save(user);
+        return otp;
     }
 
     public Map<String, String> resetPassword(ResetPasswordRequest request) {
-        User user = userRepository.findByPhone(request.getIdentifier())
-                .or(() -> userRepository.findByEmail(request.getIdentifier()))
-                .orElseThrow(() -> new RuntimeException("No account found with that phone number or email"));
+        String identifier = request.getIdentifier().trim();
+        User user = identifier.contains("@")
+                ? userRepository.findByEmail(identifier)
+                        .orElseThrow(() -> new RuntimeException("No account found with that email address"))
+                : userRepository.findByPhone(identifier)
+                        .orElseThrow(() -> new RuntimeException("No account found with that phone number"));
 
         if (user.getResetOtpHash() == null || user.getResetOtpExpiry() == null) {
             throw new RuntimeException("No reset code was requested for this account. Start over from 'Forgot password?'");
@@ -188,6 +198,20 @@ public class AuthService {
         userRepository.save(user);
 
         return Map.of("message", "Password reset successful. You can now log in with your new password.");
+    }
+
+    private void sendOtpEmail(String email, String otp) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(email);
+            message.setSubject("Vouch password reset code");
+            message.setText("Your Vouch password reset code is " + otp + ".\n\n" +
+                    "It expires in " + OTP_VALID_MINUTES + " minutes. If you didn't request this, ignore this email.");
+            mailSender.send(message);
+        } catch (Exception e) {
+            log.warn("Failed to email password reset OTP to {}: {}", email, e.getMessage());
+            throw new RuntimeException("Could not send the reset code to that email address right now. Please try again shortly.");
+        }
     }
 
     private void sendOtpPush(String pushToken, String otp) {
