@@ -103,6 +103,10 @@ public class AuthServiceClient {
         return ((Number) getUserInfoByPhone(phone).get("id")).longValue();
     }
 
+    public String getUserRole(String phone) {
+        return (String) getUserInfoByPhone(phone).get("role");
+    }
+
     public String getUserName(Long userId) {
         Map<String, Object> info = getUserInfo(userId);
         return info.get("firstName") + " " + info.get("lastName");

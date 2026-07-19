@@ -59,6 +59,39 @@ public class LoanService {
         }
     }
 
+    // One-time catch-up for loans that were disbursed BEFORE syncLoanCountStats
+    // existed — those never had their totalLoansGiven/totalLoansReceived written,
+    // and syncLoanCountStats only fires on new disbursements going forward, so it
+    // can't retroactively fix them. Recomputes every user's real count from full
+    // loan history and pushes it. Safe to run more than once — it's idempotent.
+    public Map<String, Object> backfillLoanCountStats() {
+        List<Loan> funded = loanRepository.findAll().stream()
+                .filter(l -> FUNDED_STATUSES.contains(l.getStatus()))
+                .collect(Collectors.toList());
+
+        Map<Long, Long> borrowedCounts = funded.stream()
+                .collect(Collectors.groupingBy(Loan::getBorrowerId, Collectors.counting()));
+        Map<Long, Long> lentCounts = funded.stream()
+                .filter(l -> l.getLenderId() != null)
+                .collect(Collectors.groupingBy(Loan::getLenderId, Collectors.counting()));
+
+        int borrowersUpdated = 0;
+        for (Map.Entry<Long, Long> entry : borrowedCounts.entrySet()) {
+            authServiceClient.updateUserStats(entry.getKey(), null, null, null, null, entry.getValue().intValue());
+            borrowersUpdated++;
+        }
+        int lendersUpdated = 0;
+        for (Map.Entry<Long, Long> entry : lentCounts.entrySet()) {
+            authServiceClient.updateUserStats(entry.getKey(), null, null, null, entry.getValue().intValue(), null);
+            lendersUpdated++;
+        }
+
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("borrowersUpdated", borrowersUpdated);
+        result.put("lendersUpdated", lendersUpdated);
+        return result;
+    }
+
     @Transactional
     public LoanResponse requestLoan(String phone, LoanRequest request) {
         Map<String, Object> borrowerInfo = authServiceClient.getUserInfoByPhone(phone);
