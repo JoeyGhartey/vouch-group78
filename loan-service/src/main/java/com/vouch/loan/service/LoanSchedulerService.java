@@ -23,9 +23,13 @@ public class LoanSchedulerService {
     private final CircleMemberRepository circleMemberRepository;
     private final NotificationServiceClient notificationServiceClient;
     private final AuthServiceClient authServiceClient;
+    private final LoanOverdueProcessor loanOverdueProcessor;
 
+    // Not @Transactional at this level on purpose -- each loan below is now
+    // processed in its own short, separately-locked transaction via
+    // LoanOverdueProcessor instead of one long-lived batch transaction. See the
+    // comment on LoanOverdueProcessor for why that matters.
     @Scheduled(fixedRate = 3600000)
-    @Transactional
     public void checkOverdueLoans() {
         log.info("Running overdue loan check...");
         checkActiveLoansForOverdue();
@@ -89,53 +93,29 @@ public class LoanSchedulerService {
     }
 
     private void checkActiveLoansForOverdue() {
-        List<Loan> activeLoans = loanRepository.findByStatus(Loan.LoanStatus.ACTIVE);
-        for (Loan loan : activeLoans) {
-            if (loan.getDueDate() != null && loan.getDueDate().isBefore(LocalDateTime.now())) {
-                loan.setStatus(Loan.LoanStatus.DUE);
-                loanRepository.save(loan);
-                log.info("Loan {} marked as DUE", loan.getId());
+        for (Long loanId : loanOverdueProcessor.findLoanIdsByStatus(Loan.LoanStatus.ACTIVE)) {
+            try {
+                loanOverdueProcessor.processActiveToDue(loanId);
+            } catch (Exception e) {
+                log.warn("Failed ACTIVE->DUE check for loan {}: {}", loanId, e.getMessage());
             }
         }
 
-        List<Loan> dueLoans = loanRepository.findByStatus(Loan.LoanStatus.DUE);
-        for (Loan loan : dueLoans) {
-            if (loan.getDueDate() != null && loan.getDueDate().plusHours(24).isBefore(LocalDateTime.now())) {
-                loan.setStatus(Loan.LoanStatus.GRACE_PERIOD);
-                loan.setGracePeriodStart(LocalDateTime.now());
-                loan.setGracePeriodEnd(LocalDateTime.now().plusDays(7));
-                loanRepository.save(loan);
-
-                String borrowerName = authServiceClient.getUserName(loan.getBorrowerId());
-                notificationServiceClient.send(loan.getBorrowerId(), "Grace Period Started",
-                        "Your loan of GHS " + String.format("%.2f", loan.getAmount()) +
-                                " is now in the 7-day grace period. Repay by " + loan.getGracePeriodEnd() + " to avoid default.",
-                        "LOAN_GRACE_PERIOD", loan.getId());
-
-                if (loan.getLenderId() != null) {
-                    notificationServiceClient.send(loan.getLenderId(), "Borrower Entered Grace Period",
-                            borrowerName + "'s loan of GHS " + String.format("%.2f", loan.getAmount()) +
-                                    " has entered the grace period. They have until " + loan.getGracePeriodEnd() + " to repay.",
-                            "LOAN_GRACE_PERIOD", loan.getId());
-                }
-
-                log.info("Loan {} entered GRACE_PERIOD. Ends at {}", loan.getId(), loan.getGracePeriodEnd());
+        for (Long loanId : loanOverdueProcessor.findLoanIdsByStatus(Loan.LoanStatus.DUE)) {
+            try {
+                loanOverdueProcessor.processDueToGracePeriod(loanId);
+            } catch (Exception e) {
+                log.warn("Failed DUE->GRACE_PERIOD check for loan {}: {}", loanId, e.getMessage());
             }
         }
     }
 
     private void calculateOverdueInterest() {
-        List<Loan> gracePeriodLoans = loanRepository.findByStatus(Loan.LoanStatus.GRACE_PERIOD);
-        for (Loan loan : gracePeriodLoans) {
-            if (loan.getGracePeriodStart() != null) {
-                long daysOverdue = ChronoUnit.DAYS.between(loan.getGracePeriodStart(), LocalDateTime.now());
-                if (daysOverdue < 1) daysOverdue = 1;
-                double outstandingAmount = loan.getTotalRepaymentAmount() - loan.getAmountRepaid();
-                double dailyRate = loan.getDailyOverdueRate() / 100.0;
-                double overdueInterest = outstandingAmount * dailyRate * daysOverdue;
-                loan.setOverdueInterestAccrued(overdueInterest);
-                loanRepository.save(loan);
-                log.info("Loan {} overdue interest updated to {} ({} days overdue)", loan.getId(), overdueInterest, daysOverdue);
+        for (Long loanId : loanOverdueProcessor.findLoanIdsByStatus(Loan.LoanStatus.GRACE_PERIOD)) {
+            try {
+                loanOverdueProcessor.processOverdueInterest(loanId);
+            } catch (Exception e) {
+                log.warn("Failed overdue interest calc for loan {}: {}", loanId, e.getMessage());
             }
         }
     }

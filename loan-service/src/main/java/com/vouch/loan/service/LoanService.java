@@ -106,7 +106,20 @@ public class LoanService {
             throw new RuntimeException("You are permanently banned from borrowing");
         }
         if (Boolean.TRUE.equals(borrowerInfo.get("borrowingSuspended"))) {
-            throw new RuntimeException("Your borrowing is currently suspended");
+            Object suspendedUntilRaw = borrowerInfo.get("borrowingSuspendedUntil");
+            boolean stillSuspended = true;
+            if (suspendedUntilRaw != null) {
+                try {
+                    stillSuspended = java.time.LocalDateTime.parse(suspendedUntilRaw.toString())
+                            .isAfter(java.time.LocalDateTime.now());
+                } catch (Exception ignored) {
+                    // Unparseable date -- fail safe and keep the suspension in effect.
+                }
+            }
+            if (stillSuspended) {
+                throw new RuntimeException("Your borrowing is currently suspended" +
+                        (suspendedUntilRaw != null ? " until " + suspendedUntilRaw : ""));
+            }
         }
         Object trustScoreRaw = borrowerInfo.get("trustScore");
         double trustScore = trustScoreRaw instanceof Number ? ((Number) trustScoreRaw).doubleValue() : 50.0;

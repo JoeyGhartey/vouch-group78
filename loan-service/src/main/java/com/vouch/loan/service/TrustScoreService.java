@@ -53,6 +53,14 @@ public class TrustScoreService {
         double newGlobalScore = Math.max(0.0, authServiceClient.getUserTrustScore(borrowerId)
                 - 10.0 * sizeWeight);
         authServiceClient.updateUserStats(borrowerId, newGlobalScore, repaidCount, defaultCount);
+
+        // Enforce the consequences every loan agreement's terms actually promise:
+        // 2nd default -> 30-day borrowing suspension, 3rd (or later) -> permanent ban.
+        if (defaultCount == 2) {
+            authServiceClient.applyDefaultConsequences(borrowerId, java.time.LocalDateTime.now().plusDays(30), false);
+        } else if (defaultCount >= 3) {
+            authServiceClient.applyDefaultConsequences(borrowerId, null, true);
+        }
     }
 
     public double calculateCircleScore(CircleMember member) {

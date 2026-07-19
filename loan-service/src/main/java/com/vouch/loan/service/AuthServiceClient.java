@@ -143,4 +143,24 @@ public class AuthServiceClient {
             log.warn("Failed to update user stats for userId {}: {}", userId, e.getMessage());
         }
     }
+
+    // Applies the borrowing consequences promised in every loan agreement's terms
+    // ("second default: 30-day suspension, third default: permanent ban") --
+    // previously nothing in the codebase ever actually set these fields.
+    public void applyDefaultConsequences(Long userId, java.time.LocalDateTime suspendedUntil, boolean permanentBan) {
+        Map<String, Object> body = new HashMap<>();
+        if (suspendedUntil != null) {
+            body.put("borrowingSuspended", true);
+            body.put("borrowingSuspendedUntil", suspendedUntil.toString());
+        }
+        if (permanentBan) {
+            body.put("permanentBan", true);
+        }
+        if (body.isEmpty()) return;
+        try {
+            restTemplate.put(authServiceUrl + "/api/internal/users/" + userId + "/stats", body);
+        } catch (Exception e) {
+            log.warn("Failed to apply default consequences for userId {}: {}", userId, e.getMessage());
+        }
+    }
 }

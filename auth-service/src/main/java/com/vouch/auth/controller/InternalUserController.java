@@ -80,6 +80,9 @@ public class InternalUserController {
         if (request.getTotalLoansGiven() != null)    user.setTotalLoansGiven(request.getTotalLoansGiven());
         if (request.getTotalLoansReceived() != null) user.setTotalLoansReceived(request.getTotalLoansReceived());
         if (request.getDefaults() != null)           user.setDefaults(request.getDefaults());
+        if (request.getBorrowingSuspended() != null) user.setBorrowingSuspended(request.getBorrowingSuspended());
+        if (request.getBorrowingSuspendedUntil() != null) user.setBorrowingSuspendedUntil(request.getBorrowingSuspendedUntil());
+        if (request.getPermanentBan() != null)       user.setPermanentBan(request.getPermanentBan());
         userRepository.save(user);
         return ResponseEntity.ok().build();
     }
