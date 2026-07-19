@@ -103,28 +103,33 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   title: { color: c.dark, fontSize: 22, fontWeight: '700' },
   editBtn: { color: c.accent, fontSize: 15, fontWeight: '600' },
   profileCard: {
-    backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 16,
-    padding: 24, alignItems: 'center', marginTop: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: c.border,
+    backgroundColor: c.heroCardBg, marginHorizontal: 16, borderRadius: 20,
+    padding: 28, alignItems: 'center', marginTop: 16, marginBottom: 12,
   },
   avatar: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: c.accent, justifyContent: 'center', alignItems: 'center', marginBottom: 12,
+    width: 76, height: 76, borderRadius: 38,
+    backgroundColor: c.accent, justifyContent: 'center', alignItems: 'center', marginBottom: 14,
+    borderWidth: 3, borderColor: 'rgba(255,255,255,0.15)',
   },
-  avatarText: { color: c.surface, fontSize: 26, fontWeight: '800' },
-  name: { color: c.dark, fontSize: 20, fontWeight: '700' },
-  phone: { color: c.muted, fontSize: 13, marginTop: 4 },
-  scoreContainer: { alignItems: 'center', marginTop: 12 },
-  score: { fontSize: 32, fontWeight: '800' },
-  scoreLabel: { color: c.slate400, fontSize: 12, marginTop: 2 },
+  avatarText: { color: c.surface, fontSize: 27, fontWeight: '800' },
+  name: { color: '#fff', fontSize: 20, fontWeight: '700' },
+  phone: { color: 'rgba(255,255,255,0.55)', fontSize: 13, marginTop: 4 },
+  scoreContainer: { alignItems: 'center', marginTop: 18 },
+  score: { fontSize: 36, fontWeight: '800' },
+  scoreLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 2, letterSpacing: 0.5 },
   statsCard: {
-    flexDirection: 'row', justifyContent: 'space-around',
+    flexDirection: 'row', justifyContent: 'space-between',
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
-    padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
+    padding: 14, marginBottom: 12, borderWidth: 1, borderColor: c.border,
   },
-  statItem: { alignItems: 'center' },
-  statValue: { color: c.dark, fontSize: 20, fontWeight: '800' },
-  statLabel: { color: c.muted, fontSize: 11, marginTop: 4, textAlign: 'center' },
+  statItem: { alignItems: 'center', flex: 1 },
+  statIconBox: {
+    width: 34, height: 34, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 6,
+  },
+  statDivider: { width: 1, backgroundColor: c.border, marginVertical: 4 },
+  statValue: { color: c.dark, fontSize: 18, fontWeight: '800' },
+  statLabel: { color: c.muted, fontSize: 10.5, marginTop: 2, textAlign: 'center' },
   badgesCard: {
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
@@ -145,12 +150,17 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
   },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   cardTitle: { color: c.dark, fontSize: 15, fontWeight: '700', marginBottom: 12 },
   detailRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border,
   },
-  detailLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  detailIconBox: {
+    width: 30, height: 30, borderRadius: 9,
+    justifyContent: 'center', alignItems: 'center', marginRight: 10,
+  },
+  detailLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
   detailLabel: { color: c.muted, fontSize: 13 },
   detailValue: { color: c.dark, fontSize: 13, fontWeight: '600' },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -207,6 +217,20 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.bg, borderRadius: 10, padding: 12,
     fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border,
   },
+  inputDisabled: { color: c.muted, opacity: 0.6 },
+  checkboxRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginTop: 16, padding: 12, borderRadius: 12,
+    backgroundColor: c.goldBgTint, borderWidth: 1, borderColor: c.border,
+  },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 5,
+    borderWidth: 2, borderColor: c.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  checkboxChecked: { backgroundColor: c.accent, borderColor: c.accent },
+  checkboxLabel: { fontSize: 13, color: c.muted, flex: 1 },
+  checkboxLabelChecked: { color: c.dark, fontWeight: '600' },
   primaryBtn: { backgroundColor: c.buttonDark, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 20 },
   btnText: { color: c.buttonDarkText, fontSize: 15, fontWeight: '700' },
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
@@ -228,6 +252,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const [showInsights, setShowInsights] = useState<boolean>(false);
   const [showEdit, setShowEdit] = useState<boolean>(false);
   const [editData, setEditData] = useState<EditData>({ firstName: '', lastName: '', email: '', momoProvider: '', momoNumber: '' });
+  const [momoSameAsPhone, setMomoSameAsPhone] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
   const { signOut } = useAuth();
 
@@ -276,7 +301,16 @@ export default function ProfileScreen({ navigation }: Props) {
       momoProvider: profile.momoProvider || '',
       momoNumber: profile.momoNumber || '',
     });
+    setMomoSameAsPhone(!!profile.momoNumber && profile.momoNumber === profile.phone);
     setShowEdit(true);
+  };
+
+  const handleMomoCheckbox = (): void => {
+    const next = !momoSameAsPhone;
+    setMomoSameAsPhone(next);
+    if (next && profile) {
+      setEditData({ ...editData, momoNumber: profile.phone });
+    }
   };
 
   const getTrustColor = (s: number): string => s >= 70 ? colors.success : s >= 40 ? colors.accent : colors.danger;
@@ -297,15 +331,15 @@ export default function ProfileScreen({ navigation }: Props) {
     ['Last Name', 'lastName'],
     ['Email', 'email'],
     ['MoMo Provider', 'momoProvider'],
-    ['MoMo Number', 'momoNumber'],
   ];
 
-  const accountDetails: [string, string][] = [
-    ['Email', profile?.email || 'Not set'],
-    ['MoMo Provider', profile?.momoProvider || 'Not set'],
-    ['MoMo Number', profile?.momoNumber || 'Not set'],
-    ['Member Since', profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''],
-    ['Borrowing Status', profile?.permanentBan ? 'Permanently Banned' : profile?.borrowingSuspended ? 'Suspended' : 'Active'],
+  type IconName = keyof typeof Ionicons.glyphMap;
+  const accountDetails: [string, string, IconName][] = [
+    ['Email', profile?.email || 'Not set', 'mail-outline'],
+    ['MoMo Provider', profile?.momoProvider || 'Not set', 'business-outline'],
+    ['MoMo Number', profile?.momoNumber || 'Not set', 'call-outline'],
+    ['Member Since', profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '', 'calendar-outline'],
+    ['Borrowing Status', profile?.permanentBan ? 'Permanently Banned' : profile?.borrowingSuspended ? 'Suspended' : 'Active', 'shield-outline'],
   ];
 
   return (
@@ -341,15 +375,21 @@ export default function ProfileScreen({ navigation }: Props) {
 
         <View style={styles.statsCard}>
           {([
-            ['Lent', profile?.totalLoansGiven],
-            ['Borrowed', profile?.totalLoansReceived],
-            ['On Time', profile?.loansRepaidOnTime],
-            ['Defaults', profile?.defaults],
-          ] as [string, number | undefined][]).map(([label, value], i) => (
-            <View key={i} style={styles.statItem}>
-              <Text style={styles.statValue}>{value || 0}</Text>
-              <Text style={styles.statLabel}>{label}</Text>
-            </View>
+            ['Lent', profile?.totalLoansGiven, 'cash-outline', colors.accent],
+            ['Borrowed', profile?.totalLoansReceived, 'wallet-outline', colors.statusBlue],
+            ['On Time', profile?.loansRepaidOnTime, 'checkmark-done-outline', colors.success],
+            ['Defaults', profile?.defaults, 'close-circle-outline', colors.danger],
+          ] as [string, number | undefined, keyof typeof Ionicons.glyphMap, string][]).map(([label, value, icon, color], i, arr) => (
+            <React.Fragment key={label}>
+              <View style={styles.statItem}>
+                <View style={[styles.statIconBox, { backgroundColor: `${color}18` }]}>
+                  <Ionicons name={icon} size={16} color={color} />
+                </View>
+                <Text style={styles.statValue}>{value || 0}</Text>
+                <Text style={styles.statLabel}>{label}</Text>
+              </View>
+              {i < arr.length - 1 && <View style={styles.statDivider} />}
+            </React.Fragment>
           ))}
         </View>
 
@@ -382,11 +422,19 @@ export default function ProfileScreen({ navigation }: Props) {
         )}
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Account Details</Text>
-          {accountDetails.map(([label, value], i) => (
-            <View key={i} style={styles.detailRow}>
-              {/* Label — with info icon on Borrowing Status */}
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="person-circle-outline" size={17} color={colors.accent} />
+            <Text style={[styles.cardTitle, { marginBottom: 0 }]}>Account Details</Text>
+          </View>
+          {accountDetails.map(([label, value, icon], i) => (
+            <View key={i} style={[styles.detailRow, i === accountDetails.length - 1 && { borderBottomWidth: 0 }]}>
               <View style={styles.detailLabelRow}>
+                <View style={[
+                  styles.detailIconBox,
+                  { backgroundColor: label === 'Borrowing Status' && value !== 'Active' ? colors.dangerBgTint : colors.goldBgTint },
+                ]}>
+                  <Ionicons name={icon} size={15} color={label === 'Borrowing Status' && value !== 'Active' ? colors.danger : colors.accent} />
+                </View>
                 <Text style={styles.detailLabel}>{label}</Text>
                 {label === 'Borrowing Status' && (
                   <TouchableOpacity onPress={handleBorrowingStatusInfo} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -539,6 +587,26 @@ export default function ProfileScreen({ navigation }: Props) {
                 />
               </View>
             ))}
+
+            <TouchableOpacity style={styles.checkboxRow} onPress={handleMomoCheckbox} activeOpacity={0.7}>
+              <View style={[styles.checkbox, momoSameAsPhone && styles.checkboxChecked]}>
+                {momoSameAsPhone && <Ionicons name="checkmark" size={13} color={colors.surface} />}
+              </View>
+              <Text style={[styles.checkboxLabel, momoSameAsPhone && styles.checkboxLabelChecked]}>
+                My MoMo number is the same as my phone number
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={styles.label}>MoMo Number</Text>
+            <TextInput
+              style={[styles.input, momoSameAsPhone && styles.inputDisabled]}
+              value={editData.momoNumber}
+              onChangeText={(t) => setEditData({ ...editData, momoNumber: t.replace(/[^0-9]/g, '').slice(0, 10) })}
+              keyboardType="phone-pad"
+              editable={!momoSameAsPhone}
+              placeholderTextColor={colors.muted}
+            />
+
             <TouchableOpacity style={[styles.primaryBtn, saving && { opacity: 0.6 }]} onPress={handleEdit} disabled={saving}>
               {saving ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Save Changes</Text>}
             </TouchableOpacity>
