@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -51,8 +51,26 @@ export type TabParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
-function MainTabs() {
+function MainTabs({ navigation }: { navigation: NativeStackNavigationProp<RootStackParamList, 'Main'> }) {
   const { colors } = useTheme();
+  const { justRegistered } = useAuth();
+
+  // Reaching Onboarding is now always an explicit, imperative navigation
+  // gated on justRegistered -- not something that can happen just by
+  // landing on the stack's default/initial route. Relying on
+  // initialRouteName here previously caused Onboarding to reappear on
+  // every normal login: initialRouteName is only honored the very first
+  // time a navigator mounts, not on every re-render, so once the stack
+  // had already mounted once (e.g. from a prior cold start), toggling it
+  // between 'Onboarding' and 'Main' on login had no effect on which
+  // screen actually showed.
+  useEffect(() => {
+    if (justRegistered) {
+      navigation.navigate('Onboarding' as never);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -80,7 +98,7 @@ function MainTabs() {
 }
 
 export default function AppNavigator() {
-  const { user, loading, justRegistered } = useAuth();
+  const { user, loading } = useAuth();
   const { colors } = useTheme();
 
   if (loading) {
@@ -96,21 +114,16 @@ export default function AppNavigator() {
     );
   }
 
-  // Onboarding shows for every fresh signup, regardless of whether this
-  // device has seen it before (it's not a "first time on this phone" flag,
-  // it's a "you just created an account" flag).
-  const showOnboardingNow = justRegistered;
-
   return (
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{ headerShown: false }}
-        initialRouteName={user ? (showOnboardingNow ? 'Onboarding' : 'Main') : 'Login'}
+        initialRouteName={user ? 'Main' : 'Login'}
       >
         {user ? (
           <>
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="CircleDetail" component={CircleDetailScreen} />
             <Stack.Screen name="RequestLoan" component={RequestLoanScreen} />
