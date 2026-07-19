@@ -10,7 +10,6 @@ import { Platform } from 'react-native';
 // whole app session.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
     shouldShowBanner: true,
     shouldShowList: true,
     shouldPlaySound: true,
