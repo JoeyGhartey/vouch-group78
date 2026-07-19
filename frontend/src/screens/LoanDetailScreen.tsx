@@ -84,25 +84,59 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   back: { color: c.accent, fontSize: 16, fontWeight: '600' },
   title: { color: c.dark, fontSize: 18, fontWeight: '700' },
   amountCard: {
-    backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 16,
-    padding: 24, alignItems: 'center', marginTop: 16, marginBottom: 16,
-    borderWidth: 1, borderColor: c.border,
+    backgroundColor: c.heroCardBg, marginHorizontal: 16, borderRadius: 20,
+    padding: 28, alignItems: 'center', marginTop: 16, marginBottom: 16,
+    overflow: 'hidden',
   },
-  amountLabel: { color: c.muted, fontSize: 13 },
-  amount: { color: c.dark, fontSize: 40, fontWeight: '800', marginTop: 4, letterSpacing: -1 },
-  badge: { borderRadius: 8, paddingHorizontal: 16, paddingVertical: 6, marginTop: 12 },
-  badgeText: { color: c.surface, fontSize: 12, fontWeight: '700' },
+  loanIdTag: { color: c.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, marginBottom: 10 },
+  amountLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 13 },
+  amount: { color: '#fff', fontSize: 42, fontWeight: '800', marginTop: 4, letterSpacing: -1 },
+  badge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, marginTop: 16,
+  },
+  badgeText: { color: c.surface, fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },
+
+  // Parties card — borrower/lender shown as avatars either side of an arrow
+  partiesCard: {
+    backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
+    padding: 18, marginBottom: 12, borderWidth: 1, borderColor: c.border,
+    flexDirection: 'row', alignItems: 'center',
+  },
+  partyBox: { flex: 1, alignItems: 'center' },
+  avatarCircle: {
+    width: 48, height: 48, borderRadius: 24,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 8,
+  },
+  avatarText: { color: c.surface, fontSize: 18, fontWeight: '700' },
+  partyName: { color: c.dark, fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  partyRole: { color: c.muted, fontSize: 11, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  partyArrowBox: { width: 36, alignItems: 'center', justifyContent: 'center' },
+
   card: {
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
   },
-  cardTitle: { color: c.dark, fontSize: 15, fontWeight: '700', marginBottom: 12 },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+  cardTitle: { color: c.dark, fontSize: 15, fontWeight: '700' },
   row: {
     flexDirection: 'row', justifyContent: 'space-between',
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border,
   },
   rowLabel: { color: c.muted, fontSize: 13 },
   rowValue: { color: c.dark, fontSize: 13, fontWeight: '600', textAlign: 'right', flex: 1, marginLeft: 16 },
+
+  // Icon-led detail rows
+  detailRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  detailIconBox: {
+    width: 30, height: 30, borderRadius: 9,
+    justifyContent: 'center', alignItems: 'center', marginRight: 12,
+  },
+  detailLabel: { color: c.muted, fontSize: 12.5, flex: 1 },
+  detailValue: { color: c.dark, fontSize: 13, fontWeight: '700', textAlign: 'right', maxWidth: '48%' },
   progressBar: { height: 6, backgroundColor: c.border, borderRadius: 4, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: c.success, borderRadius: 4 },
   progressText: { color: c.muted, fontSize: 12, marginTop: 8, textAlign: 'center' },
@@ -427,6 +461,12 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     REPAID: colors.success, DEFAULTED: colors.danger, DISPUTED: colors.statusPurple, CANCELLED: colors.muted,
   }[s] || colors.muted);
 
+  const statusIcon = (s: string): keyof typeof Ionicons.glyphMap => ({
+    REQUESTED: 'hourglass-outline', AGREEMENT_PENDING: 'create-outline', AGREEMENT_SIGNED: 'checkmark-circle-outline',
+    ACTIVE: 'flash-outline', DUE: 'alert-circle-outline', GRACE_PERIOD: 'warning-outline',
+    REPAID: 'checkmark-done-circle-outline', DEFAULTED: 'close-circle-outline', DISPUTED: 'shield-outline', CANCELLED: 'ban-outline',
+  }[s] as keyof typeof Ionicons.glyphMap || 'ellipse-outline');
+
   const fmtDate = (d?: string): string =>
     d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
@@ -443,22 +483,23 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     return colors.warning;
   };
 
-  const details: [string, string][] = [
-    ['Borrower', loan.borrowerName],
-    ['Lender', loan.lenderName || 'Waiting for lender'],
-    ['Circle', loan.circleName],
-    ['Reason', loan.reason],
-    ['Interest Rate', `${loan.interestRate}%`],
-    ['Total Repayment', `GHS ${loan.totalRepaymentAmount}`],
-    ['Amount Repaid', `GHS ${loan.amountRepaid}`],
-    ['Repayment Type', loan.repaymentType],
-    ['Period', `${loan.repaymentPeriodMonths} month(s)`],
-    ['Due Date', fmtDate(loan.dueDate)],
-    ['Created', fmtDate(loan.createdAt)],
-    ...(loan.disbursedAt ? [['Disbursed', fmtDate(loan.disbursedAt)] as [string, string]] : []),
-    ...(loan.overdueInterestAccrued > 0 ? [['Overdue Interest', `GHS ${loan.overdueInterestAccrued.toFixed(2)}`] as [string, string]] : []),
-    ...(loan.gracePeriodEnd ? [['Grace Period Ends', fmtDate(loan.gracePeriodEnd)] as [string, string]] : []),
+  type IconName = keyof typeof Ionicons.glyphMap;
+  const details: [string, string, IconName][] = [
+    ['Circle', loan.circleName, 'people-outline'],
+    ['Reason', loan.reason, 'document-text-outline'],
+    ['Interest Rate', `${loan.interestRate}%`, 'trending-up-outline'],
+    ['Total Repayment', `GHS ${loan.totalRepaymentAmount}`, 'cash-outline'],
+    ['Amount Repaid', `GHS ${loan.amountRepaid}`, 'checkmark-done-outline'],
+    ['Repayment Type', loan.repaymentType, 'repeat-outline'],
+    ['Period', `${loan.repaymentPeriodMonths} month(s)`, 'calendar-outline'],
+    ['Due Date', fmtDate(loan.dueDate), 'alarm-outline'],
+    ['Created', fmtDate(loan.createdAt), 'time-outline'],
+    ...(loan.disbursedAt ? [['Disbursed', fmtDate(loan.disbursedAt), 'send-outline'] as [string, string, IconName]] : []),
+    ...(loan.overdueInterestAccrued > 0 ? [['Overdue Interest', `GHS ${loan.overdueInterestAccrued.toFixed(2)}`, 'warning-outline'] as [string, string, IconName]] : []),
+    ...(loan.gracePeriodEnd ? [['Grace Period Ends', fmtDate(loan.gracePeriodEnd), 'hourglass-outline'] as [string, string, IconName]] : []),
   ];
+
+  const initialOf = (name?: string): string => (name && name.trim().length > 0 ? name.trim()[0].toUpperCase() : '?');
 
   return (
     <ScrollView style={styles.container}>
@@ -471,25 +512,57 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       </View>
 
       <View style={styles.amountCard}>
+        <Text style={styles.loanIdTag}>LOAN #{loan.id}</Text>
         <Text style={styles.amountLabel}>Loan Amount</Text>
         <Text style={styles.amount}>GHS {loan.amount}</Text>
         <View style={[styles.badge, { backgroundColor: statusColor(loan.status) }]}>
+          <Ionicons name={statusIcon(loan.status)} size={14} color={colors.surface} />
           <Text style={styles.badgeText}>{loan.status.replace(/_/g, ' ')}</Text>
         </View>
       </View>
 
+      <View style={styles.partiesCard}>
+        <View style={styles.partyBox}>
+          <View style={[styles.avatarCircle, { backgroundColor: colors.accent }]}>
+            <Text style={styles.avatarText}>{initialOf(loan.borrowerName)}</Text>
+          </View>
+          <Text style={styles.partyName} numberOfLines={1}>{loan.borrowerName}</Text>
+          <Text style={styles.partyRole}>Borrower</Text>
+        </View>
+        <View style={styles.partyArrowBox}>
+          <Ionicons name="swap-horizontal" size={20} color={colors.muted} />
+        </View>
+        <View style={styles.partyBox}>
+          <View style={[styles.avatarCircle, { backgroundColor: loan.lenderName ? colors.statusBlue : colors.slate400 }]}>
+            <Text style={styles.avatarText}>{loan.lenderName ? initialOf(loan.lenderName) : '?'}</Text>
+          </View>
+          <Text style={styles.partyName} numberOfLines={1}>{loan.lenderName || 'Waiting'}</Text>
+          <Text style={styles.partyRole}>Lender</Text>
+        </View>
+      </View>
+
       <View style={styles.card}>
-        {details.map(([label, value], i) => (
-          <View key={i} style={styles.row}>
-            <Text style={styles.rowLabel}>{label}</Text>
-            <Text style={[styles.rowValue, label === 'Overdue Interest' && { color: colors.danger }]}>{value}</Text>
+        <View style={styles.cardTitleRow}>
+          <Ionicons name="information-circle-outline" size={17} color={colors.accent} />
+          <Text style={styles.cardTitle}>Loan Information</Text>
+        </View>
+        {details.map(([label, value, icon], i) => (
+          <View key={i} style={[styles.detailRow, i === details.length - 1 && { borderBottomWidth: 0 }]}>
+            <View style={[styles.detailIconBox, { backgroundColor: label === 'Overdue Interest' ? colors.dangerBgTint : colors.goldBgTint }]}>
+              <Ionicons name={icon} size={15} color={label === 'Overdue Interest' ? colors.danger : colors.accent} />
+            </View>
+            <Text style={styles.detailLabel}>{label}</Text>
+            <Text style={[styles.detailValue, label === 'Overdue Interest' && { color: colors.danger }]} numberOfLines={2}>{value}</Text>
           </View>
         ))}
       </View>
 
       {loan.totalRepaymentAmount > 0 && !['REPAID', 'CANCELLED', 'REQUESTED'].includes(loan.status) && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Repayment Progress</Text>
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="bar-chart-outline" size={17} color={colors.accent} />
+            <Text style={styles.cardTitle}>Repayment Progress</Text>
+          </View>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, {
               width: `${Math.min((loan.amountRepaid / (loan.totalRepaymentAmount + loan.overdueInterestAccrued)) * 100, 100)}%` as any
@@ -504,7 +577,10 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
 
       {dispute && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Dispute</Text>
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="shield-outline" size={17} color={colors.statusPurple} />
+            <Text style={styles.cardTitle}>Dispute</Text>
+          </View>
           <View style={[styles.badge, { backgroundColor: disputeStatusColor(dispute), alignSelf: 'flex-start', marginTop: 0, marginBottom: 12 }]}>
             <Text style={styles.badgeText}>{disputeStatusLabel(dispute)}</Text>
           </View>
