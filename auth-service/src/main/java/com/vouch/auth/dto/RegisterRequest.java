@@ -9,6 +9,7 @@ import lombok.*;
 public class RegisterRequest {
 
     @NotBlank(message = "Phone number is required")
+    @Pattern(regexp = "^[0-9]{10}$", message = "Phone number must be exactly 10 digits")
     private String phone;
 
     @NotBlank(message = "Password is required")
@@ -27,5 +28,7 @@ public class RegisterRequest {
 
     private String email;
     private String momoProvider;
+
+    @Pattern(regexp = "^$|^[0-9]{10}$", message = "MoMo number must be exactly 10 digits")
     private String momoNumber;
 }

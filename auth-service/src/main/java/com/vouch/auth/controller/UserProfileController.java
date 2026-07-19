@@ -4,6 +4,7 @@ import com.vouch.auth.dto.UpdateProfileRequest;
 import com.vouch.auth.dto.UserProfileResponse;
 import com.vouch.auth.service.BadgeService;
 import com.vouch.auth.service.UserProfileService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -30,7 +31,7 @@ public class UserProfileController {
     }
 
     @PutMapping
-    public ResponseEntity<UserProfileResponse> updateProfile(Authentication auth, @RequestBody UpdateProfileRequest request) {
+    public ResponseEntity<UserProfileResponse> updateProfile(Authentication auth, @Valid @RequestBody UpdateProfileRequest request) {
         return ResponseEntity.ok(userProfileService.updateProfile(auth.getName(), request));
     }
 

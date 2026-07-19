@@ -152,7 +152,7 @@ export default function RegisterScreen({ navigation }: Props) {
   const [momoNumber, setMomoNumber] = useState<string>('');
   const [momoSameAsPhone, setMomoSameAsPhone] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
-  const { signIn, setJustRegistered } = useAuth();
+  const { signIn } = useAuth();
   const { showAlert } = useAppAlert();
 
   const strength = getPasswordStrength(password, colors);
@@ -213,10 +213,8 @@ export default function RegisterScreen({ navigation }: Props) {
         firstName, lastName, phone, email, password,
         momoProvider, momoNumber: momoNumber || phone,
       }) as { token: string; [key: string]: unknown };
-      setJustRegistered(true);
-      await signIn(response);
+      await signIn(response, true);
     } catch (error) {
-      setJustRegistered(false);
       showAlert('error', 'Registration Failed', (error as Error).message || 'Could not create account');
     } finally {
       setLoading(false);

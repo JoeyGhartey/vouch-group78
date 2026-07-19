@@ -17,7 +17,7 @@ interface AuthContextType {
   loading: boolean;
   justRegistered: boolean;
   setJustRegistered: (value: boolean) => void;
-  signIn: (loginResponse: { token: string; [key: string]: unknown }) => Promise<void>;
+  signIn: (loginResponse: { token: string; [key: string]: unknown }, isNewRegistration?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -59,7 +59,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkAuth();
   }, []);
 
-  const signIn = async (loginResponse: { token: string; [key: string]: unknown }): Promise<void> => {
+  // isNewRegistration is set explicitly by the caller on every sign-in —
+  // never inferred or left over from a previous call — so a plain login can
+  // never accidentally inherit a stale "just registered" flag from earlier
+  // in the same app session (e.g. register -> onboarding -> log out -> log
+  // back in without restarting the app).
+  const signIn = async (loginResponse: { token: string; [key: string]: unknown }, isNewRegistration: boolean = false): Promise<void> => {
+    setJustRegistered(isNewRegistration);
     await saveToken(loginResponse.token);
     await fetchProfile();
     syncPushToken();
@@ -68,6 +74,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async (): Promise<void> => {
     await clearToken();
     setUser(null);
+    setJustRegistered(false);
   };
 
   return (
