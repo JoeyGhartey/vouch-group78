@@ -14,6 +14,7 @@ import {
   initializeDisbursement, initializeRepayment, verifyPayment,
   rejectAgreement, proposeCounterOffer, respondToCounterOffer,
   getDisputeByLoan, escalateDispute,
+  contributeToLoan, getLoanContributions,
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
@@ -51,6 +52,24 @@ interface Loan {
   lenderSigned?: boolean;
   borrowerMaxInterestRate: number;
   borrowerTrustTier: string;
+  isGroupFunded?: boolean;
+}
+
+interface Contribution {
+  id: number;
+  lenderName: string;
+  lenderId: number;
+  amount: number;
+  interestRate: number;
+  amountRepaid: number;
+}
+
+interface ContributionsSummary {
+  totalContributed: number;
+  remaining: number;
+  percentFunded: number;
+  contributorCount: number;
+  contributions: Contribution[];
 }
 
 interface Profile {
@@ -226,6 +245,10 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState<boolean>(true);
   const [acting, setActing] = useState<boolean>(false);
   const [showFund, setShowFund] = useState<boolean>(false);
+  const [showContribute, setShowContribute] = useState<boolean>(false);
+  const [contributeAmount, setContributeAmount] = useState<string>('');
+  const [contributeRate, setContributeRate] = useState<string>('');
+  const [contributions, setContributions] = useState<ContributionsSummary | null>(null);
   const [showRepay, setShowRepay] = useState<boolean>(false);
   const [showDispute, setShowDispute] = useState<boolean>(false);
   const [showCounterOffer, setShowCounterOffer] = useState<boolean>(false);
@@ -253,6 +276,15 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
         }
       } else {
         setDispute(null);
+      }
+      if ((loanData as Loan).isGroupFunded) {
+        try {
+          setContributions(await getLoanContributions(loanId) as ContributionsSummary);
+        } catch {
+          setContributions(null);
+        }
+      } else {
+        setContributions(null);
       }
     } catch (error) {
       console.error(error);
@@ -285,6 +317,31 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       await fundLoan({ loanId: loan!.id, interestRate: parseFloat(interestRate) });
       setShowFund(false);
     }, 'Loan funded. Agreement pending signatures.');
+  };
+
+  const remainingToFund = (): number => {
+    if (!loan) return 0;
+    return contributions ? contributions.remaining : loan.amount;
+  };
+
+  const handleContribute = (): void => {
+    const amt = parseFloat(contributeAmount);
+    const rate = parseFloat(contributeRate);
+    if (!amt || amt <= 0) {
+      showAlert('error', 'Error', 'Enter a valid amount'); return;
+    }
+    if (amt > remainingToFund()) {
+      showAlert('error', 'Error', `Amount exceeds what's still needed (GHS ${remainingToFund().toFixed(2)})`); return;
+    }
+    if (!contributeRate || rate < 0) {
+      showAlert('error', 'Error', 'Enter a valid interest rate'); return;
+    }
+    doAction(async () => {
+      await contributeToLoan({ loanId: loan!.id, amount: amt, interestRate: rate });
+      setShowContribute(false);
+      setContributeAmount('');
+      setContributeRate('');
+    }, 'Contribution recorded.');
   };
 
   // Opens T&C modal first, then signs after acceptance
@@ -550,6 +607,33 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
         </View>
       </View>
 
+      {loan.isGroupFunded && contributions && (
+        <View style={styles.card}>
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="people-circle-outline" size={17} color={colors.accent} />
+            <Text style={styles.cardTitle}>Group Funding Progress</Text>
+          </View>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${Math.min(contributions.percentFunded, 100)}%` as any }]} />
+          </View>
+          <Text style={styles.progressText}>
+            GHS {contributions.totalContributed.toFixed(2)} / {loan.amount.toFixed(2)} funded ({contributions.contributorCount} contributor{contributions.contributorCount === 1 ? '' : 's'})
+          </Text>
+          {contributions.remaining > 0 && loan.status === 'REQUESTED' && (
+            <Text style={styles.remaining}>GHS {contributions.remaining.toFixed(2)} still needed</Text>
+          )}
+          {contributions.contributions.map((c) => (
+            <View key={c.id} style={styles.detailRow}>
+              <View style={[styles.detailIconBox, { backgroundColor: colors.accent + '22' }]}>
+                <Ionicons name="person-outline" size={15} color={colors.accent} />
+              </View>
+              <Text style={styles.detailLabel}>{c.lenderName}</Text>
+              <Text style={styles.detailValue}>GHS {c.amount.toFixed(2)} @ {c.interestRate}%</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       <View style={styles.card}>
         <View style={styles.cardTitleRow}>
           <Ionicons name="information-circle-outline" size={17} color={colors.accent} />
@@ -626,9 +710,14 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       )}
 
       <View style={styles.actions}>
-        {loan.status === 'REQUESTED' && !isBorrower && (
+        {loan.status === 'REQUESTED' && !isBorrower && !loan.isGroupFunded && (
           <TouchableOpacity style={styles.primaryBtn} onPress={() => setShowFund(true)}>
             <Text style={styles.btnText}>Fund This Loan</Text>
+          </TouchableOpacity>
+        )}
+        {loan.status === 'REQUESTED' && !isBorrower && loan.isGroupFunded && (
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => setShowContribute(true)}>
+            <Text style={styles.btnText}>Contribute to This Loan</Text>
           </TouchableOpacity>
         )}
         {loan.status === 'AGREEMENT_PENDING' && isLender && loan.counterOfferRate != null && (
@@ -818,6 +907,66 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Confirm & Fund</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowFund(false)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+          </TouchableWithoutFeedback>
+        </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Contribute Modal (group funding) */}
+      <Modal visible={showContribute} animationType="slide" transparent onRequestClose={() => setShowContribute(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowContribute(false)}>
+        <View style={styles.modalBg}>
+          <TouchableWithoutFeedback onPress={() => {}}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Contribute to This Loan</Text>
+            <Text style={styles.modalSub}>
+              GHS {remainingToFund().toFixed(2)} still needed of GHS {loan.amount.toFixed(2)}
+            </Text>
+            <View style={styles.trustTierBanner}>
+              <Ionicons name="shield-checkmark-outline" size={16} color={colors.muted} />
+              <Text style={styles.trustTierBannerText}>
+                Borrower trust tier: {loan.borrowerTrustTier} — max rate: {loan.borrowerMaxInterestRate}%
+              </Text>
+            </View>
+            <Text style={styles.label}>Amount to Contribute (GHS)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder={`Up to ${remainingToFund().toFixed(2)}`}
+              placeholderTextColor={colors.muted}
+              value={contributeAmount}
+              onChangeText={setContributeAmount}
+              keyboardType="numeric"
+            />
+            <Text style={styles.label}>Interest Rate (%)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 5"
+              placeholderTextColor={colors.muted}
+              value={contributeRate}
+              onChangeText={setContributeRate}
+              keyboardType="numeric"
+            />
+            {parseFloat(contributeRate) > loan.borrowerMaxInterestRate && (
+              <Text style={styles.rateErrorText}>
+                Exceeds the {loan.borrowerMaxInterestRate}% max for this borrower
+              </Text>
+            )}
+            {parseFloat(contributeAmount) > 0 && (
+              <Text style={styles.calcText}>
+                You'll receive: GHS {(parseFloat(contributeAmount) * (1 + parseFloat(contributeRate || '0') / 100)).toFixed(2)}
+              </Text>
+            )}
+            <TouchableOpacity
+              style={[styles.primaryBtn, parseFloat(contributeRate) > loan.borrowerMaxInterestRate && { opacity: 0.5 }]}
+              onPress={handleContribute}
+              disabled={acting || parseFloat(contributeRate) > loan.borrowerMaxInterestRate}
+            >
+              {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Confirm Contribution</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowContribute(false)}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>

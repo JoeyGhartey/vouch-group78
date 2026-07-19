@@ -201,6 +201,12 @@ public class LoanService {
             throw new RuntimeException("This loan is not available for funding");
         }
 
+        if (Boolean.TRUE.equals(loan.getIsGroupFunded())) {
+            throw new RuntimeException("This loan is above the circle's group funding threshold (GHS "
+                    + String.format("%.2f", loan.getCircle().getGroupFundingThreshold())
+                    + ") and must be funded by contributions from multiple members instead of a single lender.");
+        }
+
         circleService.validateMembership(loan.getCircle(), lenderId);
 
         if (lenderId.equals(loan.getBorrowerId())) {
@@ -409,8 +415,10 @@ public class LoanService {
         Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
-        if (loan.getLenderId() == null || !lenderId.equals(loan.getLenderId())) {
-            throw new RuntimeException("Only the lender can mark a loan as defaulted");
+        boolean isSingleLender = loan.getLenderId() != null && lenderId.equals(loan.getLenderId());
+        boolean isGroupContributor = Boolean.TRUE.equals(loan.getIsGroupFunded()) && groupFundingService.isContributor(loan, lenderId);
+        if (!isSingleLender && !isGroupContributor) {
+            throw new RuntimeException("Only a lender on this loan can mark it as defaulted");
         }
 
         if (loan.getStatus() != Loan.LoanStatus.GRACE_PERIOD) {

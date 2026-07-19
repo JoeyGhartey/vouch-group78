@@ -48,6 +48,11 @@ public class GroupFundingService {
         if (amount <= 0) throw new RuntimeException("Amount must be positive");
         if (interestRate < 0 || interestRate > 50) throw new RuntimeException("Interest rate must be between 0% and 50%");
 
+        double maxRate = maxRateForTrustScore(authServiceClient.getUserTrustScore(loan.getBorrowerId()));
+        if (interestRate > maxRate) {
+            throw new RuntimeException("Interest rate of " + interestRate + "% exceeds the maximum allowed for this borrower's trust tier (max " + maxRate + "%)");
+        }
+
         double totalContributed = getTotalContributed(loan);
         double remaining = loan.getAmount() - totalContributed;
 
@@ -172,6 +177,23 @@ public class GroupFundingService {
         log.info("Group loan {} fully funded with {} contributions, weighted avg rate: {}%", loan.getId(), contributions.size(), weightedAvgRate);
     }
 
+    // Used by LoanService.defaultLoan -- group-funded loans have no single
+    // lenderId, so "is this caller allowed to mark it defaulted" has to check
+    // contributor membership instead of a direct lenderId match.
+    public boolean isContributor(Loan loan, Long userId) {
+        return loanContributionRepository.findByLoanAndLenderId(loan, userId).isPresent();
+    }
+
+    // Mirrors LoanService.computeInterestRateTier -- kept as a small private
+    // helper here rather than sharing state across services for one number.
+    private double maxRateForTrustScore(Double trustScore) {
+        double score = trustScore != null ? trustScore : 50.0;
+        if (score >= 90) return 5;
+        if (score >= 70) return 10;
+        if (score >= 50) return 15;
+        return 25;
+    }
+
     public Map<String, Object> getLoanContributions(String phone, Long loanId) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
         Loan loan = loanRepository.findById(loanId)
@@ -183,10 +205,16 @@ public class GroupFundingService {
             lenderIds.add(c.getLenderId());
         }
 
+        // Circle members need to see funding progress on a still-open loan to decide
+        // whether to contribute -- so the boundary here is circle membership, not just
+        // borrower/existing-contributor (that would block exactly the people this is for).
         boolean isBorrower = userId.equals(loan.getBorrowerId());
         boolean isContributor = lenderIds.contains(userId);
-        if (!isBorrower && !isContributor) {
-            throw new RuntimeException("Only the borrower or a contributing lender can view this loan's contributions");
+        boolean isCircleMember = circleMemberRepository.findByCircleAndUserId(loan.getCircle(), userId)
+                .filter(m -> m.getStatus() == CircleMember.MemberStatus.ACTIVE)
+                .isPresent();
+        if (!isBorrower && !isContributor && !isCircleMember) {
+            throw new RuntimeException("Only members of this loan's circle can view its contributions");
         }
         Map<Long, Map<String, Object>> lenders = authServiceClient.getUsersInfo(lenderIds);
         List<Map<String, Object>> contributionList = contributions.stream().map(c -> {
