@@ -115,6 +115,7 @@ public class PaystackService {
                 .accessCode(accessCode)
                 .reference(reference)
                 .message("Payment initialized. Complete payment to disburse the loan.")
+                .callbackUrl(paystackCallbackUrl)
                 .build();
     }
 
@@ -195,6 +196,7 @@ public class PaystackService {
                 .accessCode(accessCode)
                 .reference(reference)
                 .message("Payment initialized. Complete payment to repay the loan.")
+                .callbackUrl(paystackCallbackUrl)
                 .build();
     }
 

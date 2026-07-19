@@ -8,4 +8,5 @@ public class PaymentInitResponse {
     private String accessCode;
     private String reference;
     private String message;
+    private String callbackUrl;
 }

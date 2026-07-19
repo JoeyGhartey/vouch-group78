@@ -122,10 +122,17 @@ public class AuthServiceClient {
     }
 
     public void updateUserStats(Long userId, Double trustScore, Integer loansRepaidOnTime, Integer defaults) {
+        updateUserStats(userId, trustScore, loansRepaidOnTime, defaults, null, null);
+    }
+
+    public void updateUserStats(Long userId, Double trustScore, Integer loansRepaidOnTime, Integer defaults,
+                                 Integer totalLoansGiven, Integer totalLoansReceived) {
         Map<String, Object> body = new HashMap<>();
-        if (trustScore != null)        body.put("trustScore", trustScore);
-        if (loansRepaidOnTime != null) body.put("loansRepaidOnTime", loansRepaidOnTime);
-        if (defaults != null)          body.put("defaults", defaults);
+        if (trustScore != null)          body.put("trustScore", trustScore);
+        if (loansRepaidOnTime != null)   body.put("loansRepaidOnTime", loansRepaidOnTime);
+        if (defaults != null)            body.put("defaults", defaults);
+        if (totalLoansGiven != null)     body.put("totalLoansGiven", totalLoansGiven);
+        if (totalLoansReceived != null)  body.put("totalLoansReceived", totalLoansReceived);
         try {
             restTemplate.put(authServiceUrl + "/api/internal/users/" + userId + "/stats", body);
         } catch (Exception e) {

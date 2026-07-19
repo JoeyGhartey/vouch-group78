@@ -71,6 +71,7 @@ interface PaymentInitResponse {
   authorizationUrl: string;
   reference: string;
   message: string;
+  callbackUrl?: string;
 }
 
 const createStyles = (c: ColorScheme) => StyleSheet.create({
@@ -333,8 +334,14 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     try {
       const response = await initializeDisbursement(loan!.id) as PaymentInitResponse;
       if (response.authorizationUrl) {
-        const result = await WebBrowser.openBrowserAsync(response.authorizationUrl);
-        if (result.type === 'dismiss' || result.type === 'cancel') {
+        // openAuthSessionAsync (not openBrowserAsync) watches for navigation to
+        // callbackUrl and closes the browser automatically the moment Paystack
+        // redirects there after payment — no need for the user to manually tap
+        // "Done". Falls back to a plain browser if callbackUrl wasn't returned.
+        const result = response.callbackUrl
+          ? await WebBrowser.openAuthSessionAsync(response.authorizationUrl, response.callbackUrl)
+          : await WebBrowser.openBrowserAsync(response.authorizationUrl);
+        if (result.type === 'success' || result.type === 'dismiss' || result.type === 'cancel') {
           setActing(true);
           try {
             const verification = await verifyPayment(response.reference) as { status: string; message: string };
@@ -374,8 +381,10 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     try {
       const response = await initializeRepayment(loan!.id, amt) as PaymentInitResponse;
       if (response.authorizationUrl) {
-        const result = await WebBrowser.openBrowserAsync(response.authorizationUrl);
-        if (result.type === 'dismiss' || result.type === 'cancel') {
+        const result = response.callbackUrl
+          ? await WebBrowser.openAuthSessionAsync(response.authorizationUrl, response.callbackUrl)
+          : await WebBrowser.openBrowserAsync(response.authorizationUrl);
+        if (result.type === 'success' || result.type === 'dismiss' || result.type === 'cancel') {
           setActing(true);
           try {
             const verification = await verifyPayment(response.reference) as { status: string; message: string };

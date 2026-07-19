@@ -38,6 +38,27 @@ public class LoanService {
     private static final EnumSet<Loan.LoanStatus> ACTIVE_STATUSES = EnumSet.of(
             Loan.LoanStatus.ACTIVE, Loan.LoanStatus.DUE, Loan.LoanStatus.GRACE_PERIOD);
 
+    // The auth-service User.totalLoansGiven / totalLoansReceived fields (shown
+    // on the Home screen's stat pills) were never being written anywhere —
+    // they sat at their registration-time default of 0 forever. This recomputes
+    // both counts from actual funded loans and pushes them, called right after
+    // a loan is disbursed (the point a loan "counts" as real, not just requested).
+    private void syncLoanCountStats(Long borrowerId, Long lenderId) {
+        try {
+            int totalLoansReceived = (int) loanRepository.findByBorrowerIdOrderByCreatedAtDesc(borrowerId).stream()
+                    .filter(l -> FUNDED_STATUSES.contains(l.getStatus())).count();
+            authServiceClient.updateUserStats(borrowerId, null, null, null, null, totalLoansReceived);
+
+            if (lenderId != null) {
+                int totalLoansGiven = (int) loanRepository.findByLenderIdOrderByCreatedAtDesc(lenderId).stream()
+                        .filter(l -> FUNDED_STATUSES.contains(l.getStatus())).count();
+                authServiceClient.updateUserStats(lenderId, null, null, null, totalLoansGiven, null);
+            }
+        } catch (Exception e) {
+            // Non-critical display stat — never let this block a real disbursement.
+        }
+    }
+
     @Transactional
     public LoanResponse requestLoan(String phone, LoanRequest request) {
         Map<String, Object> borrowerInfo = authServiceClient.getUserInfoByPhone(phone);
@@ -251,6 +272,7 @@ public class LoanService {
 
         loan = loanRepository.save(loan);
         installmentService.generateInstallments(loan);
+        syncLoanCountStats(loan.getBorrowerId(), loan.getLenderId());
 
         expenseServiceClient.logTransaction(
                 loan.getBorrowerId(),
@@ -683,6 +705,7 @@ public class LoanService {
 
         loan = loanRepository.save(loan);
         installmentService.generateInstallments(loan);
+        syncLoanCountStats(loan.getBorrowerId(), loan.getLenderId());
 
         expenseServiceClient.logTransaction(
                 loan.getBorrowerId(),
