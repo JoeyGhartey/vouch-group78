@@ -119,6 +119,92 @@ public class PaystackService {
                 .build();
     }
 
+    // Group loans collect payment per-contributor, at the moment each person
+    // pledges their share, rather than in one lump sum at the end -- there's
+    // no single lender to charge at disbursement time. Every contributor's
+    // payment lands in the same platform Paystack account as everything else;
+    // this only records who paid what and how much, for bookkeeping.
+    @Transactional
+    public PaymentInitResponse initializeGroupContribution(String phone, Long loanId, Double amount) {
+        Long payerId = authServiceClient.getUserIdByPhone(phone);
+        Map<String, Object> payerInfo = authServiceClient.getUserInfoByPhone(phone);
+        Map<String, Object> loan = loanServiceClient.getLoanDetails(loanId);
+
+        boolean isGroupFunded = Boolean.TRUE.equals(loan.get("isGroupFunded"));
+        Long borrowerId = ((Number) loan.get("borrowerId")).longValue();
+        String status = (String) loan.get("status");
+
+        if (!isGroupFunded) {
+            throw new RuntimeException("This loan is not group-funded");
+        }
+        if (payerId.equals(borrowerId)) {
+            throw new RuntimeException("You cannot contribute to your own loan");
+        }
+        // REQUESTED covers most contributions; AGREEMENT_PENDING covers the
+        // contribution that pushes the loan over its funding target, since
+        // loan-service flips the status the instant that contribution lands,
+        // just before this payment step runs.
+        if (!"REQUESTED".equals(status) && !"AGREEMENT_PENDING".equals(status)) {
+            throw new RuntimeException("This loan is no longer accepting contributions");
+        }
+        if (amount == null || amount <= 0) {
+            throw new RuntimeException("Amount must be positive");
+        }
+
+        String reference = "VOUCH-CONTRIB-" + UUID.randomUUID().toString().substring(0, 8);
+        int amountInPesewas = (int) Math.round(amount * 100);
+
+        Map<String, Object> payload = new HashMap<>();
+        String email = payerInfo.get("email") != null ? (String) payerInfo.get("email") : payerInfo.get("phone") + "@vouch.app";
+        payload.put("email", email);
+        payload.put("amount", amountInPesewas);
+        payload.put("currency", "GHS");
+        payload.put("reference", reference);
+        payload.put("callback_url", paystackCallbackUrl);
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("type", "GROUP_CONTRIBUTION");
+        metadata.put("loan_id", loanId.toString());
+        metadata.put("lender_id", payerId.toString());
+        metadata.put("borrower_id", borrowerId.toString());
+        payload.put("metadata", metadata);
+
+        if (payerInfo.get("momoProvider") != null) {
+            Map<String, String> mobileMoney = new HashMap<>();
+            mobileMoney.put("phone", payerInfo.get("momoNumber") != null ? (String) payerInfo.get("momoNumber") : (String) payerInfo.get("phone"));
+            mobileMoney.put("provider", mapMomoProvider((String) payerInfo.get("momoProvider")));
+            payload.put("mobile_money", mobileMoney);
+        }
+
+        JsonNode response = callPaystack(INITIALIZE_URL, payload);
+
+        String authUrl = response.has("authorization_url") ? response.get("authorization_url").asText() : null;
+        String accessCode = response.has("access_code") ? response.get("access_code").asText() : null;
+        String paystackRef = response.has("reference") ? response.get("reference").asText() : reference;
+
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .reference(reference)
+                .paystackReference(paystackRef)
+                .payerId(payerId)
+                .receiverId(borrowerId)
+                .amount(amount)
+                .currency("GHS")
+                .type(PaymentTransaction.TransactionType.GROUP_CONTRIBUTION)
+                .loanId(loanId)
+                .authorizationUrl(authUrl)
+                .accessCode(accessCode)
+                .build();
+
+        paymentTransactionRepository.save(transaction);
+
+        return PaymentInitResponse.builder()
+                .authorizationUrl(authUrl)
+                .accessCode(accessCode)
+                .reference(reference)
+                .message("Payment initialized. Complete payment to send your contribution.")
+                .callbackUrl(paystackCallbackUrl)
+                .build();
+    }
+
     @Transactional
     public PaymentInitResponse initializeLoanRepayment(String phone, Long loanId, Double amount) {
         Long payerId = authServiceClient.getUserIdByPhone(phone);
@@ -322,7 +408,21 @@ public class PaystackService {
             processLoanDisbursement(transaction);
         } else if (transaction.getType() == PaymentTransaction.TransactionType.LOAN_REPAYMENT) {
             processLoanRepayment(transaction);
+        } else if (transaction.getType() == PaymentTransaction.TransactionType.GROUP_CONTRIBUTION) {
+            processGroupContribution(transaction);
         }
+    }
+
+    // The LoanContribution row and the borrower/contributor notifications for
+    // it are already created synchronously by GroupFundingService.contributeToLoan
+    // at the moment the contribution is recorded, before this payment even starts.
+    // This only confirms the money side completed -- it doesn't touch loan state.
+    private void processGroupContribution(PaymentTransaction transaction) {
+        log.info("Group contribution payment of GHS {} confirmed for loan {} from lender {}",
+                transaction.getAmount(), transaction.getLoanId(), transaction.getPayerId());
+        notificationServiceClient.send(transaction.getPayerId(), "Payment Sent",
+                "Your contribution of GHS " + transaction.getAmount() + " has been sent successfully.",
+                "LOAN_FUNDED", transaction.getLoanId());
     }
 
     private void processLoanDisbursement(PaymentTransaction transaction) {

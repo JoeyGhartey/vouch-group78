@@ -30,6 +30,15 @@ public class LoanContribution {
     @Column(nullable = false)
     private Double amountRepaid = 0.0;
 
+    // Each contributor signs individually -- the loan only becomes
+    // AGREEMENT_SIGNED once every contributor here has signed=true AND the
+    // borrower has signed, not just any one of them (see GroupFundingService.signGroupAgreement).
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean signed = false;
+
+    private LocalDateTime signedAt;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime contributedAt;
 
