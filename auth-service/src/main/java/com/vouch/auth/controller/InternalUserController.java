@@ -55,6 +55,13 @@ public class InternalUserController {
         return ResponseEntity.ok(buildResponse(user));
     }
 
+    @GetMapping("/email/{email}")
+    public ResponseEntity<UserProfileResponse> getUserByEmail(@PathVariable String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return ResponseEntity.ok(buildResponse(user));
+    }
+
     @GetMapping("/{userId}/push-token")
     public ResponseEntity<Map<String, String>> getPushToken(@PathVariable Long userId) {
         User user = userRepository.findById(userId)

@@ -33,6 +33,16 @@ public class AuthServiceClient {
     }
 
     @SuppressWarnings("unchecked")
+    public Map<String, Object> getUserInfoByEmail(String email) {
+        Map<String, Object> response = restTemplate.getForObject(
+                authServiceUrl + "/api/internal/users/email/" + email, Map.class);
+        if (response == null || !response.containsKey("id")) {
+            throw new RuntimeException("User not found in auth-service");
+        }
+        return response;
+    }
+
+    @SuppressWarnings("unchecked")
     public Map<String, Object> getUserInfo(Long userId) {
         Map<String, Object> response = restTemplate.getForObject(
                 authServiceUrl + "/api/internal/users/" + userId, Map.class);

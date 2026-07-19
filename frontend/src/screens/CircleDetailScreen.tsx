@@ -285,7 +285,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('members');
   const [showInvite, setShowInvite] = useState<boolean>(false);
-  const [invitePhone, setInvitePhone] = useState<string>('');
+  const [inviteIdentifier, setInviteIdentifier] = useState<string>('');
   const [inviteError, setInviteError] = useState<string>('');
   const [inviting, setInviting] = useState<boolean>(false);
   const [selectedMember, setSelectedMember] = useState<CircleMember | null>(null);
@@ -384,19 +384,19 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   };
 
   const handleInvite = async (): Promise<void> => {
-    if (!invitePhone.trim()) { setInviteError('Enter a phone number'); return; }
+    if (!inviteIdentifier.trim()) { setInviteError('Enter a phone number or email address'); return; }
     setInviting(true);
     setInviteError('');
     try {
-      const result = await inviteMember(circleId, invitePhone) as { message: string };
+      const result = await inviteMember(circleId, inviteIdentifier) as { message: string };
       showAlert('success', 'Invite Sent', result.message);
       setShowInvite(false);
-      setInvitePhone('');
+      setInviteIdentifier('');
       loadData();
     } catch (error) {
       const raw = (error as Error).message;
       setInviteError(raw.includes('User not found')
-        ? "No user found with this phone number. Make sure they've registered."
+        ? "No user found with that phone number or email. Make sure they've registered."
         : raw);
     } finally {
       setInviting(false);
@@ -905,14 +905,15 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
               <TouchableWithoutFeedback onPress={() => {}}>
                 <View style={styles.modal}>
                   <Text style={styles.modalTitle}>Invite to {circle.name}</Text>
-                  <Text style={styles.label}>Phone Number</Text>
+                  <Text style={styles.label}>Phone Number or Email</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="e.g. 0551234567"
+                    placeholder="e.g. 0551234567 or name@email.com"
                     placeholderTextColor={colors.muted}
-                    value={invitePhone}
-                    onChangeText={(text) => { setInvitePhone(text); setInviteError(''); }}
-                    keyboardType="phone-pad"
+                    value={inviteIdentifier}
+                    onChangeText={(text) => { setInviteIdentifier(text); setInviteError(''); }}
+                    keyboardType="default"
+                    autoCapitalize="none"
                   />
                   {inviteError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{inviteError}</Text>}
                   <TouchableOpacity style={[styles.primaryBtn, { marginTop: 20 }, inviting && { opacity: 0.6 }]} onPress={handleInvite} disabled={inviting}>

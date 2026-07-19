@@ -124,12 +124,15 @@ public class CircleService {
     }
 
     @Transactional
-    public String inviteMember(String phone, Long circleId, String inviteePhone) {
+    public String inviteMember(String phone, Long circleId, String inviteeIdentifier) {
         Long inviterId = authServiceClient.getUserIdByPhone(phone);
         Circle circle = circleRepository.findById(circleId).orElseThrow(() -> new RuntimeException("Circle not found"));
         validateMembership(circle, inviterId);
 
-        Map<String, Object> inviteeInfo = authServiceClient.getUserInfoByPhone(inviteePhone);
+        String trimmedIdentifier = inviteeIdentifier == null ? "" : inviteeIdentifier.trim();
+        Map<String, Object> inviteeInfo = trimmedIdentifier.contains("@")
+                ? authServiceClient.getUserInfoByEmail(trimmedIdentifier)
+                : authServiceClient.getUserInfoByPhone(trimmedIdentifier);
         Long inviteeId = ((Number) inviteeInfo.get("id")).longValue();
         Double trustScore = ((Number) inviteeInfo.get("trustScore")).doubleValue();
 

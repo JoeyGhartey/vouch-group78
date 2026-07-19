@@ -305,10 +305,15 @@ export default function ExpensesScreen() {
   const chartPointCount = chartData.datasets[1].data.length;
   const screenWidth = Dimensions.get('window').width;
 
+  // Each category gets a fully distinct hue from the existing theme palette —
+  // no two are alpha-blended variants of the same base color (that's what
+  // made the old palette hard to read on the pie chart), and none of them
+  // are pulled from a generic rainbow set; they're the same status colors
+  // already used for badges/pills elsewhere in the app.
   const getCategoryColor = (category?: string): string => ({
-    Food: colors.accent, Loan: colors.accentDark, Shopping: colors.warning,
-    Entertainment: colors.statusOrange, Transport: `${colors.accent}B3`,
-    Utilities: `${colors.warning}B3`, 'Shared Expense': `${colors.statusOrange}B3`,
+    Food: colors.statusOrange, Loan: colors.accent, Shopping: colors.statusPurple,
+    Entertainment: colors.statusRose, Transport: colors.statusBlue,
+    Utilities: colors.statusTeal, 'Shared Expense': colors.slate700,
     Other: colors.slate400,
   }[category || ''] || colors.muted);
 
@@ -723,38 +728,7 @@ export default function ExpensesScreen() {
         {/* Manage Tab — actionable: transactions + spending limits */}
         {activeTab === 'manage' && (
           <View style={styles.section}>
-            <Text style={styles.manageSectionLabel}>TRANSACTIONS</Text>
-            {sortedTransactions.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <Ionicons name="receipt-outline" size={36} color={colors.muted} />
-                <Text style={styles.emptyTitle}>No transactions yet</Text>
-                <Text style={styles.emptyText}>Tap + Add to record your first transaction</Text>
-              </View>
-            ) : (
-              sortedTransactions.map((tx) => (
-                <View key={tx.id} style={styles.txCard}>
-                  <View style={[styles.txIconBox, { backgroundColor: tx.type === 'INCOME' ? colors.successBgTint : colors.dangerBgTint }]}>
-                    <Ionicons
-                      name={tx.type === 'INCOME' ? 'arrow-down-outline' : 'arrow-up-outline'}
-                      size={18}
-                      color={tx.type === 'INCOME' ? colors.success : colors.danger}
-                    />
-                  </View>
-                  <View style={styles.txInfo}>
-                    <Text style={styles.txDesc}>{tx.description}</Text>
-                    <Text style={styles.txMeta}>{tx.category} · {formatDate(tx.transactionDate)}</Text>
-                  </View>
-                  <Text style={[styles.txAmt, { color: tx.type === 'INCOME' ? colors.success : colors.danger }]}>
-                    {tx.type === 'INCOME' ? '+' : '-'}GHS {tx.amount}
-                  </Text>
-                  <TouchableOpacity style={styles.txDeleteBtn} onPress={() => handleDeleteTransaction(tx.id, tx.description)}>
-                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                  </TouchableOpacity>
-                </View>
-              ))
-            )}
-
-            <Text style={[styles.manageSectionLabel, { marginTop: 20 }]}>SPENDING LIMITS</Text>
+            <Text style={styles.manageSectionLabel}>SPENDING LIMITS</Text>
             <TouchableOpacity style={styles.primaryBtn} onPress={() => setShowLimit(true)}>
               <Ionicons name="add-circle-outline" size={18} color={colors.buttonDarkText} style={{ marginRight: 6 }} />
               <Text style={styles.primaryBtnText}>Set Spending Limit</Text>
@@ -800,6 +774,37 @@ export default function ExpensesScreen() {
                   </View>
                 );
               })
+            )}
+
+            <Text style={[styles.manageSectionLabel, { marginTop: 20 }]}>TRANSACTIONS</Text>
+            {sortedTransactions.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Ionicons name="receipt-outline" size={36} color={colors.muted} />
+                <Text style={styles.emptyTitle}>No transactions yet</Text>
+                <Text style={styles.emptyText}>Tap + Add to record your first transaction</Text>
+              </View>
+            ) : (
+              sortedTransactions.map((tx) => (
+                <View key={tx.id} style={styles.txCard}>
+                  <View style={[styles.txIconBox, { backgroundColor: tx.type === 'INCOME' ? colors.successBgTint : colors.dangerBgTint }]}>
+                    <Ionicons
+                      name={tx.type === 'INCOME' ? 'arrow-down-outline' : 'arrow-up-outline'}
+                      size={18}
+                      color={tx.type === 'INCOME' ? colors.success : colors.danger}
+                    />
+                  </View>
+                  <View style={styles.txInfo}>
+                    <Text style={styles.txDesc}>{tx.description}</Text>
+                    <Text style={styles.txMeta}>{tx.category} · {formatDate(tx.transactionDate)}</Text>
+                  </View>
+                  <Text style={[styles.txAmt, { color: tx.type === 'INCOME' ? colors.success : colors.danger }]}>
+                    {tx.type === 'INCOME' ? '+' : '-'}GHS {tx.amount}
+                  </Text>
+                  <TouchableOpacity style={styles.txDeleteBtn} onPress={() => handleDeleteTransaction(tx.id, tx.description)}>
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                  </TouchableOpacity>
+                </View>
+              ))
             )}
           </View>
         )}
