@@ -68,6 +68,12 @@ public class Loan {
     @Column(nullable = false)
     private LoanStatus status = LoanStatus.REQUESTED;
 
+    // Snapshot of status immediately before a dispute was opened, so resolving
+    // the dispute can restore the loan to where it actually was (ACTIVE, DUE,
+    // GRACE_PERIOD, or REPAID) instead of leaving it stuck in DISPUTED forever.
+    @Enumerated(EnumType.STRING)
+    private LoanStatus preDisputeStatus;
+
     @Builder.Default
     @Column(nullable = false)
     private Boolean isGroupFunded = false;

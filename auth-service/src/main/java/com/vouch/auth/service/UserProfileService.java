@@ -24,7 +24,10 @@ public class UserProfileService {
 
     public UserProfileResponse getUserProfile(String phone, Long userId) {
         getUserByPhone(phone);
-        return mapToResponse(userRepository.findById(userId)
+        // Public view of another user (e.g. a loan counterparty or circle member) --
+        // deliberately omits MoMo account details, which mapToResponse includes for
+        // the "view my own profile" path and has no business being visible to anyone else.
+        return mapToPublicResponse(userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found")));
     }
 
@@ -76,6 +79,22 @@ public class UserProfileService {
                 .permanentBan(u.getPermanentBan())
                 .createdAt(u.getCreatedAt())
                 .lastActive(u.getLastActive())
+                .role(u.getRole().name())
+                .build();
+    }
+
+    private UserProfileResponse mapToPublicResponse(User u) {
+        return UserProfileResponse.builder()
+                .id(u.getId())
+                .phone(u.getPhone())
+                .firstName(u.getFirstName())
+                .lastName(u.getLastName())
+                .trustScore(u.getTrustScore())
+                .totalLoansGiven(u.getTotalLoansGiven())
+                .totalLoansReceived(u.getTotalLoansReceived())
+                .loansRepaidOnTime(u.getLoansRepaidOnTime())
+                .defaults(u.getDefaults())
+                .createdAt(u.getCreatedAt())
                 .role(u.getRole().name())
                 .build();
     }

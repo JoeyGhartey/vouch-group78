@@ -19,9 +19,11 @@ public class DebtSimplificationService {
     private final SharedExpenseRepository sharedExpenseRepository;
     private final ExpenseSplitRepository expenseSplitRepository;
     private final AuthServiceClient authServiceClient;
+    private final CircleServiceClient circleServiceClient;
 
     public Map<String, Object> getSimplifiedDebts(String phone, Long circleId) {
-        authServiceClient.getUserIdByPhone(phone);
+        Long requesterId = authServiceClient.getUserIdByPhone(phone);
+        circleServiceClient.validateMembership(circleId, requesterId);
 
         List<SharedExpense> expenses = sharedExpenseRepository.findByCircleId(circleId);
         Map<String, Double> rawDebts = new HashMap<>();

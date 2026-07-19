@@ -192,6 +192,12 @@ export default function RegisterScreen({ navigation }: Props) {
     if (!firstName || !lastName || !phone || !password) {
       showAlert('error', 'Error', 'Please fill in all required fields'); return;
     }
+    if (phone.length !== 10) {
+      showAlert('error', 'Invalid Phone Number', 'Phone number must be exactly 10 digits'); return;
+    }
+    if (!momoSameAsPhone && momoNumber && momoNumber.length !== 10) {
+      showAlert('error', 'Invalid MoMo Number', 'MoMo number must be exactly 10 digits, or left empty to use your phone number'); return;
+    }
     if (password.length < 6) {
       showAlert('error', 'Weak Password', 'Password must be at least 6 characters'); return;
     }

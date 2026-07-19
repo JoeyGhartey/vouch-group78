@@ -66,9 +66,15 @@ public class InstallmentService {
     }
 
     public Map<String, Object> getInstallments(String phone, Long loanId) {
-        authServiceClient.getUserIdByPhone(phone);
+        Long userId = authServiceClient.getUserIdByPhone(phone);
         Loan loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        boolean isBorrower = userId.equals(loan.getBorrowerId());
+        boolean isLender = loan.getLenderId() != null && userId.equals(loan.getLenderId());
+        if (!isBorrower && !isLender) {
+            throw new RuntimeException("Only the borrower or lender can view this loan's installments");
+        }
 
         List<LoanInstallment> installments = loanInstallmentRepository.findByLoanOrderByInstallmentNumber(loan);
 

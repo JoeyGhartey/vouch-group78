@@ -279,6 +279,9 @@ export default function ProfileScreen({ navigation }: Props) {
   useFocusEffect(useCallback(() => { loadData(); }, []));
 
   const handleEdit = async (): Promise<void> => {
+    if (!momoSameAsPhone && editData.momoNumber && editData.momoNumber.length !== 10) {
+      showAlert('error', 'Invalid MoMo Number', 'MoMo number must be exactly 10 digits, or left empty'); return;
+    }
     setSaving(true);
     try {
       const updated = await updateProfile(editData);

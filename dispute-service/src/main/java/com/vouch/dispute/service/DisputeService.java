@@ -167,6 +167,10 @@ public class DisputeService {
         dispute.setResolvedAt(LocalDateTime.now());
         disputeRepository.save(dispute);
 
+        // Restore the loan out of DISPUTED now that a resolution is recorded --
+        // without this it stays permanently stuck and can never be repaid/progressed.
+        loanServiceClient.resolveLoanDispute(dispute.getLoanId());
+
         Map<String, Object> loan = loanServiceClient.getLoanDetails(dispute.getLoanId());
         Long borrowerId = ((Number) loan.get("borrowerId")).longValue();
         Long lenderId = loan.get("lenderId") != null ? ((Number) loan.get("lenderId")).longValue() : null;

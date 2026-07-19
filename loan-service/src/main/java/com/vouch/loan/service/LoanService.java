@@ -30,6 +30,7 @@ public class LoanService {
     private final AuthServiceClient authServiceClient;
     private final NotificationServiceClient notificationServiceClient;
     private final ExpenseServiceClient expenseServiceClient;
+    private final GroupFundingService groupFundingService;
     private static final double PLATFORM_FEE_PERCENT = 2.0;
     private static final EnumSet<Loan.LoanStatus> FUNDED_STATUSES = EnumSet.of(
             Loan.LoanStatus.DISBURSED, Loan.LoanStatus.ACTIVE, Loan.LoanStatus.DUE,
@@ -361,6 +362,10 @@ public class LoanService {
                     "Loan",
                     "INCOME"
             );
+        } else if (loan.getIsGroupFunded()) {
+            // No single lenderId for a group-funded loan -- split the repayment
+            // across each contributing lender proportionally to what they put in.
+            groupFundingService.distributeGroupRepayment(loan, repayAmount);
         }
 
         if (loan.getAmountRepaid() >= loan.getTotalRepaymentAmount() + loan.getOverdueInterestAccrued()) {
@@ -702,8 +707,32 @@ public class LoanService {
     public Map<String, Object> setLoanDisputed(Long loanId) {
         Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
+        loan.setPreDisputeStatus(loan.getStatus());
         loan.setStatus(Loan.LoanStatus.DISPUTED);
         loanRepository.save(loan);
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("status", loan.getStatus().name());
+        result.put("loanId", loan.getId());
+        return result;
+    }
+
+    // Called once a dispute-service resolution is recorded, so the loan comes
+    // back out of DISPUTED instead of being stuck there permanently (it was
+    // previously only ever moved INTO DISPUTED, with no path back out).
+    @Transactional
+    public Map<String, Object> resolveLoanDispute(Long loanId) {
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        if (loan.getStatus() == Loan.LoanStatus.DISPUTED) {
+            Loan.LoanStatus restored = loan.getPreDisputeStatus() != null
+                    ? loan.getPreDisputeStatus()
+                    : Loan.LoanStatus.ACTIVE;
+            loan.setStatus(restored);
+            loan.setPreDisputeStatus(null);
+            loanRepository.save(loan);
+        }
+
         Map<String, Object> result = new java.util.HashMap<>();
         result.put("status", loan.getStatus().name());
         result.put("loanId", loan.getId());
@@ -787,6 +816,8 @@ public class LoanService {
                     "Loan",
                     "INCOME"
             );
+        } else if (loan.getIsGroupFunded()) {
+            groupFundingService.distributeGroupRepayment(loan, amount);
         }
 
         Map<String, Object> result = new java.util.HashMap<>();

@@ -22,6 +22,7 @@ public class GroupFundingService {
     private final CircleMemberRepository circleMemberRepository;
     private final AuthServiceClient authServiceClient;
     private final NotificationServiceClient notificationServiceClient;
+    private final ExpenseServiceClient expenseServiceClient;
 
     @Transactional
     public Map<String, Object> contributeToLoan(String phone, Long loanId, Double amount, Double interestRate) {
@@ -172,7 +173,7 @@ public class GroupFundingService {
     }
 
     public Map<String, Object> getLoanContributions(String phone, Long loanId) {
-        authServiceClient.getUserIdByPhone(phone);
+        Long userId = authServiceClient.getUserIdByPhone(phone);
         Loan loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
@@ -180,6 +181,12 @@ public class GroupFundingService {
         Set<Long> lenderIds = new HashSet<>();
         for (LoanContribution c : contributions) {
             lenderIds.add(c.getLenderId());
+        }
+
+        boolean isBorrower = userId.equals(loan.getBorrowerId());
+        boolean isContributor = lenderIds.contains(userId);
+        if (!isBorrower && !isContributor) {
+            throw new RuntimeException("Only the borrower or a contributing lender can view this loan's contributions");
         }
         Map<Long, Map<String, Object>> lenders = authServiceClient.getUsersInfo(lenderIds);
         List<Map<String, Object>> contributionList = contributions.stream().map(c -> {
@@ -226,6 +233,13 @@ public class GroupFundingService {
             notificationServiceClient.send(c.getLenderId(), "Repayment Received",
                     "You received GHS " + String.format("%.2f", lenderRepayment) + " from " + borrowerFirstName + "'s loan repayment.",
                     "LOAN_REPAID", loan.getId());
+            expenseServiceClient.logTransaction(
+                    c.getLenderId(),
+                    "Repayment received (group loan) - " + loan.getCircle().getName(),
+                    lenderRepayment,
+                    "Loan",
+                    "INCOME"
+            );
         }
     }
 
