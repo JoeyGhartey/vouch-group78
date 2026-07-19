@@ -13,7 +13,7 @@ import java.util.Optional;
 public interface LoanRepository extends JpaRepository<Loan, Long> {
     List<Loan> findByBorrowerIdOrderByCreatedAtDesc(Long borrowerId);
     List<Loan> findByLenderIdOrderByCreatedAtDesc(Long lenderId);
-    List<Loan> findByCircle(Circle circle);
+    List<Loan> findByCircleOrderByCreatedAtDesc(Circle circle);
     List<Loan> findByCircleAndStatus(Circle circle, Loan.LoanStatus status);
     List<Loan> findByBorrowerIdAndStatus(Long borrowerId, Loan.LoanStatus status);
     List<Loan> findByStatus(Loan.LoanStatus status);

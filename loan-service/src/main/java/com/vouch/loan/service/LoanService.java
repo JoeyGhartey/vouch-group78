@@ -592,7 +592,7 @@ public class LoanService {
         Circle circle = circleRepository.findById(circleId)
                 .orElseThrow(() -> new RuntimeException("Circle not found"));
         circleService.validateMembership(circle, userId);
-        List<Loan> loans = loanRepository.findByCircle(circle);
+        List<Loan> loans = loanRepository.findByCircleOrderByCreatedAtDesc(circle);
         Map<Long, Map<String, Object>> users = fetchUsersForLoans(loans);
         return loans.stream()
                 .map(l -> mapToLoanResponse(l, null, users))

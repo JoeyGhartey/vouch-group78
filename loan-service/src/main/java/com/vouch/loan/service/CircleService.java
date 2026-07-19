@@ -28,7 +28,7 @@ public class CircleService {
                 .orElseThrow(() -> new RuntimeException("Circle not found"));
         validateMembership(circle, userId);
 
-        List<Loan> allLoans = loanRepository.findByCircle(circle);
+        List<Loan> allLoans = loanRepository.findByCircleOrderByCreatedAtDesc(circle);
         int totalLoans = allLoans.size();
         long activeLoans = allLoans.stream().filter(l -> List.of(
                 Loan.LoanStatus.ACTIVE, Loan.LoanStatus.DUE, Loan.LoanStatus.GRACE_PERIOD
