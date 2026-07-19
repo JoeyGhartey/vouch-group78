@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Animated, PanResponder,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -58,49 +58,13 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   notifMessage: { fontSize: 13, color: c.muted, marginTop: 3, lineHeight: 18 },
   notifTime: { fontSize: 11, color: c.muted, marginTop: 6 },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.accent, marginTop: 4 },
+  notifDeleteBtn: { padding: 4, marginTop: 2 },
   acceptBtn: { backgroundColor: c.accent, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, alignSelf: 'flex-start' },
   acceptBtnText: { color: c.surface, fontSize: 13, fontWeight: '600' },
   rejectBtn: { backgroundColor: c.danger, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, alignSelf: 'flex-start' },
   rejectBtnText: { color: c.surface, fontSize: 13, fontWeight: '600' },
 });
 
-function SwipeableRow({ onDelete, children }: { onDelete: () => void; children: React.ReactNode }): React.ReactElement {
-  const { colors } = useTheme();
-  const swipeAnim = useRef(new Animated.Value(0)).current;
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gs) =>
-        Math.abs(gs.dx) > Math.abs(gs.dy) && Math.abs(gs.dx) > 8,
-      onPanResponderMove: (_, gs) => {
-        swipeAnim.setValue(Math.min(0, Math.max(gs.dx, -80)));
-      },
-      onPanResponderRelease: (_, gs) => {
-        Animated.spring(swipeAnim, {
-          toValue: gs.dx < -40 ? -80 : 0,
-          useNativeDriver: true,
-        }).start();
-      },
-    })
-  ).current;
-
-  return (
-    <View style={{ borderRadius: 14, overflow: 'hidden' }}>
-      <View style={{
-        position: 'absolute', right: 0, top: 0, bottom: 0, width: 80,
-        backgroundColor: colors.danger, justifyContent: 'center', alignItems: 'center',
-      }}>
-        <TouchableOpacity onPress={onDelete} style={{ alignItems: 'center' }}>
-          <Ionicons name="trash-outline" size={18} color="#fff" />
-          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '600', marginTop: 2 }}>Delete</Text>
-        </TouchableOpacity>
-      </View>
-      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      <Animated.View style={{ transform: [{ translateX: swipeAnim }] }} {...(panResponder.panHandlers as any)}>
-        {children}
-      </Animated.View>
-    </View>
-  );
-}
 
 export default function NotificationsScreen({ navigation }: Props) {
   const { colors } = useTheme();
@@ -271,7 +235,6 @@ export default function NotificationsScreen({ navigation }: Props) {
           contentContainerStyle={{ padding: 16, gap: 8 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadNotifications(); }} tintColor={colors.accent} />}
           renderItem={({ item }) => (
-            <SwipeableRow onDelete={() => handleDelete(item.id)}>
             <TouchableOpacity
               style={[styles.notifCard, !item.read && styles.unread]}
               onPress={() => {
@@ -326,8 +289,14 @@ export default function NotificationsScreen({ navigation }: Props) {
                 <Text style={styles.notifTime}>{formatDate(item.createdAt)}</Text>
               </View>
               {!item.read && <View style={styles.unreadDot} />}
+              <TouchableOpacity
+                style={styles.notifDeleteBtn}
+                onPress={() => handleDelete(item.id)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="trash-outline" size={18} color={colors.muted} />
+              </TouchableOpacity>
             </TouchableOpacity>
-            </SwipeableRow>
           )}
         />
       )}
