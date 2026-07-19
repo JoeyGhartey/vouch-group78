@@ -173,7 +173,7 @@ public class LoanService {
                 .repaymentPeriodMonths(repaymentPeriod)
                 .dueDate(dueDate)
                 .status(Loan.LoanStatus.REQUESTED)
-                .isGroupFunded(request.getAmount() >= circle.getGroupFundingThreshold())
+                .isGroupFunded(request.getAmount() >= effectiveGroupFundingThreshold(circle.getGroupFundingThreshold(), trustScore))
                 .build();
 
         loan = loanRepository.save(loan);
@@ -201,10 +201,11 @@ public class LoanService {
             throw new RuntimeException("This loan is not available for funding");
         }
 
-        if (Boolean.TRUE.equals(loan.getIsGroupFunded())) {
-            throw new RuntimeException("This loan is above the circle's group funding threshold (GHS "
+        if (Boolean.TRUE.equals(loan.getIsGroupFunded()) && !Boolean.TRUE.equals(request.getOverrideGroupFunding())) {
+            throw new RuntimeException("This loan is above the circle's group funding threshold for this borrower's trust tier (GHS "
                     + String.format("%.2f", loan.getCircle().getGroupFundingThreshold())
-                    + ") and must be funded by contributions from multiple members instead of a single lender.");
+                    + " base) and is recommended to be funded by multiple members. "
+                    + "If you're willing to fund it alone, resubmit with overrideGroupFunding.");
         }
 
         circleService.validateMembership(loan.getCircle(), lenderId);
@@ -863,6 +864,20 @@ public class LoanService {
         result.put("amountRepaid", loan.getAmountRepaid());
         result.put("remaining", Math.round((totalOwed - loan.getAmountRepaid()) * 100.0) / 100.0);
         return result;
+    }
+
+    // Scales a circle's base group-funding threshold by the borrower's trust
+    // tier -- the same tiers that cap interest rate (see computeInterestRateTier
+    // below). A higher-trust borrower can be trusted for more from a single
+    // lender before the risk needs spreading across a group; a lower-trust
+    // borrower hits that requirement sooner. Mirrored in the frontend
+    // (RequestLoanScreen) for the pre-submit warning -- keep both in sync.
+    public double effectiveGroupFundingThreshold(double baseThreshold, Double trustScore) {
+        double score = trustScore != null ? trustScore : 50.0;
+        if (score >= 90) return baseThreshold * 2.0;
+        if (score >= 70) return baseThreshold * 1.5;
+        if (score >= 50) return baseThreshold;
+        return baseThreshold * 0.5;
     }
 
     private record InterestRateTier(String label, double maxRate) {}

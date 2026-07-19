@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
@@ -6,11 +6,21 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { requestLoan } from '../services/api';
+import { requestLoan, getCircle, getProfile } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+
+// Mirrors LoanService.effectiveGroupFundingThreshold on the backend -- a
+// higher-trust borrower can go further above the circle's base threshold
+// before a loan is required to be group-funded. Keep both in sync.
+const effectiveGroupFundingThreshold = (base: number, trustScore: number): number => {
+  if (trustScore >= 90) return base * 2.0;
+  if (trustScore >= 70) return base * 1.5;
+  if (trustScore >= 50) return base;
+  return base * 0.5;
+};
 
 type Props = {
   route: RouteProp<RootStackParamList, 'RequestLoan'>;
@@ -65,6 +75,25 @@ export default function RequestLoanScreen({ route, navigation }: Props) {
   const [repaymentType, setRepaymentType] = useState<string>('FIXED');
   const [repaymentPeriod, setRepaymentPeriod] = useState<string>('1');
   const [loading, setLoading] = useState<boolean>(false);
+  const [groupFundingThreshold, setGroupFundingThreshold] = useState<number | null>(null);
+  const [trustScore, setTrustScore] = useState<number>(50);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [circle, profile] = await Promise.all([getCircle(circleId), getProfile()]);
+        setGroupFundingThreshold((circle as { groupFundingThreshold: number }).groupFundingThreshold);
+        setTrustScore((profile as { trustScore: number }).trustScore ?? 50);
+      } catch {
+        // Non-critical -- just skip the pre-submit warning if this fails.
+      }
+    })();
+  }, [circleId]);
+
+  const effectiveThreshold = groupFundingThreshold != null
+    ? effectiveGroupFundingThreshold(groupFundingThreshold, trustScore)
+    : null;
+  const willRequireGroupFunding = effectiveThreshold != null && parseFloat(amount) >= effectiveThreshold;
 
   const handleRequest = async (): Promise<void> => {
     if (!amount || parseFloat(amount) <= 0) { showAlert('error', 'Error', 'Enter a valid amount'); return; }
@@ -161,6 +190,11 @@ export default function RequestLoanScreen({ route, navigation }: Props) {
                 </View>
               ))}
               <Text style={styles.previewNote}>Interest rate will be set by the lender</Text>
+              {willRequireGroupFunding && (
+                <Text style={[styles.previewNote, { color: colors.warning, fontStyle: 'normal' }]}>
+                  This amount is above your GHS {effectiveThreshold!.toFixed(0)} threshold (based on your trust tier) — it will need funding from multiple circle members instead of a single lender.
+                </Text>
+              )}
             </View>
           )}
 

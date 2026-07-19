@@ -245,6 +245,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState<boolean>(true);
   const [acting, setActing] = useState<boolean>(false);
   const [showFund, setShowFund] = useState<boolean>(false);
+  const [fundOverride, setFundOverride] = useState<boolean>(false);
   const [showContribute, setShowContribute] = useState<boolean>(false);
   const [contributeAmount, setContributeAmount] = useState<string>('');
   const [contributeRate, setContributeRate] = useState<string>('');
@@ -314,9 +315,25 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       return;
     }
     doAction(async () => {
-      await fundLoan({ loanId: loan!.id, interestRate: parseFloat(interestRate) });
+      await fundLoan({
+        loanId: loan!.id,
+        interestRate: parseFloat(interestRate),
+        overrideGroupFunding: fundOverride || undefined,
+      });
       setShowFund(false);
+      setFundOverride(false);
     }, 'Loan funded. Agreement pending signatures.');
+  };
+
+  const handleFundAloneOverride = async (): Promise<void> => {
+    const ok = await confirm(
+      'Fund This Loan Alone?',
+      `This loan is recommended for group funding based on the borrower's trust tier. You're choosing to fund the full GHS ${loan!.amount} yourself and take on the full risk alone. Continue?`,
+      'Yes, Fund Alone'
+    );
+    if (!ok) return;
+    setFundOverride(true);
+    setShowFund(true);
   };
 
   const remainingToFund = (): number => {
@@ -716,9 +733,14 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
           </TouchableOpacity>
         )}
         {loan.status === 'REQUESTED' && !isBorrower && loan.isGroupFunded && (
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => setShowContribute(true)}>
-            <Text style={styles.btnText}>Contribute to This Loan</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity style={styles.primaryBtn} onPress={() => setShowContribute(true)}>
+              <Text style={styles.btnText}>Contribute to This Loan</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.outlineBtn} onPress={handleFundAloneOverride}>
+              <Text style={styles.outlineText}>Fund This Loan Alone Instead</Text>
+            </TouchableOpacity>
+          </>
         )}
         {loan.status === 'AGREEMENT_PENDING' && isLender && loan.counterOfferRate != null && (
           <View style={styles.counterCard}>
@@ -867,13 +889,21 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       </Modal>
 
       {/* Fund Modal */}
-      <Modal visible={showFund} animationType="slide" transparent onRequestClose={() => setShowFund(false)}>
-        <TouchableWithoutFeedback onPress={() => setShowFund(false)}>
+      <Modal visible={showFund} animationType="slide" transparent onRequestClose={() => { setShowFund(false); setFundOverride(false); }}>
+        <TouchableWithoutFeedback onPress={() => { setShowFund(false); setFundOverride(false); }}>
         <View style={styles.modalBg}>
           <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Fund This Loan</Text>
+            <Text style={styles.modalTitle}>{fundOverride ? 'Fund This Loan Alone' : 'Fund This Loan'}</Text>
             <Text style={styles.modalSub}>GHS {loan.amount} to {loan.borrowerName}</Text>
+            {fundOverride && (
+              <View style={[styles.trustTierBanner, { borderColor: colors.warningBorderTint, backgroundColor: colors.warningBgTint }]}>
+                <Ionicons name="warning-outline" size={16} color={colors.warning} />
+                <Text style={styles.trustTierBannerText}>
+                  You're overriding the group funding recommendation and taking on the full loan risk alone.
+                </Text>
+              </View>
+            )}
             <View style={styles.trustTierBanner}>
               <Ionicons name="shield-checkmark-outline" size={16} color={colors.muted} />
               <Text style={styles.trustTierBannerText}>
@@ -906,7 +936,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             >
               {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Confirm & Fund</Text>}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowFund(false)}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => { setShowFund(false); setFundOverride(false); }}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
