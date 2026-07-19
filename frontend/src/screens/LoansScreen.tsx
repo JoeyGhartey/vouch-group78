@@ -1,12 +1,14 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, Modal, TextInput,
+  KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { getMyBorrowedLoans, getMyLentLoans } from '../services/api';
+import { getMyBorrowedLoans, getMyLentLoans, getMyCircles, requestLoan } from '../services/api';
+import { useAppAlert } from '../components/AppAlert';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
@@ -29,14 +31,40 @@ interface Loan {
   dueDate?: string;
 }
 
+interface Circle {
+  id: number;
+  name: string;
+}
+
 const createStyles = (c: ColorScheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.bg },
   header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     backgroundColor: c.surface, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
     borderBottomWidth: 1, borderBottomColor: c.border,
   },
   title: { fontSize: 22, fontWeight: '700', color: c.dark },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.buttonDark, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  addBtnText: { color: c.buttonDarkText, fontSize: 14, fontWeight: '600' },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  modal: { backgroundColor: c.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '90%' as const },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: c.dark, textAlign: 'center', marginBottom: 20 },
+  label: { fontSize: 12, color: c.muted, fontWeight: '600', marginBottom: 6, marginTop: 14 },
+  input: { backgroundColor: c.bg, borderRadius: 10, padding: 14, fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border },
+  circleChip: {
+    backgroundColor: c.bg, borderRadius: 20, paddingHorizontal: 14,
+    paddingVertical: 8, marginRight: 8, borderWidth: 1, borderColor: c.border,
+  },
+  circleChipSel: { backgroundColor: c.buttonDark, borderColor: c.buttonDark },
+  circleChipText: { color: c.muted, fontSize: 12, fontWeight: '600' },
+  circleChipTextSel: { color: c.buttonDarkText },
+  noCirclesBox: { alignItems: 'center', padding: 24 },
+  noCirclesText: { fontSize: 13, color: c.muted, textAlign: 'center', marginTop: 10, lineHeight: 20 },
+  submitBtn: { backgroundColor: c.buttonDark, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
+  submitBtnText: { color: c.buttonDarkText, fontSize: 15, fontWeight: '700' },
+  cancelModalBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
+  cancelModalText: { color: c.muted, fontSize: 14 },
   summaryCard: {
     backgroundColor: c.surface, marginHorizontal: 16, marginTop: 16, marginBottom: 8,
     borderRadius: 16, padding: 20, alignItems: 'center',
@@ -80,11 +108,21 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
 export default function LoansScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { showAlert } = useAppAlert();
   const [borrowed, setBorrowed] = useState<Loan[]>([]);
   const [lent, setLent] = useState<Loan[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('borrowed');
+
+  const [showRequestModal, setShowRequestModal] = useState<boolean>(false);
+  const [circles, setCircles] = useState<Circle[]>([]);
+  const [circlesLoading, setCirclesLoading] = useState<boolean>(false);
+  const [selectedCircleId, setSelectedCircleId] = useState<number | 'ALL' | null>(null);
+  const [reqAmount, setReqAmount] = useState<string>('');
+  const [reqReason, setReqReason] = useState<string>('');
+  const [reqPeriod, setReqPeriod] = useState<string>('1');
+  const [submitting, setSubmitting] = useState<boolean>(false);
 
   const loadLoans = async (): Promise<void> => {
     try {
@@ -100,6 +138,60 @@ export default function LoansScreen({ navigation }: Props) {
   };
 
   useFocusEffect(useCallback(() => { loadLoans(); }, []));
+
+  const openRequestModal = async (): Promise<void> => {
+    setShowRequestModal(true);
+    setSelectedCircleId(null);
+    setReqAmount('');
+    setReqReason('');
+    setReqPeriod('1');
+    setCirclesLoading(true);
+    try {
+      const data = await getMyCircles();
+      setCircles(data as Circle[]);
+    } catch (error) {
+      setCircles([]);
+    } finally {
+      setCirclesLoading(false);
+    }
+  };
+
+  const handleRequestLoan = async (): Promise<void> => {
+    if (!selectedCircleId) { showAlert('error', 'Error', 'Select a circle'); return; }
+    const amt = parseFloat(reqAmount);
+    if (!reqAmount || isNaN(amt) || amt <= 0) { showAlert('error', 'Error', 'Enter a valid amount'); return; }
+    if (!reqReason.trim()) { showAlert('error', 'Error', 'Enter a purpose for the loan'); return; }
+    const period = parseInt(reqPeriod, 10) || 1;
+
+    setSubmitting(true);
+    try {
+      if (selectedCircleId === 'ALL') {
+        const results = await Promise.allSettled(circles.map((c) => requestLoan({
+          circleId: c.id, amount: amt, reason: reqReason.trim(), repaymentPeriodMonths: period,
+        })));
+        const failures = results.filter((r) => r.status === 'rejected').length;
+        const successes = results.length - failures;
+        if (failures === 0) {
+          showAlert('success', 'Requested', `Loan request posted to all ${successes} of your circles.`);
+        } else if (successes === 0) {
+          showAlert('error', 'Failed', 'Could not post the request to any circle.');
+        } else {
+          showAlert('success', 'Partially Posted', `Posted to ${successes} of ${results.length} circles. ${failures} failed (e.g. amount may exceed a circle's max loan limit).`);
+        }
+      } else {
+        await requestLoan({
+          circleId: selectedCircleId, amount: amt, reason: reqReason.trim(), repaymentPeriodMonths: period,
+        });
+        showAlert('success', 'Requested', 'Loan request posted to the circle.');
+      }
+      setShowRequestModal(false);
+      loadLoans();
+    } catch (error) {
+      showAlert('error', 'Error', (error as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const statusColor = (s: string): string => ({
     REQUESTED: colors.warning, AGREEMENT_PENDING: colors.statusOrange, AGREEMENT_SIGNED: colors.statusBlue,
@@ -121,6 +213,10 @@ export default function LoansScreen({ navigation }: Props) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>My Loans</Text>
+        <TouchableOpacity style={styles.addBtn} onPress={openRequestModal}>
+          <Ionicons name="add" size={18} color={colors.buttonDarkText} />
+          <Text style={styles.addBtnText}>Request</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.summaryCard}>
@@ -208,6 +304,95 @@ export default function LoansScreen({ navigation }: Props) {
           )}
         />
       )}
+
+      <Modal visible={showRequestModal} animationType="slide" transparent onRequestClose={() => setShowRequestModal(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableWithoutFeedback onPress={() => setShowRequestModal(false)}>
+          <View style={styles.modalBg}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+            <View style={styles.modal}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <Text style={styles.modalTitle}>Request a Loan</Text>
+
+                {circlesLoading ? (
+                  <ActivityIndicator size="large" color={colors.accent} style={{ marginVertical: 24 }} />
+                ) : circles.length === 0 ? (
+                  <View style={styles.noCirclesBox}>
+                    <Ionicons name="people-outline" size={36} color={colors.muted} />
+                    <Text style={styles.noCirclesText}>
+                      You&apos;re not part of any circles yet. Join or create a circle before requesting a loan.
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={styles.label}>Circle</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 4 }}>
+                      <TouchableOpacity
+                        style={[styles.circleChip, selectedCircleId === 'ALL' && styles.circleChipSel]}
+                        onPress={() => setSelectedCircleId('ALL')}
+                      >
+                        <Text style={[styles.circleChipText, selectedCircleId === 'ALL' && styles.circleChipTextSel]}>All Circles</Text>
+                      </TouchableOpacity>
+                      {circles.map((c) => (
+                        <TouchableOpacity
+                          key={c.id}
+                          style={[styles.circleChip, selectedCircleId === c.id && styles.circleChipSel]}
+                          onPress={() => setSelectedCircleId(c.id)}
+                        >
+                          <Text style={[styles.circleChipText, selectedCircleId === c.id && styles.circleChipTextSel]}>{c.name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+
+                    <Text style={styles.label}>Amount (GHS) *</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="e.g. 500"
+                      placeholderTextColor={colors.muted}
+                      value={reqAmount}
+                      onChangeText={setReqAmount}
+                      keyboardType="numeric"
+                    />
+
+                    <Text style={styles.label}>Purpose *</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="What is this loan for?"
+                      placeholderTextColor={colors.muted}
+                      value={reqReason}
+                      onChangeText={setReqReason}
+                    />
+
+                    <Text style={styles.label}>Repayment Period (months)</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="1"
+                      placeholderTextColor={colors.muted}
+                      value={reqPeriod}
+                      onChangeText={setReqPeriod}
+                      keyboardType="numeric"
+                    />
+
+                    <TouchableOpacity
+                      style={[styles.submitBtn, submitting && { opacity: 0.6 }]}
+                      onPress={handleRequestLoan}
+                      disabled={submitting}
+                    >
+                      {submitting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.submitBtnText}>Submit Request</Text>}
+                    </TouchableOpacity>
+                  </>
+                )}
+
+                <TouchableOpacity style={styles.cancelModalBtn} onPress={() => setShowRequestModal(false)}>
+                  <Text style={styles.cancelModalText}>Cancel</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+            </TouchableWithoutFeedback>
+          </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }

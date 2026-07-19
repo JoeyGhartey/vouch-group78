@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, ActivityIndicator, RefreshControl, LayoutAnimation,
-  Platform, UIManager,
+  Platform, UIManager, Image,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,11 +11,13 @@ import Svg from 'react-native-svg';
 const { Circle } = require('react-native-svg');
 import {
   getProfile, getMyCircles, getUnreadCount,
-  getMyBorrowedLoans, getMyLentLoans,
+  getMyBorrowedLoans, getMyLentLoans, getCircleExpenses, getPersonalTransactions,
 } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { fonts } from '../theme/fonts';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -55,6 +57,38 @@ interface Loan {
   createdAt: string;
 }
 
+interface ExpenseSplit {
+  id: number;
+  userId: number;
+  amountOwed: number;
+  settled: boolean;
+  paymentRequested: boolean;
+}
+
+interface SharedExpense {
+  expenseId: number;
+  description: string;
+  totalAmount: number;
+  category?: string;
+  paidBy: string;
+  paidById: number;
+  createdAt: string;
+  splits: ExpenseSplit[];
+}
+
+type CircleExpense = SharedExpense & { circleId: number; circleName: string };
+
+interface PersonalTransaction {
+  category: string;
+  amount: number;
+  type: string;
+  transactionDate: string;
+}
+
+type LoanActivityItem = Loan & { kind: 'loan'; role: 'borrower' | 'lender' };
+type ExpenseActivityItem = CircleExpense & { kind: 'expense'; role: 'paid' | 'owed' };
+type ActivityItem = LoanActivityItem | ExpenseActivityItem;
+
 const HERO_BORDER = '#1e293b';
 const HERO_MUTED = '#64748b';
 const HERO_SUBTLE = '#94a3b8';
@@ -75,8 +109,10 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.surface, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 18,
     borderBottomWidth: 1, borderBottomColor: c.border,
   },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  headerLogo: { width: 32, height: 35, marginRight: 12 },
   greeting: { fontSize: 15, color: c.muted },                          // was 13
-  name: { fontSize: 26, fontWeight: '700', color: c.dark, letterSpacing: -0.3, marginTop: 2 }, // was 22
+  name: { fontSize: 26, fontWeight: '700', fontFamily: fonts.bold, color: c.dark, letterSpacing: -0.3, marginTop: 2 }, // was 22
   bellBtn: {
     width: 44, height: 44, borderRadius: 12,
     backgroundColor: c.bg, justifyContent: 'center', alignItems: 'center',
@@ -88,23 +124,28 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     borderRadius: 8, borderWidth: 2, borderColor: c.surface,
     justifyContent: 'center', alignItems: 'center',
   },
-  badgeText: { fontSize: 8, color: c.surface, fontWeight: '800' },
+  badgeText: { fontSize: 8, color: c.surface, fontWeight: '800', fontFamily: fonts.extrabold },
 
   heroCard: {
     backgroundColor: c.heroCardBg, marginHorizontal: 16, marginTop: 16,
     borderRadius: 20, overflow: 'hidden',
   },
+  heroLabelRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 20, paddingTop: 18,
+  },
+  heroLabel: { fontSize: 11, fontWeight: '800', fontFamily: fonts.extrabold, color: c.accent, letterSpacing: 1.2 },
   eyeBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 20, paddingTop: 18, paddingBottom: 4,
+    paddingHorizontal: 20, paddingTop: 10, paddingBottom: 4,
   },
-  eyeText: { fontSize: 13, color: HERO_SUBTLE, fontWeight: '500' },    // was 12
+  eyeText: { fontSize: 13, color: HERO_SUBTLE, fontWeight: '500', fontFamily: fonts.medium },    // was 12
   amountsRow: {
     flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 18,  // was 16
   },
   amountItem: { flex: 1 },
-  amountLabel: { fontSize: 14, color: HERO_MUTED, fontWeight: '500', marginBottom: 8 }, // was 12
-  amountValue: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },               // was 22
+  amountLabel: { fontSize: 14, color: HERO_MUTED, fontWeight: '500', fontFamily: fonts.medium, marginBottom: 8 }, // was 12
+  amountValue: { fontSize: 26, fontWeight: '800', fontFamily: fonts.extrabold, letterSpacing: -0.5 },               // was 22
   amountSub: { fontSize: 13, color: HERO_MUTED, marginTop: 6 },                        // was 11
   amountDivider: { width: 1, backgroundColor: HERO_BORDER, marginHorizontal: 16 },
   trustSection: {
@@ -113,21 +154,34 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     paddingHorizontal: 20, paddingVertical: 18,                         // was 16
   },
   trustTextCol: { flex: 1, marginRight: 16 },
-  trustHeading: { fontSize: 12, color: HERO_MUTED, fontWeight: '700', letterSpacing: 0.8, marginBottom: 6 }, // was 11
+  trustHeading: { fontSize: 12, color: HERO_MUTED, fontWeight: '700', fontFamily: fonts.bold, letterSpacing: 0.8, marginBottom: 6 }, // was 11
   trustPill: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 },
   pillDot: { width: 8, height: 8, borderRadius: 4 },                   // was 7
-  pillText: { fontSize: 15, fontWeight: '700' },                        // was 13
+  pillText: { fontSize: 15, fontWeight: '700', fontFamily: fonts.bold },                        // was 13
   progressBg: { height: 5, backgroundColor: RING_BG, borderRadius: 4, overflow: 'hidden' }, // was 4
   progressFill: { height: '100%', borderRadius: 4 },
   ringWrapper: { width: 72, height: 72, justifyContent: 'center', alignItems: 'center' }, // was 64
-  ringText: { position: 'absolute', fontSize: 15, fontWeight: '800', color: '#FFFFFF' }, // was 13
+  ringText: { position: 'absolute', fontSize: 15, fontWeight: '800', fontFamily: fonts.extrabold, color: '#FFFFFF' }, // was 13
   statsRow: {
     flexDirection: 'row', borderTopWidth: 1, borderTopColor: HERO_BORDER,
   },
   statItem: { flex: 1, paddingVertical: 16, alignItems: 'center' },    // was 14
   statDivider: { borderRightWidth: 1, borderRightColor: HERO_BORDER },
-  statVal: { fontSize: 20, fontWeight: '800', color: '#FFFFFF' },      // was 17
-  statLbl: { fontSize: 11, color: HERO_MUTED, fontWeight: '600', marginTop: 3 }, // was 10
+  statVal: { fontSize: 20, fontWeight: '800', fontFamily: fonts.extrabold, color: '#FFFFFF' },      // was 17
+  statLbl: { fontSize: 11, color: HERO_MUTED, fontWeight: '600', fontFamily: fonts.semibold, marginTop: 3 }, // was 10
+  spendingCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: c.surface, marginHorizontal: 16, marginTop: 10,
+    borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border,
+  },
+  spendingLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  spendingIconBox: {
+    width: 36, height: 36, borderRadius: 10, backgroundColor: c.bg,
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: c.border,
+  },
+  spendingLabel: { fontSize: 12, color: c.muted, fontWeight: '600', fontFamily: fonts.semibold },
+  spendingSub: { fontSize: 11, color: c.muted, marginTop: 1 },
+  spendingValue: { fontSize: 17, fontWeight: '800', fontFamily: fonts.extrabold, color: c.dark },
 
   activityHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -140,7 +194,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.accent, borderRadius: 10, width: 22, height: 22,
     justifyContent: 'center', alignItems: 'center',
   },
-  activityBadgeText: { fontSize: 11, fontWeight: '800', color: c.surface }, // was 10
+  activityBadgeText: { fontSize: 11, fontWeight: '800', fontFamily: fonts.extrabold, color: c.surface }, // was 10
 
   activityList: { marginHorizontal: 16, gap: 8, marginBottom: 8 },
   activityCard: {
@@ -150,19 +204,19 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   },
   activityIconBox: { width: 42, height: 42, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   activityInfo: { flex: 1 },
-  activityTitle: { fontSize: 15, fontWeight: '600', color: c.dark },   // was 14
+  activityTitle: { fontSize: 15, fontWeight: '600', fontFamily: fonts.semibold, color: c.dark },   // was 14
   activitySub: { fontSize: 12, color: c.muted, marginTop: 2 },         // was 11
   activityRight: { alignItems: 'flex-end', gap: 4 },
-  activityAmount: { fontSize: 15, fontWeight: '700' },                  // was 14
+  activityAmount: { fontSize: 15, fontWeight: '700', fontFamily: fonts.bold },                  // was 14
   statusPill: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  statusText: { fontSize: 11, fontWeight: '700' },                      // was 10
+  statusText: { fontSize: 11, fontWeight: '700', fontFamily: fonts.bold },                      // was 10
 
   sectionRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginHorizontal: 16, marginTop: 20, marginBottom: 10,
   },
-  sectionLabel: { fontSize: 12, fontWeight: '700', color: c.muted, letterSpacing: 0.8 }, // was 11
-  seeAll: { fontSize: 13, color: c.accent, fontWeight: '700' },         // was 12
+  sectionLabel: { fontSize: 12, fontWeight: '700', fontFamily: fonts.bold, color: c.muted, letterSpacing: 0.8 }, // was 11
+  seeAll: { fontSize: 13, color: c.accent, fontWeight: '700', fontFamily: fonts.bold },         // was 12
 
   circleList: { marginHorizontal: 16, gap: 8 },
   circleCard: {
@@ -176,25 +230,28 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.bg, justifyContent: 'center', alignItems: 'center',
     borderWidth: 1, borderColor: c.border,
   },
-  circleName: { fontSize: 15, fontWeight: '600', color: c.dark },       // was 14
+  circleName: { fontSize: 15, fontWeight: '600', fontFamily: fonts.semibold, color: c.dark },       // was 14
   circleMeta: { fontSize: 12, color: c.muted, marginTop: 2 },           // was 11
 
   emptyCard: {
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     padding: 24, alignItems: 'center', borderWidth: 1, borderColor: c.border,
   },
-  emptyText: { fontSize: 15, fontWeight: '600', color: c.dark, marginTop: 10, marginBottom: 4 }, // was 14
+  emptyText: { fontSize: 15, fontWeight: '600', fontFamily: fonts.semibold, color: c.dark, marginTop: 10, marginBottom: 4 }, // was 14
   emptySubText: { fontSize: 13, color: c.muted, textAlign: 'center' }, // was 12
 });
 
 export default function HomeScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [circles, setCircles] = useState<Circle[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [borrowedLoans, setBorrowedLoans] = useState<Loan[]>([]);
   const [lentLoans, setLentLoans] = useState<Loan[]>([]);
+  const [expenses, setExpenses] = useState<CircleExpense[]>([]);
+  const [personalTransactions, setPersonalTransactions] = useState<PersonalTransaction[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [amountsVisible, setAmountsVisible] = useState<boolean>(false);
@@ -202,18 +259,33 @@ export default function HomeScreen({ navigation }: Props) {
 
   const loadData = async (): Promise<void> => {
     try {
-      const [profileData, circlesData, notifData, borrowed, lent] = await Promise.all([
+      const circlesPromise = getMyCircles();
+      const expensesPromise = circlesPromise.then((circlesData) =>
+        Promise.all((circlesData as Circle[]).map((c) => getCircleExpenses(c.id).catch(() => [])))
+      );
+      const [profileData, circlesData, notifData, borrowed, lent, personalTxs, expenseLists] = await Promise.all([
         getProfile(),
-        getMyCircles(),
+        circlesPromise,
         getUnreadCount(),
         getMyBorrowedLoans(),
         getMyLentLoans(),
+        getPersonalTransactions().catch(() => []),
+        expensesPromise,
       ]);
       setProfile(profileData as Profile);
-      setCircles(circlesData as Circle[]);
+      const circlesList = circlesData as Circle[];
+      setCircles(circlesList);
       setUnreadCount((notifData as { unreadCount: number }).unreadCount || 0);
       setBorrowedLoans(borrowed as Loan[]);
       setLentLoans(lent as Loan[]);
+      setPersonalTransactions(personalTxs as PersonalTransaction[]);
+
+      const mergedExpenses: CircleExpense[] = expenseLists.flatMap((list, i) =>
+        (list as SharedExpense[]).map((e) => ({
+          ...e, circleId: circlesList[i].id, circleName: circlesList[i].name,
+        }))
+      );
+      setExpenses(mergedExpenses);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -250,10 +322,27 @@ export default function HomeScreen({ navigation }: Props) {
     .filter(l => ACTIVE_STATUSES.includes(l.status))
     .reduce((sum, l) => sum + (l.totalRepaymentAmount + l.overdueInterestAccrued - l.amountRepaid), 0);
 
-  const recentActivity: (Loan & { role: 'borrower' | 'lender' })[] = [
-    ...borrowedLoans.map(l => ({ ...l, role: 'borrower' as const })),
-    ...lentLoans.map(l => ({ ...l, role: 'lender' as const })),
-  ]
+  const now = new Date();
+  const thisMonthSpend = personalTransactions
+    .filter(t => {
+      if (t.type !== 'EXPENSE') return false;
+      const d = new Date(t.transactionDate);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    })
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const myId = user?.id;
+
+  const loanActivity: ActivityItem[] = [
+    ...borrowedLoans.map(l => ({ ...l, kind: 'loan' as const, role: 'borrower' as const })),
+    ...lentLoans.map(l => ({ ...l, kind: 'loan' as const, role: 'lender' as const })),
+  ];
+
+  const expenseActivity: ActivityItem[] = expenses
+    .filter(e => myId != null && (e.paidById === myId || e.splits.some(s => s.userId === myId)))
+    .map(e => ({ ...e, kind: 'expense' as const, role: e.paidById === myId ? 'paid' as const : 'owed' as const }));
+
+  const recentActivity: ActivityItem[] = [...loanActivity, ...expenseActivity]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 
@@ -267,6 +356,20 @@ export default function HomeScreen({ navigation }: Props) {
       case 'REQUESTED': return colors.warning;
       default: return colors.muted;
     }
+  };
+
+  const getExpenseStatus = (e: ExpenseActivityItem): { label: string; color: string } => {
+    if (e.role === 'paid') {
+      const settledCount = e.splits.filter(s => s.settled || s.userId === e.paidById).length;
+      const total = e.splits.length;
+      return settledCount === total
+        ? { label: 'All Settled', color: colors.success }
+        : { label: `${settledCount}/${total} Settled`, color: colors.warning };
+    }
+    const mySplit = e.splits.find(s => s.userId === myId);
+    return mySplit?.settled
+      ? { label: 'Settled', color: colors.success }
+      : { label: 'Pending', color: colors.warning };
   };
 
   const formatDate = (dateStr: string) => {
@@ -295,9 +398,12 @@ export default function HomeScreen({ navigation }: Props) {
     >
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>{getGreeting()}</Text>
-          <Text style={styles.name}>{profile?.firstName} {profile?.lastName}</Text>
+        <View style={styles.headerLeft}>
+          <Image source={require('../../assets/logo.png')} style={styles.headerLogo} resizeMode="contain" />
+          <View>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.name}>{profile?.firstName} {profile?.lastName}</Text>
+          </View>
         </View>
         <TouchableOpacity style={styles.bellBtn} onPress={() => navigation.navigate('Notifications')}>
           <Ionicons name="notifications-outline" size={22} color={colors.dark} />
@@ -311,6 +417,11 @@ export default function HomeScreen({ navigation }: Props) {
 
       {/* Hero Card */}
       <View style={styles.heroCard}>
+
+        <View style={styles.heroLabelRow}>
+          <Ionicons name="people" size={13} color={colors.accent} />
+          <Text style={styles.heroLabel}>CIRCLE LENDING</Text>
+        </View>
 
         <TouchableOpacity style={styles.eyeBtn} onPress={() => setAmountsVisible(v => !v)}>
           <Ionicons name={amountsVisible ? 'eye-outline' : 'eye-off-outline'} size={20} color="#94a3b8" />
@@ -384,7 +495,31 @@ export default function HomeScreen({ navigation }: Props) {
             </View>
           ))}
         </View>
+
       </View>
+
+      {/* Personal Spending — kept visually separate from circle lending above */}
+      <TouchableOpacity
+        style={styles.spendingCard}
+        onPress={() => navigation.navigate('Main', { screen: 'ExpensesTab' })}
+        activeOpacity={0.7}
+      >
+        <View style={styles.spendingLeft}>
+          <View style={styles.spendingIconBox}>
+            <Ionicons name="wallet-outline" size={18} color={colors.accent} />
+          </View>
+          <View>
+            <Text style={styles.spendingLabel}>PERSONAL SPENDING</Text>
+            <Text style={styles.spendingSub}>This month</Text>
+          </View>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={styles.spendingValue}>
+            {amountsVisible ? `GHS ${thisMonthSpend.toFixed(0)}` : maskAmount}
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+        </View>
+      </TouchableOpacity>
 
       {/* Recent Activity */}
       <TouchableOpacity style={styles.activityHeader} onPress={toggleActivity} activeOpacity={0.7}>
@@ -407,45 +542,91 @@ export default function HomeScreen({ navigation }: Props) {
               <Text style={styles.emptyText}>No activity yet</Text>
             </View>
           ) : (
-            recentActivity.map((loan, i) => (
-              <TouchableOpacity
-                key={`${loan.role}-${loan.id}-${i}`}
-                style={styles.activityCard}
-                onPress={() => navigation.navigate('LoanDetail', { loanId: loan.id })}
-              >
-                <View style={[styles.activityIconBox, {
-                  backgroundColor: loan.role === 'lender' ? colors.successBgTint : colors.dangerBgTint
-                }]}>
-                  <Ionicons
-                    name={loan.role === 'lender' ? 'arrow-up-outline' : 'arrow-down-outline'}
-                    size={18}
-                    color={loan.role === 'lender' ? colors.success : colors.danger}
-                  />
-                </View>
-                <View style={styles.activityInfo}>
-                  <Text style={styles.activityTitle} numberOfLines={1}>
-                    {loan.role === 'lender'
-                      ? `Lent to ${loan.borrowerName}`
-                      : `Borrowed from ${loan.lenderName || 'Pending'}`}
-                  </Text>
-                  <Text style={styles.activitySub}>
-                    {loan.circleName} · {formatDate(loan.createdAt)}
-                  </Text>
-                </View>
-                <View style={styles.activityRight}>
-                  <Text style={[styles.activityAmount, {
-                    color: loan.role === 'lender' ? colors.success : colors.danger
+            recentActivity.map((item, i) => {
+              if (item.kind === 'loan') {
+                return (
+                  <TouchableOpacity
+                    key={`loan-${item.role}-${item.id}-${i}`}
+                    style={styles.activityCard}
+                    onPress={() => navigation.navigate('LoanDetail', { loanId: item.id })}
+                  >
+                    <View style={[styles.activityIconBox, {
+                      backgroundColor: item.role === 'lender' ? colors.successBgTint : colors.dangerBgTint
+                    }]}>
+                      <Ionicons
+                        name={item.role === 'lender' ? 'arrow-up-outline' : 'arrow-down-outline'}
+                        size={18}
+                        color={item.role === 'lender' ? colors.success : colors.danger}
+                      />
+                    </View>
+                    <View style={styles.activityInfo}>
+                      <Text style={styles.activityTitle} numberOfLines={1}>
+                        {item.role === 'lender'
+                          ? `Lent to ${item.borrowerName}`
+                          : `Borrowed from ${item.lenderName || 'Pending'}`}
+                      </Text>
+                      <Text style={styles.activitySub}>
+                        {item.circleName} · {formatDate(item.createdAt)}
+                      </Text>
+                    </View>
+                    <View style={styles.activityRight}>
+                      <Text style={[styles.activityAmount, {
+                        color: item.role === 'lender' ? colors.success : colors.danger
+                      }]}>
+                        {item.role === 'lender' ? '+' : '-'}GHS {item.amount}
+                      </Text>
+                      <View style={[styles.statusPill, { backgroundColor: `${getStatusColor(item.status)}18` }]}>
+                        <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+                          {item.status.replace(/_/g, ' ')}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }
+
+              const mySplit = item.splits.find(s => s.userId === myId);
+              const amount = item.role === 'paid' ? item.totalAmount : (mySplit?.amountOwed ?? 0);
+              const status = getExpenseStatus(item);
+
+              return (
+                <TouchableOpacity
+                  key={`expense-${item.expenseId}-${i}`}
+                  style={styles.activityCard}
+                  onPress={() => navigation.navigate('CircleDetail', { circleId: item.circleId })}
+                >
+                  <View style={[styles.activityIconBox, {
+                    backgroundColor: item.role === 'paid' ? colors.successBgTint : colors.dangerBgTint
                   }]}>
-                    {loan.role === 'lender' ? '+' : '-'}GHS {loan.amount}
-                  </Text>
-                  <View style={[styles.statusPill, { backgroundColor: `${getStatusColor(loan.status)}18` }]}>
-                    <Text style={[styles.statusText, { color: getStatusColor(loan.status) }]}>
-                      {loan.status.replace(/_/g, ' ')}
+                    <Ionicons
+                      name={item.role === 'paid' ? 'cash-outline' : 'receipt-outline'}
+                      size={18}
+                      color={item.role === 'paid' ? colors.success : colors.danger}
+                    />
+                  </View>
+                  <View style={styles.activityInfo}>
+                    <Text style={styles.activityTitle} numberOfLines={1}>
+                      {item.role === 'paid' ? `Paid for ${item.description}` : `You owe for ${item.description}`}
+                    </Text>
+                    <Text style={styles.activitySub}>
+                      {item.circleName} · {formatDate(item.createdAt)}
                     </Text>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))
+                  <View style={styles.activityRight}>
+                    <Text style={[styles.activityAmount, {
+                      color: item.role === 'paid' ? colors.success : colors.danger
+                    }]}>
+                      {item.role === 'paid' ? '+' : '-'}GHS {amount.toFixed(2)}
+                    </Text>
+                    <View style={[styles.statusPill, { backgroundColor: `${status.color}18` }]}>
+                      <Text style={[styles.statusText, { color: status.color }]}>
+                        {status.label}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
           )}
         </View>
       )}

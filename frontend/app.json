@@ -1,24 +1,26 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "Vouch",
+    "slug": "vouch",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.vouchgroup78.vouch",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true
     },
@@ -27,7 +29,15 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "color": "#C9A84C"
+        }
+      ]
     ],
     "extra": {
       "eas": {

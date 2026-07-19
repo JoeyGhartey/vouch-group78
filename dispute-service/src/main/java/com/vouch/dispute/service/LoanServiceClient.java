@@ -32,4 +32,11 @@ public class LoanServiceClient {
                 loanServiceUrl + "/api/internal/loans/" + loanId + "/set-disputed",
                 null, Map.class);
     }
+
+    @SuppressWarnings("unchecked")
+    public void resolveLoanDispute(Long loanId) {
+        restTemplate.postForObject(
+                loanServiceUrl + "/api/internal/loans/" + loanId + "/resolve-dispute",
+                null, Map.class);
+    }
 }

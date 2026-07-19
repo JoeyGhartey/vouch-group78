@@ -18,4 +18,5 @@ public class SharedExpenseRequest {
     @NotNull(message = "Participant IDs are required")
     private List<Long> participantIds;
     private Map<Long, Double> customSplits;
+    private Boolean payerAlreadyPaid;
 }

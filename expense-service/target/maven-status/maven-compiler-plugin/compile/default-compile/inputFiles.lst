@@ -2,8 +2,10 @@ C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\config\AppCo
 C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\config\GlobalExceptionHandler.java
 C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\config\SecurityConfig.java
 C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\controller\DebtSimplificationController.java
+C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\controller\InternalPersonalExpenseController.java
 C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\controller\PersonalExpenseController.java
 C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\controller\SharedExpenseController.java
+C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\dto\InternalTransactionRequest.java
 C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\dto\PersonalExpenseRequest.java
 C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\dto\SharedExpenseRequest.java
 C:\Users\joey\vouch\expense-service\src\main\java\com\vouch\expense\dto\SpendingLimitRequest.java

@@ -28,7 +28,7 @@ public class CircleService {
                 .orElseThrow(() -> new RuntimeException("Circle not found"));
         validateMembership(circle, userId);
 
-        List<Loan> allLoans = loanRepository.findByCircle(circle);
+        List<Loan> allLoans = loanRepository.findByCircleOrderByCreatedAtDesc(circle);
         int totalLoans = allLoans.size();
         long activeLoans = allLoans.stream().filter(l -> List.of(
                 Loan.LoanStatus.ACTIVE, Loan.LoanStatus.DUE, Loan.LoanStatus.GRACE_PERIOD
@@ -124,12 +124,15 @@ public class CircleService {
     }
 
     @Transactional
-    public String inviteMember(String phone, Long circleId, String inviteePhone) {
+    public String inviteMember(String phone, Long circleId, String inviteeIdentifier) {
         Long inviterId = authServiceClient.getUserIdByPhone(phone);
         Circle circle = circleRepository.findById(circleId).orElseThrow(() -> new RuntimeException("Circle not found"));
         validateMembership(circle, inviterId);
 
-        Map<String, Object> inviteeInfo = authServiceClient.getUserInfoByPhone(inviteePhone);
+        String trimmedIdentifier = inviteeIdentifier == null ? "" : inviteeIdentifier.trim();
+        Map<String, Object> inviteeInfo = trimmedIdentifier.contains("@")
+                ? authServiceClient.getUserInfoByEmail(trimmedIdentifier)
+                : authServiceClient.getUserInfoByPhone(trimmedIdentifier);
         Long inviteeId = ((Number) inviteeInfo.get("id")).longValue();
         Double trustScore = ((Number) inviteeInfo.get("trustScore")).doubleValue();
 
@@ -155,6 +158,7 @@ public class CircleService {
         CircleMember am = circleMemberRepository.findByCircleAndUserId(circle, approverId).orElseThrow(() -> new RuntimeException("Not a member"));
         if (am.getMemberRole() != CircleMember.MemberRole.CREATOR && am.getMemberRole() != CircleMember.MemberRole.ADMIN) throw new RuntimeException("No permission");
         CircleMember pm = circleMemberRepository.findById(memberId).orElseThrow(() -> new RuntimeException("Member not found"));
+        if (!pm.getCircle().getId().equals(circleId)) throw new RuntimeException("Member not found");
         if (pm.getStatus() != CircleMember.MemberStatus.PENDING) throw new RuntimeException("Not pending");
         pm.setStatus(CircleMember.MemberStatus.ACTIVE);
         circleMemberRepository.save(pm);
@@ -232,8 +236,14 @@ public class CircleService {
 
     private CircleResponse mapToCircleResponse(Circle circle) {
         List<CircleMember> active = circleMemberRepository.findByCircleAndStatus(circle, CircleMember.MemberStatus.ACTIVE);
+        java.util.Set<Long> userIds = new java.util.HashSet<>();
+        for (CircleMember m : active) {
+            userIds.add(m.getUserId());
+        }
+        userIds.add(circle.getCreatorId());
+        Map<Long, Map<String, Object>> users = authServiceClient.getUsersInfo(userIds);
         List<CircleMemberResponse> members = active.stream().map(m -> {
-            Map<String, Object> userInfo = authServiceClient.getUserInfo(m.getUserId());
+            Map<String, Object> userInfo = users.getOrDefault(m.getUserId(), Map.of());
             return CircleMemberResponse.builder()
                     .userId(m.getUserId())
                     .firstName((String) userInfo.get("firstName"))
@@ -244,7 +254,7 @@ public class CircleService {
                     .loansReceivedInCircle(m.getLoansReceivedInCircle()).loansRepaidInCircle(m.getLoansRepaidInCircle())
                     .defaultsInCircle(m.getDefaultsInCircle()).build();
         }).collect(Collectors.toList());
-        String creatorName = authServiceClient.getUserName(circle.getCreatorId());
+        String creatorName = AuthServiceClient.nameOf(users.get(circle.getCreatorId()));
         return CircleResponse.builder().id(circle.getId()).name(circle.getName()).description(circle.getDescription())
                 .creatorName(creatorName).creatorId(circle.getCreatorId()).maxLoanAmount(circle.getMaxLoanAmount())
                 .groupFundingThreshold(circle.getGroupFundingThreshold()).minTrustScore(circle.getMinTrustScore())

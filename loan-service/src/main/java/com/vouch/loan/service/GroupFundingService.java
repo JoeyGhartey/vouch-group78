@@ -22,11 +22,12 @@ public class GroupFundingService {
     private final CircleMemberRepository circleMemberRepository;
     private final AuthServiceClient authServiceClient;
     private final NotificationServiceClient notificationServiceClient;
+    private final ExpenseServiceClient expenseServiceClient;
 
     @Transactional
     public Map<String, Object> contributeToLoan(String phone, Long loanId, Double amount, Double interestRate) {
         Long lenderId = authServiceClient.getUserIdByPhone(phone);
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (lenderId.equals(loan.getBorrowerId())) {
@@ -46,6 +47,11 @@ public class GroupFundingService {
 
         if (amount <= 0) throw new RuntimeException("Amount must be positive");
         if (interestRate < 0 || interestRate > 50) throw new RuntimeException("Interest rate must be between 0% and 50%");
+
+        double maxRate = maxRateForTrustScore(authServiceClient.getUserTrustScore(loan.getBorrowerId()));
+        if (interestRate > maxRate) {
+            throw new RuntimeException("Interest rate of " + interestRate + "% exceeds the maximum allowed for this borrower's trust tier (max " + maxRate + "%)");
+        }
 
         double totalContributed = getTotalContributed(loan);
         double remaining = loan.getAmount() - totalContributed;
@@ -109,12 +115,19 @@ public class GroupFundingService {
         loan.setStatus(Loan.LoanStatus.AGREEMENT_PENDING);
         loanRepository.save(loan);
 
+        Set<Long> participantIds = new HashSet<>();
+        for (LoanContribution c : contributions) {
+            participantIds.add(c.getLenderId());
+        }
+        participantIds.add(loan.getBorrowerId());
+        Map<Long, Map<String, Object>> participants = authServiceClient.getUsersInfo(participantIds);
+
         StringBuilder lenderNames = new StringBuilder();
         StringBuilder repaymentSchedule = new StringBuilder();
         repaymentSchedule.append("GROUP FUNDING BREAKDOWN:\n\n");
 
         for (LoanContribution c : contributions) {
-            String name = authServiceClient.getUserName(c.getLenderId());
+            String name = AuthServiceClient.nameOf(participants.get(c.getLenderId()));
             lenderNames.append(name).append(", ");
             double lenderRepayment = c.getAmount() * (1 + c.getInterestRate() / 100);
             repaymentSchedule.append("- ").append(name)
@@ -128,8 +141,9 @@ public class GroupFundingService {
         repaymentSchedule.append("\nTotal Repayment: GHS ").append(String.format("%.2f", totalRepayment));
 
         String lenderNamesStr = lenderNames.length() > 2 ? lenderNames.substring(0, lenderNames.length() - 2) : "Multiple Lenders";
-        String borrowerName = authServiceClient.getUserName(loan.getBorrowerId());
-        String borrowerPhone = authServiceClient.getUserPhone(loan.getBorrowerId());
+        Map<String, Object> borrowerInfo = participants.get(loan.getBorrowerId());
+        String borrowerName = AuthServiceClient.nameOf(borrowerInfo);
+        String borrowerPhone = borrowerInfo != null ? (String) borrowerInfo.get("phone") : null;
 
         LoanAgreement agreement = LoanAgreement.builder()
                 .loan(loan).borrowerName(borrowerName).borrowerPhone(borrowerPhone)
@@ -163,16 +177,50 @@ public class GroupFundingService {
         log.info("Group loan {} fully funded with {} contributions, weighted avg rate: {}%", loan.getId(), contributions.size(), weightedAvgRate);
     }
 
+    // Used by LoanService.defaultLoan -- group-funded loans have no single
+    // lenderId, so "is this caller allowed to mark it defaulted" has to check
+    // contributor membership instead of a direct lenderId match.
+    public boolean isContributor(Loan loan, Long userId) {
+        return loanContributionRepository.findByLoanAndLenderId(loan, userId).isPresent();
+    }
+
+    // Mirrors LoanService.computeInterestRateTier -- kept as a small private
+    // helper here rather than sharing state across services for one number.
+    private double maxRateForTrustScore(Double trustScore) {
+        double score = trustScore != null ? trustScore : 50.0;
+        if (score >= 90) return 5;
+        if (score >= 70) return 10;
+        if (score >= 50) return 15;
+        return 25;
+    }
+
     public Map<String, Object> getLoanContributions(String phone, Long loanId) {
-        authServiceClient.getUserIdByPhone(phone);
+        Long userId = authServiceClient.getUserIdByPhone(phone);
         Loan loan = loanRepository.findById(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         List<LoanContribution> contributions = loanContributionRepository.findByLoan(loan);
+        Set<Long> lenderIds = new HashSet<>();
+        for (LoanContribution c : contributions) {
+            lenderIds.add(c.getLenderId());
+        }
+
+        // Circle members need to see funding progress on a still-open loan to decide
+        // whether to contribute -- so the boundary here is circle membership, not just
+        // borrower/existing-contributor (that would block exactly the people this is for).
+        boolean isBorrower = userId.equals(loan.getBorrowerId());
+        boolean isContributor = lenderIds.contains(userId);
+        boolean isCircleMember = circleMemberRepository.findByCircleAndUserId(loan.getCircle(), userId)
+                .filter(m -> m.getStatus() == CircleMember.MemberStatus.ACTIVE)
+                .isPresent();
+        if (!isBorrower && !isContributor && !isCircleMember) {
+            throw new RuntimeException("Only members of this loan's circle can view its contributions");
+        }
+        Map<Long, Map<String, Object>> lenders = authServiceClient.getUsersInfo(lenderIds);
         List<Map<String, Object>> contributionList = contributions.stream().map(c -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", c.getId());
-            map.put("lenderName", authServiceClient.getUserName(c.getLenderId()));
+            map.put("lenderName", AuthServiceClient.nameOf(lenders.get(c.getLenderId())));
             map.put("lenderId", c.getLenderId());
             map.put("amount", c.getAmount());
             map.put("interestRate", c.getInterestRate());
@@ -213,13 +261,20 @@ public class GroupFundingService {
             notificationServiceClient.send(c.getLenderId(), "Repayment Received",
                     "You received GHS " + String.format("%.2f", lenderRepayment) + " from " + borrowerFirstName + "'s loan repayment.",
                     "LOAN_REPAID", loan.getId());
+            expenseServiceClient.logTransaction(
+                    c.getLenderId(),
+                    "Repayment received (group loan) - " + loan.getCircle().getName(),
+                    lenderRepayment,
+                    "Loan",
+                    "INCOME"
+            );
         }
     }
 
     @Transactional
     public Map<String, Object> signGroupAgreement(String phone, Long loanId) {
         Long signerId = authServiceClient.getUserIdByPhone(phone);
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (loan.getStatus() != Loan.LoanStatus.AGREEMENT_PENDING) {
@@ -273,7 +328,7 @@ public class GroupFundingService {
     @Transactional
     public Map<String, Object> disburseGroupLoan(String phone, Long loanId) {
         Long requesterId = authServiceClient.getUserIdByPhone(phone);
-        Loan loan = loanRepository.findById(loanId)
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan not found"));
 
         if (loan.getStatus() != Loan.LoanStatus.AGREEMENT_SIGNED) {

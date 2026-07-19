@@ -21,9 +21,18 @@ public class InstallmentController {
     }
 
     @PostMapping("/{loanId}/installments/pay")
-    public ResponseEntity<Map<String, Object>> payInstallment(Authentication auth, @PathVariable Long loanId, @RequestBody Map<String, Object> body) {
-        Integer installmentNumber = Integer.valueOf(body.get("installmentNumber").toString());
-        Double amount = body.containsKey("amount") ? Double.valueOf(body.get("amount").toString()) : null;
+    public ResponseEntity<Map<String, Object>> payInstallment(Authentication auth, @PathVariable Long loanId, @RequestBody(required = false) Map<String, Object> body) {
+        if (body == null || body.get("installmentNumber") == null) {
+            throw new RuntimeException("installmentNumber is required");
+        }
+        Integer installmentNumber;
+        Double amount;
+        try {
+            installmentNumber = Integer.valueOf(body.get("installmentNumber").toString());
+            amount = body.get("amount") != null ? Double.valueOf(body.get("amount").toString()) : null;
+        } catch (NumberFormatException e) {
+            throw new RuntimeException("installmentNumber and amount must be valid numbers");
+        }
         return ResponseEntity.ok(installmentService.payInstallment(auth.getName(), loanId, installmentNumber, amount));
     }
 }

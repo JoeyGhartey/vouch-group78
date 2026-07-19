@@ -66,7 +66,7 @@ public class PaystackService {
         }
 
         String reference = "VOUCH-DISB-" + UUID.randomUUID().toString().substring(0, 8);
-        int amountInPesewas = (int) (amount * 100);
+        int amountInPesewas = (int) Math.round(amount * 100);
 
         Map<String, Object> payload = new HashMap<>();
         String email = payerInfo.get("email") != null ? (String) payerInfo.get("email") : payerInfo.get("phone") + "@vouch.app";
@@ -115,6 +115,7 @@ public class PaystackService {
                 .accessCode(accessCode)
                 .reference(reference)
                 .message("Payment initialized. Complete payment to disburse the loan.")
+                .callbackUrl(paystackCallbackUrl)
                 .build();
     }
 
@@ -145,7 +146,7 @@ public class PaystackService {
         if (repayAmount > totalOwed) throw new RuntimeException("Amount exceeds total owed: GHS " + String.format("%.2f", totalOwed));
 
         String reference = "VOUCH-REPAY-" + UUID.randomUUID().toString().substring(0, 8);
-        int amountInPesewas = (int) (repayAmount * 100);
+        int amountInPesewas = (int) Math.round(repayAmount * 100);
 
         Map<String, Object> payload = new HashMap<>();
         String email = payerInfo.get("email") != null ? (String) payerInfo.get("email") : payerInfo.get("phone") + "@vouch.app";
@@ -195,6 +196,7 @@ public class PaystackService {
                 .accessCode(accessCode)
                 .reference(reference)
                 .message("Payment initialized. Complete payment to repay the loan.")
+                .callbackUrl(paystackCallbackUrl)
                 .build();
     }
 

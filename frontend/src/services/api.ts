@@ -1,10 +1,27 @@
 import * as SecureStore from 'expo-secure-store';
 
-// TODO: Revert to Render URL before next deployment
-// const API_URL = 'https://vouch-api-gateway.onrender.com/api';
-const API_URL = 'http://172.20.10.2:8080/api';
-// const API_URL = 'http://10.0.2.2:8080/api'; // Android emulator
-// const API_URL = 'http://YOUR_IP:8080/api'; // Physical device
+// No api-gateway deployed — each service is called directly on its own host.
+// This mirrors the routing rules that would otherwise live in api-gateway/application.yml.
+const SERVICE_URLS: Record<string, string> = {
+  auth: 'https://auth-service-production-a5aa.up.railway.app/api',
+  profile: 'https://auth-service-production-a5aa.up.railway.app/api',
+  notifications: 'https://notification-service-production-17f2.up.railway.app/api',
+  circles: 'https://loan-service-production-fc1e.up.railway.app/api',
+  loans: 'https://loan-service-production-fc1e.up.railway.app/api',
+  payments: 'https://payment-service-production-3e1d.up.railway.app/api',
+  disputes: 'https://dispute-service-production.up.railway.app/api',
+  expenses: 'https://expense-service-u749.onrender.com/api',
+};
+
+const resolveBaseUrl = (endpoint: string): string => {
+  const segment = endpoint.split('/').filter(Boolean)[0] ?? '';
+  const base = SERVICE_URLS[segment];
+  if (!base) {
+    throw new Error(`No service URL configured for endpoint segment "${segment}" (from "${endpoint}")`);
+  }
+  return base;
+};
+
 let token: string | null = null;
 
 export const setToken = (newToken: string): void => {
@@ -73,7 +90,7 @@ const request = async <T = unknown>(
 
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${endpoint}`, { ...config, signal: controller.signal });
+    response = await fetch(`${resolveBaseUrl(endpoint)}${endpoint}`, { ...config, signal: controller.signal });
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw new Error('Request timed out — please try again');
     throw e;
@@ -81,18 +98,35 @@ const request = async <T = unknown>(
     clearTimeout(timeout);
   }
 
-  const data = await response.json();
+  const contentType = response.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
 
   if (!response.ok) {
-    throw new Error(data.message || 'Something went wrong');
+    let message = `Request failed (${response.status})`;
+    if (isJson) {
+      try {
+        const errorData = await response.json();
+        if (errorData && errorData.message) message = errorData.message;
+      } catch {
+        // body claimed to be JSON but wasn't parseable — keep the generic status message
+      }
+    }
+    throw new Error(message);
   }
 
+  if (!isJson) {
+    throw new Error(`Unexpected response format (${response.status})`);
+  }
+
+  const data = await response.json();
   return data as T;
 };
 
 // Auth
 export const register = (data: unknown) => request('/auth/register', 'POST', data);
 export const login = (data: unknown) => request('/auth/login', 'POST', data);
+export const forgotPassword = (identifier: string) => request('/auth/forgot-password', 'POST', { identifier });
+export const resetPassword = (identifier: string, otp: string, newPassword: string) => request('/auth/reset-password', 'POST', { identifier, otp, newPassword });
 export const registerPushToken = (token: string) => request('/auth/push-token', 'POST', { token });
 
 // Profile
@@ -117,6 +151,8 @@ export const rejectInvite = (circleId: number) => request(`/circles/${circleId}/
 // Loans
 export const requestLoan = (data: unknown) => request('/loans/request', 'POST', data);
 export const fundLoan = (data: unknown) => request('/loans/fund', 'POST', data);
+export const contributeToLoan = (data: unknown) => request('/loans/group/contribute', 'POST', data);
+export const getLoanContributions = (loanId: number) => request(`/loans/group/${loanId}/contributions`);
 export const signAgreement = (loanId: number) => request(`/loans/${loanId}/sign`, 'POST');
 export const disburseLoan = (loanId: number) => request(`/loans/${loanId}/disburse`, 'POST');
 export const repayLoan = (loanId: number, amount?: number) => request(`/loans/${loanId}/repay`, 'POST', amount ? { amount } : null);
@@ -136,16 +172,19 @@ export const createSharedExpense = (data: unknown) => request('/expenses/shared'
 export const getCircleExpenses = (circleId: number) => request(`/expenses/shared/circle/${circleId}`);
 export const getCircleBalances = (circleId: number) => request(`/expenses/shared/circle/${circleId}/balances`);
 export const settleExpense = (splitId: number) => request(`/expenses/shared/settle/${splitId}`, 'POST');
+export const deleteSharedExpense = (expenseId: number) => request(`/expenses/shared/${expenseId}`, 'DELETE');
 export const requestPayment = (splitId: number) => request(`/expenses/shared/splits/${splitId}/request-payment`, 'POST');
 export const confirmPayment = (splitId: number) => request(`/expenses/shared/splits/${splitId}/confirm-payment`, 'POST');
 
 // Personal Expenses
 export const addPersonalExpense = (data: unknown) => request('/expenses/personal', 'POST', data);
 export const getPersonalTransactions = () => request('/expenses/personal');
+export const deletePersonalTransaction = (transactionId: number) => request(`/expenses/personal/${transactionId}`, 'DELETE');
 export const getMonthlySummary = (year: number, month: number) => request(`/expenses/personal/summary/${year}/${month}`);
 export const setSpendingLimit = (data: unknown) => request('/expenses/personal/limits', 'POST', data);
 export const getSpendingLimits = () => request('/expenses/personal/limits');
 export const deleteSpendingLimit = (limitId: number) => request(`/expenses/personal/limits/${limitId}`, 'DELETE');
+export const resetSpendingLimit = (limitId: number) => request(`/expenses/personal/limits/${limitId}/reset`, 'POST');
 
 // Notifications
 export const getNotifications = () => request('/notifications');
@@ -173,4 +212,7 @@ export const verifyPayment = (reference: string) => request(`/payments/verify/${
 
 // Admin
 export const getAdminOpenDisputes = () => request('/disputes/admin/open');
+export const getCircleDisputes = (circleId: number) => request(`/disputes/circle/${circleId}`);
+export const getDisputeByLoan = (loanId: number) => request(`/disputes/by-loan/${loanId}`);
+export const escalateDispute = (disputeId: number) => request(`/disputes/${disputeId}/escalate`, 'POST');
 export const resolveDispute = (disputeId: number, data: unknown) => request(`/disputes/${disputeId}/resolve`, 'POST', data);

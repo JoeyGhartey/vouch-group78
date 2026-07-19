@@ -19,9 +19,11 @@ public class DebtSimplificationService {
     private final SharedExpenseRepository sharedExpenseRepository;
     private final ExpenseSplitRepository expenseSplitRepository;
     private final AuthServiceClient authServiceClient;
+    private final CircleServiceClient circleServiceClient;
 
     public Map<String, Object> getSimplifiedDebts(String phone, Long circleId) {
-        authServiceClient.getUserIdByPhone(phone);
+        Long requesterId = authServiceClient.getUserIdByPhone(phone);
+        circleServiceClient.validateMembership(circleId, requesterId);
 
         List<SharedExpense> expenses = sharedExpenseRepository.findByCircleId(circleId);
         Map<String, Double> rawDebts = new HashMap<>();
@@ -47,8 +49,10 @@ public class DebtSimplificationService {
             netBalances.merge(creditorId, entry.getValue(), Double::sum);
         }
 
+        Map<Long, Map<String, Object>> users = authServiceClient.getUsersInfo(netBalances.keySet());
         for (Long userId : netBalances.keySet()) {
-            userNames.computeIfAbsent(userId, id -> authServiceClient.getUserName(id));
+            String name = AuthServiceClient.nameOf(users.get(userId));
+            if (name != null) userNames.put(userId, name);
         }
 
         List<long[]> debtors = new ArrayList<>();

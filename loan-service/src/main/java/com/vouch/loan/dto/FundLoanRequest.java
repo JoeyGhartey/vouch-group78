@@ -13,4 +13,9 @@ public class FundLoanRequest {
     private Double interestRate;
 
     private Double amount;
+
+    // Must be explicitly true for fundLoan to proceed on a loan the system
+    // flagged as needing group funding -- never inferred, always an explicit
+    // opt-in from the lender taking on the full risk alone.
+    private Boolean overrideGroupFunding;
 }

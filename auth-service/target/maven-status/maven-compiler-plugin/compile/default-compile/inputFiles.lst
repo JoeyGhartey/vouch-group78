@@ -5,8 +5,10 @@ C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\controller\AuthCon
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\controller\InternalUserController.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\controller\UserProfileController.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\dto\AuthResponse.java
+C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\dto\ForgotPasswordRequest.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\dto\LoginRequest.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\dto\RegisterRequest.java
+C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\dto\ResetPasswordRequest.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\dto\UpdateProfileRequest.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\dto\UpdateUserStatsRequest.java
 C:\Users\joey\vouch\auth-service\src\main\java\com\vouch\auth\dto\UserProfileResponse.java

@@ -47,4 +47,9 @@ public class SharedExpenseController {
     public ResponseEntity<Map<String, String>> confirmPayment(Authentication auth, @PathVariable Long splitId) {
         return ResponseEntity.ok(Map.of("message", sharedExpenseService.confirmPayment(auth.getName(), splitId)));
     }
+
+    @DeleteMapping("/{expenseId}")
+    public ResponseEntity<Map<String, String>> deleteSharedExpense(Authentication auth, @PathVariable Long expenseId) {
+        return ResponseEntity.ok(Map.of("message", sharedExpenseService.deleteSharedExpense(auth.getName(), expenseId)));
+    }
 }

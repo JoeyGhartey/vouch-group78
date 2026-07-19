@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput, Modal,
-  ScrollView, KeyboardAvoidingView, Platform,
+  ScrollView, KeyboardAvoidingView, Platform, TouchableWithoutFeedback,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -275,9 +275,11 @@ export default function CirclesScreen({ navigation }: Props) {
         </ScrollView>
       )}
 
-      <Modal visible={showCreate} animationType="slide" transparent>
+      <Modal visible={showCreate} animationType="slide" transparent onRequestClose={() => setShowCreate(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableWithoutFeedback onPress={() => setShowCreate(false)}>
           <View style={styles.modalBg}>
+            <TouchableWithoutFeedback onPress={() => {}}>
             <View style={styles.modal}>
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 <Text style={styles.modalTitle}>Create a Circle</Text>
@@ -306,7 +308,9 @@ export default function CirclesScreen({ navigation }: Props) {
                 </TouchableOpacity>
               </ScrollView>
             </View>
+            </TouchableWithoutFeedback>
           </View>
+          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
     </View>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { fonts } from '../theme/fonts';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Register'>;
@@ -24,7 +25,7 @@ const PROVIDER_STYLES: Record<string, { bg: string; text: string }> = {
 };
 
 // Password strength checker
-const getPasswordStrength = (pwd: string): { score: number; label: string; color: string } => {
+const getPasswordStrength = (pwd: string, c: ColorScheme): { score: number; label: string; color: string } => {
   let score = 0;
   if (pwd.length >= 6) score++;
   if (/[A-Z]/.test(pwd)) score++;
@@ -32,31 +33,60 @@ const getPasswordStrength = (pwd: string): { score: number; label: string; color
   if (/[^A-Za-z0-9]/.test(pwd)) score++;
 
   if (score === 0 || pwd.length === 0) return { score: 0, label: '', color: 'transparent' };
-  if (score === 1) return { score: 1, label: 'Weak', color: '#dc2626' };
-  if (score === 2) return { score: 2, label: 'Fair', color: '#d97706' };
-  if (score === 3) return { score: 3, label: 'Good', color: '#2563eb' };
-  return { score: 4, label: 'Strong', color: '#16a34a' };
+  if (score === 1) return { score: 1, label: 'Weak', color: c.danger };
+  if (score === 2) return { score: 2, label: 'Fair', color: c.warning };
+  if (score === 3) return { score: 3, label: 'Good', color: c.statusBlue };
+  return { score: 4, label: 'Strong', color: c.success };
 };
+
+const HERO_TEXT_MUTED = '#8a8f98';
 
 const createStyles = (c: ColorScheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
-  scroll: { flexGrow: 1, padding: 24, paddingTop: 60 },
-  logoSection: { alignItems: 'center', marginBottom: 32 },
-  logoBox: {
-    width: 64, height: 64, borderRadius: 20,
-    backgroundColor: c.dark, justifyContent: 'center', alignItems: 'center', marginBottom: 12,
+  scroll: { flexGrow: 1, paddingBottom: 32 },
+  heroSection: {
+    backgroundColor: '#000000',
+    paddingTop: 68, paddingBottom: 40, paddingHorizontal: 28,
+    borderBottomRightRadius: 64,
   },
-  logoText: { fontSize: 32, fontWeight: '900', color: c.accent },
-  logoName: { fontSize: 24, fontWeight: '900', color: c.dark, letterSpacing: 6 },
-  logoSub: { fontSize: 12, color: c.muted, marginTop: 4 },
-  form: { backgroundColor: c.surface, borderRadius: 20, padding: 20, borderWidth: 1, borderColor: c.border },
-  formTitle: { fontSize: 20, fontWeight: '700', color: c.dark, marginBottom: 4 },
-  formSub: { fontSize: 13, color: c.muted, marginBottom: 16 },
-  row: { flexDirection: 'row', gap: 10 },
+  logoRow: { flexDirection: 'row', alignItems: 'center' },
+  logoImage: { width: 44, height: 48, marginRight: 10 },
+  logoName: { fontSize: 15, fontWeight: '800', fontFamily: fonts.extrabold, color: c.accent, letterSpacing: 4 },
+  headline: {
+    fontSize: 34, fontWeight: '800', fontFamily: fonts.extrabold, color: '#FFFFFF',
+    marginTop: 22, letterSpacing: -0.8, lineHeight: 38, maxWidth: '85%',
+  },
+  logoSub: { fontSize: 13, color: HERO_TEXT_MUTED, marginTop: 8 },
+  form: {
+    backgroundColor: c.surface, borderTopLeftRadius: 4, borderTopRightRadius: 28,
+    borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
+    padding: 22, paddingTop: 20,
+    marginHorizontal: 16, marginTop: -20,
+    borderWidth: 1, borderColor: c.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12, shadowRadius: 20, elevation: 8,
+  },
+  row: { flexDirection: 'row', gap: 16 },
   half: { flex: 1 },
-  label: { fontSize: 12, color: c.muted, fontWeight: '600', marginBottom: 6, marginTop: 14 },
-  input: { backgroundColor: c.bg, borderRadius: 10, padding: 14, fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border },
-  inputDisabled: { backgroundColor: c.border, color: c.muted, opacity: 0.6 },
+  sectionHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginTop: 30, marginBottom: 10,
+    paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  sectionHeaderFirst: { marginTop: 4 },
+  sectionIconBox: {
+    width: 24, height: 24, borderRadius: 7,
+    backgroundColor: c.goldBgTint, justifyContent: 'center', alignItems: 'center',
+  },
+  sectionHeaderText: { fontSize: 12, fontWeight: '800', fontFamily: fonts.extrabold, color: c.accentDark, letterSpacing: 1.2, textTransform: 'uppercase' },
+  label: { fontSize: 11, color: c.muted, fontWeight: '700', fontFamily: fonts.bold, marginBottom: 6, marginTop: 18, letterSpacing: 0.6, textTransform: 'uppercase' },
+  labelFirst: { marginTop: 0 },
+  input: {
+    backgroundColor: 'transparent', borderRadius: 0, paddingVertical: 10, paddingHorizontal: 2,
+    fontSize: 16, color: c.dark, borderBottomWidth: 1.5, borderColor: c.border,
+  },
+  inputDisabled: { color: c.muted, opacity: 0.6 },
+
   providerRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
   providerBtn: {
     flex: 1, padding: 13, borderRadius: 10,
@@ -64,19 +94,19 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   },
   providerSelected: {
     opacity: 1,
-    shadowColor: '#000',
+    shadowColor: c.dark,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
   },
-  providerText: { fontSize: 13, fontWeight: '700' },
+  providerText: { fontSize: 13, fontWeight: '700', fontFamily: fonts.bold },
 
   // Checkbox
   checkboxRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    marginTop: 10, padding: 12, borderRadius: 10,
-    backgroundColor: c.bg, borderWidth: 1, borderColor: c.border,
+    marginTop: 16, padding: 12, borderRadius: 12,
+    backgroundColor: c.goldBgTint, borderWidth: 1, borderColor: c.border,
   },
   checkbox: {
     width: 20, height: 20, borderRadius: 5,
@@ -85,22 +115,28 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   },
   checkboxChecked: { backgroundColor: c.accent, borderColor: c.accent },
   checkboxLabel: { fontSize: 13, color: c.muted, flex: 1 },
-  checkboxLabelChecked: { color: c.dark, fontWeight: '600' },
+  checkboxLabelChecked: { color: c.dark, fontWeight: '600', fontFamily: fonts.semibold },
 
   // Password strength
-  strengthRow: { flexDirection: 'row', gap: 4, marginTop: 8 },
+  strengthRow: { flexDirection: 'row', gap: 4, marginTop: 10 },
   strengthBar: { flex: 1, height: 4, borderRadius: 4, backgroundColor: c.border },
-  strengthLabel: { fontSize: 11, fontWeight: '600', marginTop: 4 },
-  rulesBox: { marginTop: 8, gap: 3 },
-  ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  strengthLabel: { fontSize: 11, fontWeight: '600', fontFamily: fonts.semibold, marginTop: 4 },
+  rulesBox: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, rowGap: 6 },
+  ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '50%' },
   ruleDot: { width: 6, height: 6, borderRadius: 3 },
   ruleText: { fontSize: 11 },
+  matchText: { fontSize: 11, fontWeight: '600', fontFamily: fonts.semibold, marginTop: 6 },
 
-  btn: { backgroundColor: c.dark, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
-  btnText: { color: c.surface, fontSize: 16, fontWeight: '700' },
-  linkBtn: { alignItems: 'center', marginTop: 20 },
+  btn: {
+    backgroundColor: c.buttonDark, borderRadius: 12, padding: 16,
+    alignItems: 'center', marginTop: 28,
+    shadowColor: c.accent, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 10, elevation: 4,
+  },
+  btnText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700', fontFamily: fonts.bold },
+  linkBtn: { alignItems: 'center', marginTop: 18 },
   linkText: { color: c.muted, fontSize: 14 },
-  linkBold: { color: c.accent, fontWeight: '700' },
+  linkBold: { color: c.accent, fontWeight: '700', fontFamily: fonts.bold },
 });
 
 export default function RegisterScreen({ navigation }: Props) {
@@ -119,7 +155,7 @@ export default function RegisterScreen({ navigation }: Props) {
   const { signIn } = useAuth();
   const { showAlert } = useAppAlert();
 
-  const strength = getPasswordStrength(password);
+  const strength = getPasswordStrength(password, colors);
 
   const rules = [
     { label: 'At least 6 characters', met: password.length >= 6 },
@@ -141,15 +177,26 @@ export default function RegisterScreen({ navigation }: Props) {
 
   // Keep MoMo number in sync if phone changes while checkbox is checked
   const handlePhoneChange = (value: string): void => {
-    setPhone(value);
+    const digitsOnly = value.replace(/[^0-9]/g, '').slice(0, 10);
+    setPhone(digitsOnly);
     if (momoSameAsPhone) {
-      setMomoNumber(value);
+      setMomoNumber(digitsOnly);
     }
+  };
+
+  const handleMomoNumberChange = (value: string): void => {
+    setMomoNumber(value.replace(/[^0-9]/g, '').slice(0, 10));
   };
 
   const handleRegister = async (): Promise<void> => {
     if (!firstName || !lastName || !phone || !password) {
       showAlert('error', 'Error', 'Please fill in all required fields'); return;
+    }
+    if (phone.length !== 10) {
+      showAlert('error', 'Invalid Phone Number', 'Phone number must be exactly 10 digits'); return;
+    }
+    if (!momoSameAsPhone && momoNumber && momoNumber.length !== 10) {
+      showAlert('error', 'Invalid MoMo Number', 'MoMo number must be exactly 10 digits, or left empty to use your phone number'); return;
     }
     if (password.length < 6) {
       showAlert('error', 'Weak Password', 'Password must be at least 6 characters'); return;
@@ -172,7 +219,7 @@ export default function RegisterScreen({ navigation }: Props) {
         firstName, lastName, phone, email, password,
         momoProvider, momoNumber: momoNumber || phone,
       }) as { token: string; [key: string]: unknown };
-      await signIn(response);
+      await signIn(response, true);
     } catch (error) {
       showAlert('error', 'Registration Failed', (error as Error).message || 'Could not create account');
     } finally {
@@ -186,27 +233,32 @@ export default function RegisterScreen({ navigation }: Props) {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-        {/* Logo */}
-        <View style={styles.logoSection}>
-          <View style={styles.logoBox}>
-            <Text style={styles.logoText}>V</Text>
+        {/* Hero */}
+        <View style={styles.heroSection}>
+          <View style={styles.logoRow}>
+            <Image source={require('../../assets/logo.png')} style={styles.logoImage} resizeMode="contain" />
+            <Text style={styles.logoName}>VOUCH</Text>
           </View>
-          <Text style={styles.logoName}>VOUCH</Text>
+          <Text style={styles.headline}>Borrow and lend on trust.</Text>
           <Text style={styles.logoSub}>Inner Circle Lending</Text>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
-          <Text style={styles.formTitle}>Create account</Text>
-          <Text style={styles.formSub}>Join Vouch and start lending with trust</Text>
+          <View style={[styles.sectionHeader, styles.sectionHeaderFirst]}>
+            <View style={styles.sectionIconBox}>
+              <Ionicons name="person-outline" size={13} color={colors.accentDark} />
+            </View>
+            <Text style={styles.sectionHeaderText}>Personal Details</Text>
+          </View>
 
           <View style={styles.row}>
             <View style={styles.half}>
-              <Text style={styles.label}>First Name *</Text>
+              <Text style={[styles.label, styles.labelFirst]}>First Name *</Text>
               <TextInput style={styles.input} placeholder="First name" placeholderTextColor={colors.muted} value={firstName} onChangeText={setFirstName} />
             </View>
             <View style={styles.half}>
-              <Text style={styles.label}>Last Name *</Text>
+              <Text style={[styles.label, styles.labelFirst]}>Last Name *</Text>
               <TextInput style={styles.input} placeholder="Last name" placeholderTextColor={colors.muted} value={lastName} onChangeText={setLastName} />
             </View>
           </View>
@@ -219,12 +271,20 @@ export default function RegisterScreen({ navigation }: Props) {
             value={phone}
             onChangeText={handlePhoneChange}
             keyboardType="phone-pad"
+            maxLength={10}
           />
 
           <Text style={styles.label}>Email</Text>
           <TextInput style={styles.input} placeholder="your@email.com" placeholderTextColor={colors.muted} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
 
-          <Text style={styles.label}>MoMo Provider</Text>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIconBox}>
+              <Ionicons name="wallet-outline" size={13} color={colors.accentDark} />
+            </View>
+            <Text style={styles.sectionHeaderText}>Mobile Money</Text>
+          </View>
+
+          <Text style={[styles.label, styles.labelFirst]}>MoMo Provider</Text>
           <View style={styles.providerRow}>
             {providers.map((p) => {
               const providerColors = PROVIDER_STYLES[p];
@@ -248,25 +308,33 @@ export default function RegisterScreen({ navigation }: Props) {
           {/* Checkbox */}
           <TouchableOpacity style={styles.checkboxRow} onPress={handleMomoCheckbox} activeOpacity={0.7}>
             <View style={[styles.checkbox, momoSameAsPhone && styles.checkboxChecked]}>
-              {momoSameAsPhone && <Ionicons name="checkmark" size={13} color="#fff" />}
+              {momoSameAsPhone && <Ionicons name="checkmark" size={13} color={colors.surface} />}
             </View>
             <Text style={[styles.checkboxLabel, momoSameAsPhone && styles.checkboxLabelChecked]}>
               My MoMo number is the same as my phone number
             </Text>
           </TouchableOpacity>
 
-          <Text style={styles.label}>MoMo Number</Text>
+          <Text style={[styles.label, styles.labelFirst]}>MoMo Number</Text>
           <TextInput
             style={[styles.input, momoSameAsPhone && styles.inputDisabled]}
             placeholder="Same as phone if left empty"
             placeholderTextColor={colors.muted}
             value={momoNumber}
-            onChangeText={setMomoNumber}
+            onChangeText={handleMomoNumberChange}
             keyboardType="phone-pad"
             editable={!momoSameAsPhone}
+            maxLength={10}
           />
 
-          <Text style={styles.label}>Password *</Text>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIconBox}>
+              <Ionicons name="lock-closed-outline" size={13} color={colors.accentDark} />
+            </View>
+            <Text style={styles.sectionHeaderText}>Security</Text>
+          </View>
+
+          <Text style={[styles.label, styles.labelFirst]}>Password *</Text>
           <TextInput
             style={styles.input}
             placeholder="At least 6 characters"
@@ -298,8 +366,8 @@ export default function RegisterScreen({ navigation }: Props) {
               <View style={styles.rulesBox}>
                 {rules.map((rule, i) => (
                   <View key={i} style={styles.ruleRow}>
-                    <View style={[styles.ruleDot, { backgroundColor: rule.met ? '#16a34a' : colors.muted }]} />
-                    <Text style={[styles.ruleText, { color: rule.met ? '#16a34a' : colors.muted }]}>
+                    <View style={[styles.ruleDot, { backgroundColor: rule.met ? colors.success : colors.muted }]} />
+                    <Text style={[styles.ruleText, { color: rule.met ? colors.success : colors.muted }]}>
                       {rule.label}
                     </Text>
                   </View>
@@ -317,17 +385,20 @@ export default function RegisterScreen({ navigation }: Props) {
             onChangeText={setConfirmPassword}
             secureTextEntry
           />
+          {confirmPassword.length > 0 && (
+            <Text style={[styles.matchText, { color: confirmPassword === password ? colors.success : colors.danger }]}>
+              {confirmPassword === password ? 'Passwords match' : "Passwords don't match"}
+            </Text>
+          )}
 
           <TouchableOpacity style={[styles.btn, loading && { opacity: 0.6 }]} onPress={handleRegister} disabled={loading}>
-            {loading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.btnText}>Create Account</Text>}
+            {loading ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Create Account</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.navigate('Login')}>
             <Text style={styles.linkText}>Already have an account? <Text style={styles.linkBold}>Log In</Text></Text>
           </TouchableOpacity>
         </View>
-
-        <View style={{ height: 40 }} />
       </ScrollView>
     </KeyboardAvoidingView>
   );

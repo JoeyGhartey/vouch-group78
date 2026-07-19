@@ -35,17 +35,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         final String token = authHeader.substring(7);
-        final String phone = jwtUtil.extractPhone(token);
 
-        if (phone != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(phone);
+        try {
+            final String phone = jwtUtil.extractPhone(token);
 
-            if (jwtUtil.validateToken(token)) {
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+            if (phone != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(phone);
+
+                if (jwtUtil.validateToken(token)) {
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
+        } catch (Exception e) {
+            // Expired/malformed/tampered token -> leave the request unauthenticated so
+            // Spring Security's own entry point returns a clean 401 instead of this
+            // filter throwing and producing a raw 500 before it ever reaches a controller.
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);

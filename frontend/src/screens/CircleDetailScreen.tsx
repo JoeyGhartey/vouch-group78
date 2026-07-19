@@ -2,16 +2,17 @@ import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput, Modal,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Dimensions, TouchableWithoutFeedback,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { PieChart } from 'react-native-chart-kit';
 import {
   getCircle, inviteMember, leaveCircle,
-  getCircleLoans, getCircleExpenses, getCircleBalances, getCircleInsights,
-  requestPayment, confirmPayment,
+  getCircleLoans, getCircleExpenses, getCircleBalances, getCircleInsights, deleteSharedExpense,
+  requestPayment, confirmPayment, getCircleDisputes, resolveDispute,
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
@@ -44,6 +45,21 @@ interface Circle {
   memberCount: number;
   maxLoanAmount: number;
   members: CircleMember[];
+  creatorId: number;
+}
+
+interface Dispute {
+  id: number;
+  loanId: number;
+  loanAmount: number;
+  borrowerName: string;
+  lenderName: string;
+  openedByName: string;
+  reason: string;
+  evidence?: string;
+  status: string;
+  escalated?: boolean;
+  createdAt: string;
 }
 
 interface Loan {
@@ -138,6 +154,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   expenseTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
   expenseDesc: { fontSize: 16, fontWeight: '700', color: c.dark, flex: 1, marginRight: 8 },
   expenseAmount: { fontSize: 20, fontWeight: '800', color: c.dark, textAlign: 'right' },
+  expenseAmountRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   expenseMeta: { fontSize: 12, color: c.muted },
   categoryBadge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3, alignSelf: 'flex-start', marginBottom: 8 },
   categoryBadgeText: { fontSize: 10, fontWeight: '700' },
@@ -165,13 +182,23 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   balanceRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.border },
   balanceKey: { fontSize: 13, color: c.muted, flex: 1 },
   balanceAmount: { fontSize: 13, fontWeight: '700', color: c.danger },
-  insightHero: { backgroundColor: c.surface, borderRadius: 14, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: c.border },
+  insightHero: { backgroundColor: c.goldBgTint, borderRadius: 14, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: c.border, borderTopWidth: 3, borderTopColor: c.accent },
   insightHealthLabel: { fontSize: 11, color: c.slate400, fontWeight: '600', letterSpacing: 0.8 },
-  insightHealth: { fontSize: 28, fontWeight: '800', color: c.dark, marginTop: 4 },
-  card: { backgroundColor: c.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.border },
-  insightRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border },
-  insightLabel: { fontSize: 13, color: c.muted },
-  insightValue: { fontSize: 13, fontWeight: '700', color: c.dark },
+  healthBadge: { borderRadius: 999, paddingHorizontal: 20, paddingVertical: 8, marginTop: 10 },
+  healthBadgeText: { fontSize: 26, fontWeight: '900' },
+  categoryChartCard: { backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, borderTopWidth: 3, borderTopColor: c.accent, alignItems: 'center' },
+  categoryChartTitle: { fontSize: 14, fontWeight: '700', color: c.dark, alignSelf: 'flex-start', marginBottom: 4 },
+  legendList: { width: '100%', marginTop: 14, gap: 2 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border },
+  legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 10 },
+  legendCategory: { flex: 1, fontSize: 13, color: c.dark, fontWeight: '600' },
+  legendPercent: { fontSize: 12, color: c.muted, marginRight: 10, width: 36, textAlign: 'right' },
+  legendAmount: { fontSize: 13, color: c.dark, fontWeight: '700', width: 90, textAlign: 'right' },
+  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  statCard: { width: '47%', backgroundColor: c.surface, borderRadius: 12, borderWidth: 1, borderColor: c.border, padding: 14 },
+  statCardIconBox: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  statCardValue: { fontSize: 17, fontWeight: '800', color: c.dark },
+  statCardLabel: { fontSize: 11, color: c.muted, marginTop: 2 },
   emptyCard: { backgroundColor: c.surface, borderRadius: 14, padding: 28, alignItems: 'center', borderWidth: 1, borderColor: c.border },
   emptyTitle: { fontSize: 14, fontWeight: '600', color: c.muted, marginTop: 10 },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
@@ -181,15 +208,60 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   input: { backgroundColor: c.bg, borderRadius: 10, padding: 14, fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border },
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
   cancelBtnText: { color: c.muted, fontSize: 14 },
-  memberDetailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border },
-  memberDetailLabel: { fontSize: 13, color: c.muted },
-  memberDetailValue: { fontSize: 13, fontWeight: '700', color: c.dark },
-  memberDetailScore: { fontSize: 32, fontWeight: '800', color: c.dark, textAlign: 'center', marginVertical: 4 },
-  memberDetailScoreLabel: { fontSize: 11, color: c.muted, textAlign: 'center', marginBottom: 16 },
-  memberDetailAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: c.buttonDark, justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 8 },
-  memberDetailAvatarText: { color: c.buttonDarkText, fontSize: 20, fontWeight: '700' },
-  memberDetailName: { fontSize: 17, fontWeight: '700', color: c.dark, textAlign: 'center', marginBottom: 2 },
-  memberDetailRole: { fontSize: 12, color: c.muted, textAlign: 'center', marginBottom: 12 },
+  modalSub: { fontSize: 13, color: c.muted, textAlign: 'center', marginTop: -10, marginBottom: 16 },
+  disputeCard: { backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 12 },
+  disputeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  disputeBadge: { backgroundColor: c.dangerBgTint, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  disputeBadgeText: { fontSize: 10, fontWeight: '800', color: c.danger },
+  disputeDate: { fontSize: 12, color: c.muted },
+  disputeAmount: { fontSize: 20, fontWeight: '800', color: c.dark, marginBottom: 12 },
+  partiesRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  partyItem: { flex: 1 },
+  partyLabel: { fontSize: 11, color: c.muted, fontWeight: '600', marginBottom: 2 },
+  partyName: { fontSize: 14, fontWeight: '600', color: c.dark },
+  divider: { height: 1, backgroundColor: c.border, marginBottom: 12 },
+  reasonLabel: { fontSize: 11, color: c.muted, fontWeight: '600', marginBottom: 4 },
+  reasonText: { fontSize: 14, color: c.dark, marginBottom: 12, lineHeight: 20 },
+  outcomeRow: { flexDirection: 'row', gap: 10 },
+  outcomeBtn: { flex: 1, padding: 12, borderRadius: 10, borderWidth: 1.5, borderColor: c.border, alignItems: 'center' },
+  outcomeBtnActive: { backgroundColor: c.buttonDark, borderColor: c.buttonDark },
+  outcomeBtnText: { fontSize: 13, fontWeight: '600', color: c.muted },
+  outcomeBtnTextActive: { color: c.buttonDarkText },
+  memberModal: {
+    backgroundColor: c.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    paddingBottom: 28, overflow: 'hidden',
+  },
+  memberModalHandle: {
+    width: 40, height: 4, borderRadius: 2, backgroundColor: c.border,
+    alignSelf: 'center', marginTop: 10, marginBottom: 4,
+  },
+  memberDetailHero: {
+    alignItems: 'center', backgroundColor: c.goldBgTint,
+    paddingTop: 20, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  memberDetailAvatar: {
+    width: 68, height: 68, borderRadius: 34, backgroundColor: c.buttonDark,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 10,
+    borderWidth: 3, borderColor: c.accent,
+  },
+  memberDetailAvatarText: { color: c.buttonDarkText, fontSize: 24, fontWeight: '700' },
+  memberDetailName: { fontSize: 18, fontWeight: '800', color: c.dark, textAlign: 'center', marginBottom: 8 },
+  memberRoleBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: c.surface, borderWidth: 1, borderColor: c.accent,
+    borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5,
+  },
+  memberRoleBadgeText: { fontSize: 11, fontWeight: '700', color: c.accentDark, letterSpacing: 0.4 },
+  memberScoreSection: { alignItems: 'center', paddingVertical: 20 },
+  memberDetailScore: { fontSize: 40, fontWeight: '900', color: c.dark },
+  memberDetailScoreLabel: { fontSize: 11, color: c.muted, fontWeight: '700', letterSpacing: 0.8, marginTop: 2 },
+  memberStatGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 20 },
+  memberPhoneRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginHorizontal: 20, marginTop: 16, padding: 14,
+    backgroundColor: c.bg, borderRadius: 12, borderWidth: 1, borderColor: c.border,
+  },
+  memberPhoneText: { fontSize: 14, fontWeight: '600', color: c.dark },
 });
 
 export default function CircleDetailScreen({ route, navigation }: Props) {
@@ -213,27 +285,36 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('members');
   const [showInvite, setShowInvite] = useState<boolean>(false);
-  const [invitePhone, setInvitePhone] = useState<string>('');
+  const [inviteIdentifier, setInviteIdentifier] = useState<string>('');
   const [inviteError, setInviteError] = useState<string>('');
   const [inviting, setInviting] = useState<boolean>(false);
   const [selectedMember, setSelectedMember] = useState<CircleMember | null>(null);
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
+  const [showResolve, setShowResolve] = useState<boolean>(false);
+  const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
+  const [resolution, setResolution] = useState<string>('');
+  const [adminNotes, setAdminNotes] = useState<string>('');
+  const [outcome, setOutcome] = useState<string>('BORROWER_FAVOR');
+  const [resolving, setResolving] = useState<boolean>(false);
+
+  const isCreator = !!circle && user?.id === circle.creatorId;
 
   const loadData = async (): Promise<void> => {
     try {
-      const [circleData, loansData, expensesData, balancesData] = await Promise.all([
+      const [circleData, loansData, expensesData, balancesData, insightsData, disputesData] = await Promise.all([
         getCircle(circleId),
         getCircleLoans(circleId).catch(() => []),
         getCircleExpenses(circleId).catch(() => []),
         getCircleBalances(circleId).catch(() => ({ balances: {} })),
+        getCircleInsights(circleId).catch(() => null),
+        getCircleDisputes(circleId).catch(() => []),
       ]);
       setCircle(circleData as Circle);
       setLoans(loansData as Loan[]);
       setExpenses(expensesData as Expense[]);
       setBalances((balancesData as { balances: Record<string, number> }).balances || {});
-      try {
-        const insightsData = await getCircleInsights(circleId);
-        setInsights(insightsData as Insights);
-      } catch (e) {}
+      if (insightsData) setInsights(insightsData as Insights);
+      setDisputes(disputesData as Dispute[]);
     } catch (error) {
       console.error('Error loading circle:', error);
     } finally {
@@ -272,20 +353,50 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
     }
   };
 
+  const handleDeleteExpense = async (expenseId: number, description: string): Promise<void> => {
+    const ok = await confirm('Delete Expense', `Delete "${description}"? This removes it for everyone in the circle.`, 'Delete');
+    if (!ok) return;
+    try {
+      await deleteSharedExpense(expenseId);
+      showAlert('success', 'Deleted', 'Shared expense removed.');
+      loadData();
+    } catch (error) {
+      showAlert('error', 'Error', (error as Error).message);
+    }
+  };
+
+  const handleResolveDispute = async (): Promise<void> => {
+    if (!resolution.trim()) { showAlert('error', 'Error', 'Enter a resolution'); return; }
+    setResolving(true);
+    try {
+      await resolveDispute(selectedDispute!.id, { outcome, resolution, adminNotes });
+      showAlert('success', 'Resolved', 'Dispute resolved. Both parties have been notified.');
+      setShowResolve(false);
+      setResolution('');
+      setAdminNotes('');
+      setOutcome('BORROWER_FAVOR');
+      loadData();
+    } catch (error) {
+      showAlert('error', 'Error', (error as Error).message);
+    } finally {
+      setResolving(false);
+    }
+  };
+
   const handleInvite = async (): Promise<void> => {
-    if (!invitePhone.trim()) { setInviteError('Enter a phone number'); return; }
+    if (!inviteIdentifier.trim()) { setInviteError('Enter a phone number or email address'); return; }
     setInviting(true);
     setInviteError('');
     try {
-      const result = await inviteMember(circleId, invitePhone) as { message: string };
+      const result = await inviteMember(circleId, inviteIdentifier) as { message: string };
       showAlert('success', 'Invite Sent', result.message);
       setShowInvite(false);
-      setInvitePhone('');
+      setInviteIdentifier('');
       loadData();
     } catch (error) {
       const raw = (error as Error).message;
       setInviteError(raw.includes('User not found')
-        ? "No user found with this phone number. Make sure they've registered."
+        ? "No user found with that phone number or email. Make sure they've registered."
         : raw);
     } finally {
       setInviting(false);
@@ -310,8 +421,10 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   }[status] || colors.muted);
 
   const getCategoryColor = (category?: string): string => ({
-    Food: colors.success, Transport: colors.statusBlue, Entertainment: colors.statusPurple,
-    Utilities: colors.statusOrange, Shopping: colors.accent, Other: colors.slate400,
+    Food: colors.accent, Loan: colors.accentDark, Shopping: colors.warning,
+    Entertainment: colors.statusOrange, Transport: `${colors.accent}B3`,
+    Utilities: `${colors.warning}B3`, 'Shared Expense': `${colors.statusOrange}B3`,
+    Other: colors.slate400,
   }[category || ''] || colors.muted);
 
   const getInitials = (fullName: string): string => {
@@ -324,10 +437,33 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
     return new Date(dateString).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   };
 
+  const screenWidth = Dimensions.get('window').width;
+
+  const categoryTotals: Record<string, number> = {};
+  expenses.forEach((e) => {
+    const cat = e.category || 'Other';
+    categoryTotals[cat] = (categoryTotals[cat] || 0) + e.totalAmount;
+  });
+  const totalSpend = Object.values(categoryTotals).reduce((sum, v) => sum + v, 0);
+  const categoryChartData = Object.entries(categoryTotals)
+    .sort((a, b) => b[1] - a[1])
+    .map(([category, amount]) => ({
+      name: category,
+      population: amount,
+      color: getCategoryColor(category),
+      legendFontColor: colors.muted,
+      legendFontSize: 12,
+      percentage: totalSpend > 0 ? Math.round((amount / totalSpend) * 100) : 0,
+    }));
+
+  const getHealthColor = (health: string): string => ({
+    Excellent: colors.success, Good: colors.success, Fair: colors.warning, Poor: colors.danger,
+  }[health] || colors.muted);
+
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>;
   if (!circle) return <View style={styles.center}><Text style={{ color: colors.danger }}>Circle not found</Text></View>;
 
-  const tabs = ['members', 'loans', 'expenses', 'insights'];
+  const tabs = ['members', 'loans', 'expenses', 'insights', ...(isCreator ? ['disputes'] : [])];
 
   return (
     <View style={styles.container}>
@@ -460,7 +596,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
               </View>
             ) : (
               expenses.map((expense) => {
-                const settledCount = expense.splits.filter(s => s.settled || s.userId === expense.paidById).length;
+                const settledCount = expense.splits.filter(s => s.settled).length;
                 const totalCount = expense.splits.length;
                 const progress = totalCount > 0 ? settledCount / totalCount : 0;
                 const categoryColor = getCategoryColor(expense.category);
@@ -469,7 +605,17 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                     <TouchableOpacity activeOpacity={0.7} onPress={() => setExpandedExpense(expandedExpense === expense.expenseId ? null : expense.expenseId)}>
                       <View style={styles.expenseTop}>
                         <Text style={styles.expenseDesc}>{expense.description}</Text>
-                        <Text style={styles.expenseAmount}>GHS {expense.totalAmount}</Text>
+                        <View style={styles.expenseAmountRow}>
+                          <Text style={styles.expenseAmount}>GHS {expense.totalAmount}</Text>
+                          {user?.id === expense.paidById && (
+                            <TouchableOpacity
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                              onPress={(e) => { e.stopPropagation(); handleDeleteExpense(expense.expenseId, expense.description); }}
+                            >
+                              <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                            </TouchableOpacity>
+                          )}
+                        </View>
                       </View>
                       {expense.category && (
                         <View style={[styles.categoryBadge, { backgroundColor: `${categoryColor}18` }]}>
@@ -499,7 +645,6 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                           const memberInfo = circle.members.find(m => m.userId === split.userId);
                           const name = memberInfo ? `${memberInfo.firstName} ${memberInfo.lastName}` : `User #${split.userId}`;
                           const isMe = user?.id === split.userId;
-                          const isPayer = split.userId === expense.paidById;
                           const isCurrentUserPayer = user?.id === expense.paidById;
                           return (
                             <View key={split.id} style={styles.splitRow}>
@@ -510,7 +655,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                                 <Text style={[styles.splitName, isMe && { fontWeight: '700' }]}>{name}{isMe ? ' (You)' : ''}</Text>
                                 <Text style={styles.splitAmount}>GHS {split.amountOwed.toFixed(2)}</Text>
                               </View>
-                              {split.settled || isPayer ? (
+                              {split.settled ? (
                                 <View style={styles.settledBadge}>
                                   <Ionicons name="checkmark-circle" size={14} color={colors.success} />
                                   <Text style={styles.settledText}>Settled</Text>
@@ -563,91 +708,287 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
           <View style={styles.section}>
             <View style={styles.insightHero}>
               <Text style={styles.insightHealthLabel}>Circle Health</Text>
-              <Text style={styles.insightHealth}>{insights.circleHealth}</Text>
+              <View style={[styles.healthBadge, { backgroundColor: `${getHealthColor(insights.circleHealth)}18` }]}>
+                <Text style={[styles.healthBadgeText, { color: getHealthColor(insights.circleHealth) }]}>
+                  {insights.circleHealth}
+                </Text>
+              </View>
             </View>
-            <View style={styles.card}>
+            {categoryChartData.length > 0 && (
+              <View style={styles.categoryChartCard}>
+                <Text style={styles.categoryChartTitle}>Shared Expenses by Category</Text>
+                <PieChart
+                  data={categoryChartData}
+                  width={screenWidth - 64}
+                  height={180}
+                  chartConfig={{
+                    color: () => colors.dark,
+                    labelColor: () => colors.muted,
+                  }}
+                  accessor="population"
+                  backgroundColor="transparent"
+                  paddingLeft="8"
+                  hasLegend={false}
+                />
+                <View style={styles.legendList}>
+                  {categoryChartData.map((item, i) => (
+                    <View key={i} style={styles.legendRow}>
+                      <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                      <Text style={styles.legendCategory}>{item.name}</Text>
+                      <Text style={styles.legendPercent}>{item.percentage}%</Text>
+                      <Text style={styles.legendAmount}>GHS {item.population.toFixed(2)}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+            <View style={styles.statGrid}>
               {([
-                ['Total Loans', insights.totalLoans],
-                ['Active Loans', insights.activeLoans],
-                ['Repaid', insights.repaidLoans],
-                ['Defaulted', insights.defaultedLoans],
-                ['Repayment Rate', `${insights.circleRepaymentRate}%`],
-                ['Total Circulated', `GHS ${insights.totalAmountCirculated}`],
-                ['Avg Trust Score', insights.averageTrustScore],
-                ...(insights.topLender ? [['Top Lender', insights.topLender]] : []),
-                ...(insights.topBorrower ? [['Top Borrower', insights.topBorrower]] : []),
-              ] as [string, string | number][]).map(([label, value], i) => (
-                <View key={i} style={styles.insightRow}>
-                  <Text style={styles.insightLabel}>{label}</Text>
-                  <Text style={styles.insightValue}>{value}</Text>
+                ['Total Loans', insights.totalLoans, 'document-text-outline', colors.accent],
+                ['Active Loans', insights.activeLoans, 'time-outline', colors.accent],
+                ['Repaid', insights.repaidLoans, 'checkmark-done-outline', colors.success],
+                ['Defaulted', insights.defaultedLoans, 'warning-outline', colors.danger],
+                ['Repayment Rate', `${insights.circleRepaymentRate}%`, 'trending-up-outline', colors.success],
+                ['Total Circulated', `GHS ${insights.totalAmountCirculated}`, 'cash-outline', colors.accent],
+                ['Avg Trust Score', insights.averageTrustScore, 'shield-checkmark-outline', colors.accent],
+                ...(insights.topLender ? [['Top Lender', insights.topLender, 'star-outline', colors.accent]] : []),
+                ...(insights.topBorrower ? [['Top Borrower', insights.topBorrower, 'person-outline', colors.accent]] : []),
+              ] as [string, string | number, keyof typeof Ionicons.glyphMap, string][]).map(([label, value, icon, color], i) => (
+                <View key={i} style={styles.statCard}>
+                  <View style={[styles.statCardIconBox, { backgroundColor: `${color}18` }]}>
+                    <Ionicons name={icon} size={18} color={color} />
+                  </View>
+                  <Text style={styles.statCardValue}>{value}</Text>
+                  <Text style={styles.statCardLabel}>{label}</Text>
                 </View>
               ))}
             </View>
           </View>
         )}
 
+        {/* Disputes Tab — circle owner only */}
+        {activeTab === 'disputes' && isCreator && (
+          <View style={styles.section}>
+            {disputes.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Ionicons name="checkmark-circle-outline" size={32} color={colors.success} />
+                <Text style={styles.emptyTitle}>No open disputes</Text>
+              </View>
+            ) : (
+              disputes.map((dispute) => (
+                <View key={dispute.id} style={styles.disputeCard}>
+                  <View style={styles.disputeHeader}>
+                    <View style={[styles.disputeBadge, dispute.escalated && { backgroundColor: `${colors.statusPurple}18` }]}>
+                      <Text style={[styles.disputeBadgeText, dispute.escalated && { color: colors.statusPurple }]}>
+                        {dispute.escalated ? 'ESCALATED' : 'OPEN'}
+                      </Text>
+                    </View>
+                    <Text style={styles.disputeDate}>{formatExpenseDate(dispute.createdAt)}</Text>
+                  </View>
+                  <Text style={styles.disputeAmount}>GHS {dispute.loanAmount} Loan</Text>
+                  <View style={styles.partiesRow}>
+                    <View style={styles.partyItem}>
+                      <Text style={styles.partyLabel}>Borrower</Text>
+                      <Text style={styles.partyName}>{dispute.borrowerName}</Text>
+                    </View>
+                    <Ionicons name="arrow-forward" size={16} color={colors.muted} />
+                    <View style={styles.partyItem}>
+                      <Text style={styles.partyLabel}>Lender</Text>
+                      <Text style={styles.partyName}>{dispute.lenderName}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.divider} />
+                  <Text style={styles.reasonLabel}>Opened by {dispute.openedByName}</Text>
+                  <Text style={styles.reasonText}>{dispute.reason}</Text>
+                  {dispute.evidence ? (
+                    <>
+                      <Text style={styles.reasonLabel}>Evidence</Text>
+                      <Text style={styles.reasonText}>{dispute.evidence}</Text>
+                    </>
+                  ) : null}
+                  {dispute.escalated ? (
+                    <View style={styles.memberPhoneRow}>
+                      <Ionicons name="arrow-up-circle-outline" size={16} color={colors.statusPurple} />
+                      <Text style={styles.memberPhoneText}>A party escalated this to Vouch's platform admin — it's out of your hands now.</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.primaryBtn}
+                      onPress={() => { setSelectedDispute(dispute); setShowResolve(true); }}
+                    >
+                      <Text style={styles.primaryBtnText}>Review & Resolve</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Invite Modal */}
-      <Modal visible={showInvite} animationType="slide" transparent>
+      {/* Resolve Dispute Modal */}
+      <Modal visible={showResolve} animationType="slide" transparent onRequestClose={() => setShowResolve(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={styles.modalBg}>
-            <View style={styles.modal}>
-              <Text style={styles.modalTitle}>Invite to {circle.name}</Text>
-              <Text style={styles.label}>Phone Number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 0551234567"
-                placeholderTextColor={colors.muted}
-                value={invitePhone}
-                onChangeText={(text) => { setInvitePhone(text); setInviteError(''); }}
-                keyboardType="phone-pad"
-              />
-              {inviteError !== '' && <Text style={{ color: '#ef4444', fontSize: 13, marginTop: 6 }}>{inviteError}</Text>}
-              <TouchableOpacity style={[styles.primaryBtn, { marginTop: 20 }, inviting && { opacity: 0.6 }]} onPress={handleInvite} disabled={inviting}>
-                {inviting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.primaryBtnText}>Send Invite</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowInvite(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
+          <TouchableWithoutFeedback onPress={() => setShowResolve(false)}>
+            <View style={styles.modalBg}>
+              <ScrollView style={{ width: '100%' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }} keyboardShouldPersistTaps="handled">
+                <TouchableWithoutFeedback onPress={() => {}}>
+                  <View style={styles.modal}>
+                    <Text style={styles.modalTitle}>Resolve Dispute</Text>
+                    {selectedDispute && (
+                      <Text style={styles.modalSub}>
+                        GHS {selectedDispute.loanAmount} · {selectedDispute.borrowerName} vs {selectedDispute.lenderName}
+                      </Text>
+                    )}
+                    <Text style={styles.label}>Outcome</Text>
+                    <View style={styles.outcomeRow}>
+                      <TouchableOpacity
+                        style={[styles.outcomeBtn, outcome === 'BORROWER_FAVOR' && styles.outcomeBtnActive]}
+                        onPress={() => setOutcome('BORROWER_FAVOR')}
+                      >
+                        <Text style={[styles.outcomeBtnText, outcome === 'BORROWER_FAVOR' && styles.outcomeBtnTextActive]}>
+                          Favour Borrower
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.outcomeBtn, outcome === 'LENDER_FAVOR' && styles.outcomeBtnActive]}
+                        onPress={() => setOutcome('LENDER_FAVOR')}
+                      >
+                        <Text style={[styles.outcomeBtnText, outcome === 'LENDER_FAVOR' && styles.outcomeBtnTextActive]}>
+                          Favour Lender
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.label}>Resolution *</Text>
+                    <TextInput
+                      style={[styles.input, { height: 80 }]}
+                      placeholder="Describe the resolution decision"
+                      placeholderTextColor={colors.muted}
+                      value={resolution}
+                      onChangeText={setResolution}
+                      multiline
+                    />
+                    <Text style={styles.label}>Notes</Text>
+                    <TextInput
+                      style={[styles.input, { height: 60 }]}
+                      placeholder="Internal notes (optional)"
+                      placeholderTextColor={colors.muted}
+                      value={adminNotes}
+                      onChangeText={setAdminNotes}
+                      multiline
+                    />
+                    <TouchableOpacity
+                      style={[styles.primaryBtn, { marginTop: 20 }, resolving && { opacity: 0.6 }]}
+                      onPress={handleResolveDispute}
+                      disabled={resolving}
+                    >
+                      {resolving ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.primaryBtnText}>Confirm Resolution</Text>}
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowResolve(false)}>
+                      <Text style={styles.cancelBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableWithoutFeedback>
+              </ScrollView>
             </View>
-          </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Invite Modal */}
+      <Modal visible={showInvite} animationType="slide" transparent onRequestClose={() => setShowInvite(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableWithoutFeedback onPress={() => setShowInvite(false)}>
+            <View style={styles.modalBg}>
+              <TouchableWithoutFeedback onPress={() => {}}>
+                <View style={styles.modal}>
+                  <Text style={styles.modalTitle}>Invite to {circle.name}</Text>
+                  <Text style={styles.label}>Phone Number or Email</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. 0551234567 or name@email.com"
+                    placeholderTextColor={colors.muted}
+                    value={inviteIdentifier}
+                    onChangeText={(text) => { setInviteIdentifier(text); setInviteError(''); }}
+                    keyboardType="default"
+                    autoCapitalize="none"
+                  />
+                  {inviteError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{inviteError}</Text>}
+                  <TouchableOpacity style={[styles.primaryBtn, { marginTop: 20 }, inviting && { opacity: 0.6 }]} onPress={handleInvite} disabled={inviting}>
+                    {inviting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.primaryBtnText}>Send Invite</Text>}
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowInvite(false)}>
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
 
       {/* Member Detail Modal */}
       <Modal visible={selectedMember !== null} animationType="slide" transparent onRequestClose={() => setSelectedMember(null)}>
-        <View style={styles.modalBg}>
-          <View style={styles.modal}>
-            {selectedMember && (
-              <>
-                <View style={styles.memberDetailAvatar}>
-                  <Text style={styles.memberDetailAvatarText}>{selectedMember.firstName[0]}{selectedMember.lastName[0]}</Text>
-                </View>
-                <Text style={styles.memberDetailName}>{selectedMember.firstName} {selectedMember.lastName}</Text>
-                <Text style={styles.memberDetailRole}>{selectedMember.memberRole === 'CREATOR' ? 'Admin' : 'Member'}</Text>
-                <Text style={styles.memberDetailScore}>{selectedMember.circleTrustScore?.toFixed(0)}</Text>
-                <Text style={styles.memberDetailScoreLabel}>Circle Trust Score</Text>
-                {([
-                  ['Phone', selectedMember.phone ?? '—'],
-                  ['Loans Given', selectedMember.loansGivenInCircle],
-                  ['Loans Received', selectedMember.loansReceivedInCircle],
-                  ['Repaid On Time', selectedMember.loansRepaidInCircle],
-                  ['Defaults', selectedMember.defaultsInCircle],
-                ] as [string, string | number][]).map(([label, value]) => (
-                  <View key={label} style={styles.memberDetailRow}>
-                    <Text style={styles.memberDetailLabel}>{label}</Text>
-                    <Text style={styles.memberDetailValue}>{value}</Text>
-                  </View>
-                ))}
-                <TouchableOpacity style={styles.cancelBtn} onPress={() => setSelectedMember(null)}>
-                  <Text style={styles.cancelBtnText}>Close</Text>
-                </TouchableOpacity>
-              </>
-            )}
+        <TouchableWithoutFeedback onPress={() => setSelectedMember(null)}>
+          <View style={styles.modalBg}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={styles.memberModal}>
+                <View style={styles.memberModalHandle} />
+                {selectedMember && (
+                  <>
+                    <View style={styles.memberDetailHero}>
+                      <View style={styles.memberDetailAvatar}>
+                        <Text style={styles.memberDetailAvatarText}>{selectedMember.firstName[0]}{selectedMember.lastName[0]}</Text>
+                      </View>
+                      <Text style={styles.memberDetailName}>{selectedMember.firstName} {selectedMember.lastName}</Text>
+                      <View style={styles.memberRoleBadge}>
+                        <Ionicons name={selectedMember.memberRole === 'CREATOR' ? 'shield-checkmark' : 'person'} size={12} color={colors.accentDark} />
+                        <Text style={styles.memberRoleBadgeText}>
+                          {selectedMember.memberRole === 'CREATOR' ? 'ADMIN' : 'MEMBER'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.memberScoreSection}>
+                      <Text style={styles.memberDetailScore}>{selectedMember.circleTrustScore?.toFixed(0)}</Text>
+                      <Text style={styles.memberDetailScoreLabel}>CIRCLE TRUST SCORE</Text>
+                    </View>
+
+                    <View style={styles.memberStatGrid}>
+                      {([
+                        ['Loans Given', selectedMember.loansGivenInCircle, 'trending-up-outline', colors.accent],
+                        ['Loans Received', selectedMember.loansReceivedInCircle, 'trending-down-outline', colors.accent],
+                        ['Repaid On Time', selectedMember.loansRepaidInCircle, 'checkmark-done-outline', colors.success],
+                        ['Defaults', selectedMember.defaultsInCircle, 'warning-outline', colors.danger],
+                      ] as [string, string | number, keyof typeof Ionicons.glyphMap, string][]).map(([label, value, icon, color]) => (
+                        <View key={label} style={styles.statCard}>
+                          <View style={[styles.statCardIconBox, { backgroundColor: `${color}18` }]}>
+                            <Ionicons name={icon} size={18} color={color} />
+                          </View>
+                          <Text style={styles.statCardValue}>{value}</Text>
+                          <Text style={styles.statCardLabel}>{label}</Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    {selectedMember.phone && (
+                      <View style={styles.memberPhoneRow}>
+                        <Ionicons name="call-outline" size={16} color={colors.muted} />
+                        <Text style={styles.memberPhoneText}>{selectedMember.phone}</Text>
+                      </View>
+                    )}
+
+                    <TouchableOpacity style={styles.cancelBtn} onPress={() => setSelectedMember(null)}>
+                      <Text style={styles.cancelBtnText}>Close</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </TouchableWithoutFeedback>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </View>
   );

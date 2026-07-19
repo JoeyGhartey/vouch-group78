@@ -3,6 +3,7 @@ com\vouch\auth\entity\User.class
 com\vouch\auth\dto\UserProfileResponse.class
 com\vouch\auth\service\AuthService.class
 com\vouch\auth\controller\InternalUserController.class
+com\vouch\auth\dto\ForgotPasswordRequest.class
 com\vouch\auth\controller\AuthController.class
 com\vouch\auth\config\SecurityConfig.class
 com\vouch\auth\dto\RegisterRequest.class
@@ -15,6 +16,7 @@ com\vouch\auth\repository\UserRepository.class
 com\vouch\auth\dto\UserProfileResponse$UserProfileResponseBuilder.class
 com\vouch\auth\entity\User$Role.class
 com\vouch\auth\service\UserProfileService.class
+com\vouch\auth\dto\ResetPasswordRequest.class
 com\vouch\auth\dto\UpdateUserStatsRequest.class
 com\vouch\auth\controller\UserProfileController.class
 com\vouch\auth\service\BadgeService.class

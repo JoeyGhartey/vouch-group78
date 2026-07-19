@@ -31,6 +31,7 @@ C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\security\JwtAuthen
 C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\security\JwtUtil.java
 C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\service\AuthServiceClient.java
 C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\service\CircleService.java
+C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\service\ExpenseServiceClient.java
 C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\service\GroupFundingService.java
 C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\service\InstallmentService.java
 C:\Users\joey\vouch\loan-service\src\main\java\com\vouch\loan\service\LoanAgreementPdfService.java

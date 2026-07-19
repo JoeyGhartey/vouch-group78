@@ -1,6 +1,7 @@
 package com.vouch.payment.controller;
 
 import com.vouch.payment.dto.PaymentInitResponse;
+import com.vouch.payment.service.AuthServiceClient;
 import com.vouch.payment.service.PaystackService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,7 @@ import java.util.Map;
 public class PaymentController {
 
     private final PaystackService paystackService;
+    private final AuthServiceClient authServiceClient;
 
     @PostMapping("/disburse/{loanId}")
     public ResponseEntity<PaymentInitResponse> initializeDisbursement(
@@ -36,8 +38,14 @@ public class PaymentController {
         return ResponseEntity.ok(paystackService.verifyTransaction(reference));
     }
 
+    // Dev/testing shortcut only — bypasses Paystack entirely, so it must never be
+    // reachable by a regular user. Requires authentication (removed from the
+    // permitAll list in SecurityConfig) AND the platform ADMIN role.
     @PostMapping("/simulate/{reference}")
-    public ResponseEntity<Map<String, Object>> simulatePaymentSuccess(@PathVariable String reference) {
+    public ResponseEntity<Map<String, Object>> simulatePaymentSuccess(Authentication auth, @PathVariable String reference) {
+        if (auth == null || !"ADMIN".equals(authServiceClient.getUserRole(auth.getName()))) {
+            return ResponseEntity.status(403).body(Map.of("message", "Admin access required"));
+        }
         return ResponseEntity.ok(paystackService.simulatePaymentSuccess(reference));
     }
 

@@ -9,7 +9,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/internal/users")
@@ -26,9 +28,36 @@ public class InternalUserController {
         return ResponseEntity.ok(buildResponse(user));
     }
 
+    @PostMapping("/batch")
+    public ResponseEntity<List<UserProfileResponse>> getUsersByIds(@RequestBody Map<String, List<Long>> request) {
+        List<Long> userIds = request.get("userIds");
+        if (userIds == null || userIds.isEmpty()) {
+            return ResponseEntity.ok(List.of());
+        }
+        List<UserProfileResponse> users = userRepository.findAllById(userIds).stream()
+                .map(this::buildResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(users);
+    }
+
+    @GetMapping("/admins")
+    public ResponseEntity<List<UserProfileResponse>> getAdmins() {
+        List<UserProfileResponse> admins = userRepository.findByRole(User.Role.ADMIN).stream()
+                .map(this::buildResponse)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(admins);
+    }
+
     @GetMapping("/phone/{phone}")
     public ResponseEntity<UserProfileResponse> getUserByPhone(@PathVariable String phone) {
         User user = userRepository.findByPhone(phone)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return ResponseEntity.ok(buildResponse(user));
+    }
+
+    @GetMapping("/email/{email}")
+    public ResponseEntity<UserProfileResponse> getUserByEmail(@PathVariable String email) {
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         return ResponseEntity.ok(buildResponse(user));
     }
@@ -51,6 +80,9 @@ public class InternalUserController {
         if (request.getTotalLoansGiven() != null)    user.setTotalLoansGiven(request.getTotalLoansGiven());
         if (request.getTotalLoansReceived() != null) user.setTotalLoansReceived(request.getTotalLoansReceived());
         if (request.getDefaults() != null)           user.setDefaults(request.getDefaults());
+        if (request.getBorrowingSuspended() != null) user.setBorrowingSuspended(request.getBorrowingSuspended());
+        if (request.getBorrowingSuspendedUntil() != null) user.setBorrowingSuspendedUntil(request.getBorrowingSuspendedUntil());
+        if (request.getPermanentBan() != null)       user.setPermanentBan(request.getPermanentBan());
         userRepository.save(user);
         return ResponseEntity.ok().build();
     }

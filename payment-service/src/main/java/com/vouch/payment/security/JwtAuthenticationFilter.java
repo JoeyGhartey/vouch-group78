@@ -34,17 +34,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         final String token = authHeader.substring(7);
-        final String phone = jwtUtil.extractPhone(token);
 
-        if (phone != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            if (jwtUtil.validateToken(token)) {
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                phone, null,
-                                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+        try {
+            final String phone = jwtUtil.extractPhone(token);
+
+            if (phone != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                if (jwtUtil.validateToken(token)) {
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    phone, null,
+                                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
+        } catch (Exception e) {
+            // Expired/malformed/tampered token -> leave the request unauthenticated so
+            // Spring Security's own entry point returns a clean 401 instead of this
+            // filter throwing and producing a raw 500 before it ever reaches a controller.
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);

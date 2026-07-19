@@ -30,4 +30,6 @@ public class LoanResponse {
     private String message;
     private Boolean borrowerSigned;
     private Boolean lenderSigned;
+    private Double borrowerMaxInterestRate;
+    private String borrowerTrustTier;
 }

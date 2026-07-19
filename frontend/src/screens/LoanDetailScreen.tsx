@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, TextInput, Modal,
+  ActivityIndicator, TextInput, Modal, TouchableWithoutFeedback, Pressable,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,6 +13,8 @@ import {
   cancelLoan, defaultLoan, openDispute, getProfile,
   initializeDisbursement, initializeRepayment, verifyPayment,
   rejectAgreement, proposeCounterOffer, respondToCounterOffer,
+  getDisputeByLoan, escalateDispute,
+  contributeToLoan, getLoanContributions,
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
@@ -48,16 +50,47 @@ interface Loan {
   gracePeriodEnd?: string;
   borrowerSigned?: boolean;
   lenderSigned?: boolean;
+  borrowerMaxInterestRate: number;
+  borrowerTrustTier: string;
+  isGroupFunded?: boolean;
+}
+
+interface Contribution {
+  id: number;
+  lenderName: string;
+  lenderId: number;
+  amount: number;
+  interestRate: number;
+  amountRepaid: number;
+}
+
+interface ContributionsSummary {
+  totalContributed: number;
+  remaining: number;
+  percentFunded: number;
+  contributorCount: number;
+  contributions: Contribution[];
 }
 
 interface Profile {
   id: number;
 }
 
+interface Dispute {
+  id: number;
+  status: string;
+  reason: string;
+  evidence?: string;
+  openedByName: string;
+  resolution?: string;
+  escalated?: boolean;
+}
+
 interface PaymentInitResponse {
   authorizationUrl: string;
   reference: string;
   message: string;
+  callbackUrl?: string;
 }
 
 const createStyles = (c: ColorScheme) => StyleSheet.create({
@@ -71,25 +104,59 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   back: { color: c.accent, fontSize: 16, fontWeight: '600' },
   title: { color: c.dark, fontSize: 18, fontWeight: '700' },
   amountCard: {
-    backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 16,
-    padding: 24, alignItems: 'center', marginTop: 16, marginBottom: 16,
-    borderWidth: 1, borderColor: c.border,
+    backgroundColor: c.heroCardBg, marginHorizontal: 16, borderRadius: 20,
+    padding: 28, alignItems: 'center', marginTop: 16, marginBottom: 16,
+    overflow: 'hidden',
   },
-  amountLabel: { color: c.muted, fontSize: 13 },
-  amount: { color: c.dark, fontSize: 40, fontWeight: '800', marginTop: 4, letterSpacing: -1 },
-  badge: { borderRadius: 8, paddingHorizontal: 16, paddingVertical: 6, marginTop: 12 },
-  badgeText: { color: c.surface, fontSize: 12, fontWeight: '700' },
+  loanIdTag: { color: c.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, marginBottom: 10 },
+  amountLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 13 },
+  amount: { color: '#fff', fontSize: 42, fontWeight: '800', marginTop: 4, letterSpacing: -1 },
+  badge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, marginTop: 16,
+  },
+  badgeText: { color: c.surface, fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },
+
+  // Parties card — borrower/lender shown as avatars either side of an arrow
+  partiesCard: {
+    backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
+    padding: 18, marginBottom: 12, borderWidth: 1, borderColor: c.border,
+    flexDirection: 'row', alignItems: 'center',
+  },
+  partyBox: { flex: 1, alignItems: 'center' },
+  avatarCircle: {
+    width: 48, height: 48, borderRadius: 24,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 8,
+  },
+  avatarText: { color: c.surface, fontSize: 18, fontWeight: '700' },
+  partyName: { color: c.dark, fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  partyRole: { color: c.muted, fontSize: 11, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  partyArrowBox: { width: 36, alignItems: 'center', justifyContent: 'center' },
+
   card: {
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
   },
-  cardTitle: { color: c.dark, fontSize: 15, fontWeight: '700', marginBottom: 12 },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+  cardTitle: { color: c.dark, fontSize: 15, fontWeight: '700' },
   row: {
     flexDirection: 'row', justifyContent: 'space-between',
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border,
   },
   rowLabel: { color: c.muted, fontSize: 13 },
   rowValue: { color: c.dark, fontSize: 13, fontWeight: '600', textAlign: 'right', flex: 1, marginLeft: 16 },
+
+  // Icon-led detail rows
+  detailRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: c.border,
+  },
+  detailIconBox: {
+    width: 30, height: 30, borderRadius: 9,
+    justifyContent: 'center', alignItems: 'center', marginRight: 12,
+  },
+  detailLabel: { color: c.muted, fontSize: 12.5, flex: 1 },
+  detailValue: { color: c.dark, fontSize: 13, fontWeight: '700', textAlign: 'right', maxWidth: '48%' },
   progressBar: { height: 6, backgroundColor: c.border, borderRadius: 4, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: c.success, borderRadius: 4 },
   progressText: { color: c.muted, fontSize: 12, marginTop: 8, textAlign: 'center' },
@@ -102,25 +169,32 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   primaryBtnDisabled: { opacity: 0.4 },
   dangerBtn: {
     backgroundColor: c.danger, borderRadius: 12, padding: 16,
-    alignItems: 'center', marginBottom: 10,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 10,
   },
   outlineBtn: {
     borderWidth: 1.5, borderColor: c.accent, borderRadius: 12,
     padding: 16, alignItems: 'center', marginBottom: 10,
   },
   btnText: { color: c.buttonDarkText, fontSize: 15, fontWeight: '700' },
-  dangerBtnText: { color: c.surface, fontSize: 15, fontWeight: '700' },
+  dangerBtnText: { color: c.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
   outlineText: { color: c.accent, fontSize: 15, fontWeight: '600' },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
   modal: { backgroundColor: c.surface, borderRadius: 16, padding: 24 },
   modalTitle: { color: c.dark, fontSize: 20, fontWeight: '700', textAlign: 'center' },
   modalSub: { color: c.muted, fontSize: 13, textAlign: 'center', marginTop: 4, marginBottom: 16 },
+  trustTierBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: c.bg, borderRadius: 8, padding: 10, marginBottom: 8,
+    borderWidth: 1, borderColor: c.border,
+  },
+  trustTierBannerText: { color: c.muted, fontSize: 12, flex: 1 },
   label: { color: c.muted, fontSize: 13, marginBottom: 6, marginTop: 12 },
   input: {
     backgroundColor: c.bg, borderRadius: 12, padding: 14,
     fontSize: 15, color: c.dark, borderWidth: 1, borderColor: c.border,
   },
   calcText: { color: c.success, fontSize: 13, marginTop: 8, textAlign: 'center' },
+  rateErrorText: { color: c.danger, fontSize: 12, marginTop: 6 },
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
   cancelText: { color: c.muted, fontSize: 15 },
   actionRow: { flexDirection: 'row', gap: 10 },
@@ -136,7 +210,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   counterBtnText: { color: c.surface, fontSize: 14, fontWeight: '700' },
 
   // Terms & Conditions modal
-  termsScroll: { maxHeight: 260, marginBottom: 16 },
+  termsScroll: { maxHeight: 340, marginBottom: 16 },
   termsText: { fontSize: 13, color: c.muted, lineHeight: 20 },
   termsSectionTitle: { fontSize: 13, fontWeight: '700', color: c.dark, marginTop: 12, marginBottom: 4 },
   checkboxRow: {
@@ -171,6 +245,11 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState<boolean>(true);
   const [acting, setActing] = useState<boolean>(false);
   const [showFund, setShowFund] = useState<boolean>(false);
+  const [fundOverride, setFundOverride] = useState<boolean>(false);
+  const [showContribute, setShowContribute] = useState<boolean>(false);
+  const [contributeAmount, setContributeAmount] = useState<string>('');
+  const [contributeRate, setContributeRate] = useState<string>('');
+  const [contributions, setContributions] = useState<ContributionsSummary | null>(null);
   const [showRepay, setShowRepay] = useState<boolean>(false);
   const [showDispute, setShowDispute] = useState<boolean>(false);
   const [showCounterOffer, setShowCounterOffer] = useState<boolean>(false);
@@ -181,6 +260,8 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   const [repayAmount, setRepayAmount] = useState<string>('');
   const [disputeReason, setDisputeReason] = useState<string>('');
   const [disputeEvidence, setDisputeEvidence] = useState<string>('');
+  const [dispute, setDispute] = useState<Dispute | null>(null);
+  const [escalating, setEscalating] = useState<boolean>(false);
   const confirmingRef = useRef(false);
 
   const loadData = async (): Promise<void> => {
@@ -188,6 +269,24 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       const [loanData, profileData] = await Promise.all([getLoan(loanId), getProfile()]);
       setLoan(loanData as Loan);
       setProfile(profileData as Profile);
+      if ((loanData as Loan).status === 'DISPUTED') {
+        try {
+          setDispute(await getDisputeByLoan(loanId) as Dispute);
+        } catch {
+          setDispute(null);
+        }
+      } else {
+        setDispute(null);
+      }
+      if ((loanData as Loan).isGroupFunded) {
+        try {
+          setContributions(await getLoanContributions(loanId) as ContributionsSummary);
+        } catch {
+          setContributions(null);
+        }
+      } else {
+        setContributions(null);
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -216,9 +315,50 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       return;
     }
     doAction(async () => {
-      await fundLoan({ loanId: loan!.id, interestRate: parseFloat(interestRate) });
+      await fundLoan({
+        loanId: loan!.id,
+        interestRate: parseFloat(interestRate),
+        overrideGroupFunding: fundOverride || undefined,
+      });
       setShowFund(false);
+      setFundOverride(false);
     }, 'Loan funded. Agreement pending signatures.');
+  };
+
+  const handleFundAloneOverride = async (): Promise<void> => {
+    const ok = await confirm(
+      'Fund This Loan Alone?',
+      `This loan is recommended for group funding based on the borrower's trust tier. You're choosing to fund the full GHS ${loan!.amount} yourself and take on the full risk alone. Continue?`,
+      'Yes, Fund Alone'
+    );
+    if (!ok) return;
+    setFundOverride(true);
+    setShowFund(true);
+  };
+
+  const remainingToFund = (): number => {
+    if (!loan) return 0;
+    return contributions ? contributions.remaining : loan.amount;
+  };
+
+  const handleContribute = (): void => {
+    const amt = parseFloat(contributeAmount);
+    const rate = parseFloat(contributeRate);
+    if (!amt || amt <= 0) {
+      showAlert('error', 'Error', 'Enter a valid amount'); return;
+    }
+    if (amt > remainingToFund()) {
+      showAlert('error', 'Error', `Amount exceeds what's still needed (GHS ${remainingToFund().toFixed(2)})`); return;
+    }
+    if (!contributeRate || rate < 0) {
+      showAlert('error', 'Error', 'Enter a valid interest rate'); return;
+    }
+    doAction(async () => {
+      await contributeToLoan({ loanId: loan!.id, amount: amt, interestRate: rate });
+      setShowContribute(false);
+      setContributeAmount('');
+      setContributeRate('');
+    }, 'Contribution recorded.');
   };
 
   // Opens T&C modal first, then signs after acceptance
@@ -268,8 +408,14 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     try {
       const response = await initializeDisbursement(loan!.id) as PaymentInitResponse;
       if (response.authorizationUrl) {
-        const result = await WebBrowser.openBrowserAsync(response.authorizationUrl);
-        if (result.type === 'dismiss' || result.type === 'cancel') {
+        // openAuthSessionAsync (not openBrowserAsync) watches for navigation to
+        // callbackUrl and closes the browser automatically the moment Paystack
+        // redirects there after payment — no need for the user to manually tap
+        // "Done". Falls back to a plain browser if callbackUrl wasn't returned.
+        const result = response.callbackUrl
+          ? await WebBrowser.openAuthSessionAsync(response.authorizationUrl, response.callbackUrl)
+          : await WebBrowser.openBrowserAsync(response.authorizationUrl);
+        if (result.type === 'success' || result.type === 'dismiss' || result.type === 'cancel') {
           setActing(true);
           try {
             const verification = await verifyPayment(response.reference) as { status: string; message: string };
@@ -309,8 +455,10 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     try {
       const response = await initializeRepayment(loan!.id, amt) as PaymentInitResponse;
       if (response.authorizationUrl) {
-        const result = await WebBrowser.openBrowserAsync(response.authorizationUrl);
-        if (result.type === 'dismiss' || result.type === 'cancel') {
+        const result = response.callbackUrl
+          ? await WebBrowser.openAuthSessionAsync(response.authorizationUrl, response.callbackUrl)
+          : await WebBrowser.openBrowserAsync(response.authorizationUrl);
+        if (result.type === 'success' || result.type === 'dismiss' || result.type === 'cancel') {
           setActing(true);
           try {
             const verification = await verifyPayment(response.reference) as { status: string; message: string };
@@ -363,6 +511,25 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     }, 'Dispute opened.');
   };
 
+  const handleEscalate = async (): Promise<void> => {
+    const ok = await confirm(
+      'Escalate to Platform Admin',
+      "This bypasses your circle owner and sends the dispute straight to Vouch's platform team. Use this if you feel it isn't being handled fairly or quickly enough. Continue?",
+      'Escalate'
+    );
+    if (!ok) return;
+    setEscalating(true);
+    try {
+      await escalateDispute(dispute!.id);
+      showAlert('success', 'Escalated', "A platform admin has been notified and will review this dispute.");
+      loadData();
+    } catch (e) {
+      showAlert('error', 'Error', (e as Error).message);
+    } finally {
+      setEscalating(false);
+    }
+  };
+
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>;
   if (!loan) return <View style={styles.center}><Text style={{ color: colors.danger, fontSize: 16 }}>Loan not found</Text></View>;
 
@@ -377,25 +544,45 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     REPAID: colors.success, DEFAULTED: colors.danger, DISPUTED: colors.statusPurple, CANCELLED: colors.muted,
   }[s] || colors.muted);
 
+  const statusIcon = (s: string): keyof typeof Ionicons.glyphMap => ({
+    REQUESTED: 'hourglass-outline', AGREEMENT_PENDING: 'create-outline', AGREEMENT_SIGNED: 'checkmark-circle-outline',
+    ACTIVE: 'flash-outline', DUE: 'alert-circle-outline', GRACE_PERIOD: 'warning-outline',
+    REPAID: 'checkmark-done-circle-outline', DEFAULTED: 'close-circle-outline', DISPUTED: 'shield-outline', CANCELLED: 'ban-outline',
+  }[s] as keyof typeof Ionicons.glyphMap || 'ellipse-outline');
+
   const fmtDate = (d?: string): string =>
     d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
-  const details: [string, string][] = [
-    ['Borrower', loan.borrowerName],
-    ['Lender', loan.lenderName || 'Waiting for lender'],
-    ['Circle', loan.circleName],
-    ['Reason', loan.reason],
-    ['Interest Rate', `${loan.interestRate}%`],
-    ['Total Repayment', `GHS ${loan.totalRepaymentAmount}`],
-    ['Amount Repaid', `GHS ${loan.amountRepaid}`],
-    ['Repayment Type', loan.repaymentType],
-    ['Period', `${loan.repaymentPeriodMonths} month(s)`],
-    ['Due Date', fmtDate(loan.dueDate)],
-    ['Created', fmtDate(loan.createdAt)],
-    ...(loan.disbursedAt ? [['Disbursed', fmtDate(loan.disbursedAt)] as [string, string]] : []),
-    ...(loan.overdueInterestAccrued > 0 ? [['Overdue Interest', `GHS ${loan.overdueInterestAccrued.toFixed(2)}`] as [string, string]] : []),
-    ...(loan.gracePeriodEnd ? [['Grace Period Ends', fmtDate(loan.gracePeriodEnd)] as [string, string]] : []),
+  const disputeStatusLabel = (d: Dispute): string => {
+    if (d.status === 'RESOLVED_BORROWER_FAVOR') return 'RESOLVED — BORROWER FAVOUR';
+    if (d.status === 'RESOLVED_LENDER_FAVOR') return 'RESOLVED — LENDER FAVOUR';
+    if (d.escalated) return 'ESCALATED — AWAITING ADMIN';
+    return 'OPEN — CIRCLE OWNER REVIEWING';
+  };
+
+  const disputeStatusColor = (d: Dispute): string => {
+    if (d.status.startsWith('RESOLVED')) return colors.success;
+    if (d.escalated) return colors.statusPurple;
+    return colors.warning;
+  };
+
+  type IconName = keyof typeof Ionicons.glyphMap;
+  const details: [string, string, IconName][] = [
+    ['Circle', loan.circleName, 'people-outline'],
+    ['Reason', loan.reason, 'document-text-outline'],
+    ['Interest Rate', `${loan.interestRate}%`, 'trending-up-outline'],
+    ['Total Repayment', `GHS ${loan.totalRepaymentAmount}`, 'cash-outline'],
+    ['Amount Repaid', `GHS ${loan.amountRepaid}`, 'checkmark-done-outline'],
+    ['Repayment Type', loan.repaymentType, 'repeat-outline'],
+    ['Period', `${loan.repaymentPeriodMonths} month(s)`, 'calendar-outline'],
+    ['Due Date', fmtDate(loan.dueDate), 'alarm-outline'],
+    ['Created', fmtDate(loan.createdAt), 'time-outline'],
+    ...(loan.disbursedAt ? [['Disbursed', fmtDate(loan.disbursedAt), 'send-outline'] as [string, string, IconName]] : []),
+    ...(loan.overdueInterestAccrued > 0 ? [['Overdue Interest', `GHS ${loan.overdueInterestAccrued.toFixed(2)}`, 'warning-outline'] as [string, string, IconName]] : []),
+    ...(loan.gracePeriodEnd ? [['Grace Period Ends', fmtDate(loan.gracePeriodEnd), 'hourglass-outline'] as [string, string, IconName]] : []),
   ];
+
+  const initialOf = (name?: string): string => (name && name.trim().length > 0 ? name.trim()[0].toUpperCase() : '?');
 
   return (
     <ScrollView style={styles.container}>
@@ -408,25 +595,84 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       </View>
 
       <View style={styles.amountCard}>
+        <Text style={styles.loanIdTag}>LOAN #{loan.id}</Text>
         <Text style={styles.amountLabel}>Loan Amount</Text>
         <Text style={styles.amount}>GHS {loan.amount}</Text>
         <View style={[styles.badge, { backgroundColor: statusColor(loan.status) }]}>
+          <Ionicons name={statusIcon(loan.status)} size={14} color={colors.surface} />
           <Text style={styles.badgeText}>{loan.status.replace(/_/g, ' ')}</Text>
         </View>
       </View>
 
+      <View style={styles.partiesCard}>
+        <View style={styles.partyBox}>
+          <View style={[styles.avatarCircle, { backgroundColor: colors.accent }]}>
+            <Text style={styles.avatarText}>{initialOf(loan.borrowerName)}</Text>
+          </View>
+          <Text style={styles.partyName} numberOfLines={1}>{loan.borrowerName}</Text>
+          <Text style={styles.partyRole}>Borrower</Text>
+        </View>
+        <View style={styles.partyArrowBox}>
+          <Ionicons name="swap-horizontal" size={20} color={colors.muted} />
+        </View>
+        <View style={styles.partyBox}>
+          <View style={[styles.avatarCircle, { backgroundColor: loan.lenderName ? colors.statusBlue : colors.slate400 }]}>
+            <Text style={styles.avatarText}>{loan.lenderName ? initialOf(loan.lenderName) : '?'}</Text>
+          </View>
+          <Text style={styles.partyName} numberOfLines={1}>{loan.lenderName || 'Waiting'}</Text>
+          <Text style={styles.partyRole}>Lender</Text>
+        </View>
+      </View>
+
+      {loan.isGroupFunded && contributions && (
+        <View style={styles.card}>
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="people-circle-outline" size={17} color={colors.accent} />
+            <Text style={styles.cardTitle}>Group Funding Progress</Text>
+          </View>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${Math.min(contributions.percentFunded, 100)}%` as any }]} />
+          </View>
+          <Text style={styles.progressText}>
+            GHS {contributions.totalContributed.toFixed(2)} / {loan.amount.toFixed(2)} funded ({contributions.contributorCount} contributor{contributions.contributorCount === 1 ? '' : 's'})
+          </Text>
+          {contributions.remaining > 0 && loan.status === 'REQUESTED' && (
+            <Text style={styles.remaining}>GHS {contributions.remaining.toFixed(2)} still needed</Text>
+          )}
+          {contributions.contributions.map((c) => (
+            <View key={c.id} style={styles.detailRow}>
+              <View style={[styles.detailIconBox, { backgroundColor: colors.accent + '22' }]}>
+                <Ionicons name="person-outline" size={15} color={colors.accent} />
+              </View>
+              <Text style={styles.detailLabel}>{c.lenderName}</Text>
+              <Text style={styles.detailValue}>GHS {c.amount.toFixed(2)} @ {c.interestRate}%</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       <View style={styles.card}>
-        {details.map(([label, value], i) => (
-          <View key={i} style={styles.row}>
-            <Text style={styles.rowLabel}>{label}</Text>
-            <Text style={[styles.rowValue, label === 'Overdue Interest' && { color: colors.danger }]}>{value}</Text>
+        <View style={styles.cardTitleRow}>
+          <Ionicons name="information-circle-outline" size={17} color={colors.accent} />
+          <Text style={styles.cardTitle}>Loan Information</Text>
+        </View>
+        {details.map(([label, value, icon], i) => (
+          <View key={i} style={[styles.detailRow, i === details.length - 1 && { borderBottomWidth: 0 }]}>
+            <View style={[styles.detailIconBox, { backgroundColor: label === 'Overdue Interest' ? colors.dangerBgTint : colors.goldBgTint }]}>
+              <Ionicons name={icon} size={15} color={label === 'Overdue Interest' ? colors.danger : colors.accent} />
+            </View>
+            <Text style={styles.detailLabel}>{label}</Text>
+            <Text style={[styles.detailValue, label === 'Overdue Interest' && { color: colors.danger }]} numberOfLines={2}>{value}</Text>
           </View>
         ))}
       </View>
 
       {loan.totalRepaymentAmount > 0 && !['REPAID', 'CANCELLED', 'REQUESTED'].includes(loan.status) && (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Repayment Progress</Text>
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="bar-chart-outline" size={17} color={colors.accent} />
+            <Text style={styles.cardTitle}>Repayment Progress</Text>
+          </View>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, {
               width: `${Math.min((loan.amountRepaid / (loan.totalRepaymentAmount + loan.overdueInterestAccrued)) * 100, 100)}%` as any
@@ -439,11 +685,62 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
         </View>
       )}
 
+      {dispute && (
+        <View style={styles.card}>
+          <View style={styles.cardTitleRow}>
+            <Ionicons name="shield-outline" size={17} color={colors.statusPurple} />
+            <Text style={styles.cardTitle}>Dispute</Text>
+          </View>
+          <View style={[styles.badge, { backgroundColor: disputeStatusColor(dispute), alignSelf: 'flex-start', marginTop: 0, marginBottom: 12 }]}>
+            <Text style={styles.badgeText}>{disputeStatusLabel(dispute)}</Text>
+          </View>
+          <Text style={styles.rowLabel}>Opened by {dispute.openedByName}</Text>
+          <Text style={{ color: colors.dark, fontSize: 13, marginTop: 4, marginBottom: 10, lineHeight: 19 }}>{dispute.reason}</Text>
+          {dispute.evidence ? (
+            <>
+              <Text style={styles.rowLabel}>Evidence</Text>
+              <Text style={{ color: colors.dark, fontSize: 13, marginTop: 4, marginBottom: 10, lineHeight: 19 }}>{dispute.evidence}</Text>
+            </>
+          ) : null}
+          {dispute.status.startsWith('RESOLVED') && dispute.resolution && (
+            <>
+              <Text style={styles.rowLabel}>Resolution</Text>
+              <Text style={{ color: colors.dark, fontSize: 13, marginTop: 4, lineHeight: 19 }}>{dispute.resolution}</Text>
+            </>
+          )}
+          {!dispute.status.startsWith('RESOLVED') && dispute.escalated && (
+            <View style={styles.trustTierBanner}>
+              <Ionicons name="alert-circle-outline" size={16} color={colors.statusPurple} />
+              <Text style={styles.trustTierBannerText}>Escalated to a Vouch platform admin — your circle owner can no longer resolve this.</Text>
+            </View>
+          )}
+          {!dispute.status.startsWith('RESOLVED') && !dispute.escalated && (isBorrower || isLender) && (
+            <TouchableOpacity
+              style={[styles.outlineBtn, { marginTop: 4 }, escalating && { opacity: 0.6 }]}
+              onPress={handleEscalate}
+              disabled={escalating}
+            >
+              {escalating ? <ActivityIndicator color={colors.accent} /> : <Text style={styles.outlineText}>Escalate to Platform Admin</Text>}
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       <View style={styles.actions}>
-        {loan.status === 'REQUESTED' && !isBorrower && (
+        {loan.status === 'REQUESTED' && !isBorrower && !loan.isGroupFunded && (
           <TouchableOpacity style={styles.primaryBtn} onPress={() => setShowFund(true)}>
             <Text style={styles.btnText}>Fund This Loan</Text>
           </TouchableOpacity>
+        )}
+        {loan.status === 'REQUESTED' && !isBorrower && loan.isGroupFunded && (
+          <>
+            <TouchableOpacity style={styles.primaryBtn} onPress={() => setShowContribute(true)}>
+              <Text style={styles.btnText}>Contribute to This Loan</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.outlineBtn} onPress={handleFundAloneOverride}>
+              <Text style={styles.outlineText}>Fund This Loan Alone Instead</Text>
+            </TouchableOpacity>
+          </>
         )}
         {loan.status === 'AGREEMENT_PENDING' && isLender && loan.counterOfferRate != null && (
           <View style={styles.counterCard}>
@@ -496,9 +793,9 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             <Text style={styles.btnText}>Repay via Paystack</Text>
           </TouchableOpacity>
         )}
-        {loan.status === 'REQUESTED' && isBorrower && (
+        {['REQUESTED', 'AGREEMENT_PENDING'].includes(loan.status) && isBorrower && (
           <TouchableOpacity style={styles.dangerBtn} onPress={handleCancel}>
-            <Text style={styles.dangerBtnText}>Cancel Request</Text>
+            <Text style={styles.dangerBtnText}>Cancel Loan</Text>
           </TouchableOpacity>
         )}
         {loan.status === 'GRACE_PERIOD' && isLender && (
@@ -514,13 +811,19 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       </View>
 
       {/* Terms & Conditions Modal */}
-      <Modal visible={showTerms} animationType="slide" transparent>
+      <Modal visible={showTerms} animationType="slide" transparent onRequestClose={() => setShowTerms(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowTerms(false)}>
         <View style={styles.modalBg}>
+          {/* Pressable, not TouchableWithoutFeedback — the legacy Touchable
+              family competes with the ScrollView below for the touch
+              responder on Android and can block scrolling entirely.
+              Pressable coexists with nested scroll gestures correctly. */}
+          <Pressable onPress={() => {}}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Loan Agreement</Text>
             <Text style={styles.modalSub}>Please read and accept before signing</Text>
 
-            <ScrollView style={styles.termsScroll} showsVerticalScrollIndicator>
+            <ScrollView style={styles.termsScroll} showsVerticalScrollIndicator nestedScrollEnabled>
               <Text style={styles.termsSectionTitle}>1. Repayment Obligation</Text>
               <Text style={styles.termsText}>
                 The borrower agrees to repay the full principal amount plus the agreed interest rate by the specified due date. Failure to repay on time will result in overdue interest accruing daily during a 7-day grace period.
@@ -580,15 +883,33 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+          </Pressable>
         </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Fund Modal */}
-      <Modal visible={showFund} animationType="slide" transparent>
+      <Modal visible={showFund} animationType="slide" transparent onRequestClose={() => { setShowFund(false); setFundOverride(false); }}>
+        <TouchableWithoutFeedback onPress={() => { setShowFund(false); setFundOverride(false); }}>
         <View style={styles.modalBg}>
+          <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Fund This Loan</Text>
+            <Text style={styles.modalTitle}>{fundOverride ? 'Fund This Loan Alone' : 'Fund This Loan'}</Text>
             <Text style={styles.modalSub}>GHS {loan.amount} to {loan.borrowerName}</Text>
+            {fundOverride && (
+              <View style={[styles.trustTierBanner, { borderColor: colors.warningBorderTint, backgroundColor: colors.warningBgTint }]}>
+                <Ionicons name="warning-outline" size={16} color={colors.warning} />
+                <Text style={styles.trustTierBannerText}>
+                  You're overriding the group funding recommendation and taking on the full loan risk alone.
+                </Text>
+              </View>
+            )}
+            <View style={styles.trustTierBanner}>
+              <Ionicons name="shield-checkmark-outline" size={16} color={colors.muted} />
+              <Text style={styles.trustTierBannerText}>
+                Borrower trust tier: {loan.borrowerTrustTier} — max rate: {loan.borrowerMaxInterestRate}%
+              </Text>
+            </View>
             <Text style={styles.label}>Interest Rate (%)</Text>
             <TextInput
               style={styles.input}
@@ -598,24 +919,97 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               onChangeText={setInterestRate}
               keyboardType="numeric"
             />
+            {parseFloat(interestRate) > loan.borrowerMaxInterestRate && (
+              <Text style={styles.rateErrorText}>
+                Exceeds the {loan.borrowerMaxInterestRate}% max for this borrower
+              </Text>
+            )}
             {parseFloat(interestRate) > 0 && (
               <Text style={styles.calcText}>
                 Total repayment: GHS {(loan.amount * (1 + parseFloat(interestRate || '0') / 100)).toFixed(2)}
               </Text>
             )}
-            <TouchableOpacity style={styles.primaryBtn} onPress={handleFund} disabled={acting}>
+            <TouchableOpacity
+              style={[styles.primaryBtn, parseFloat(interestRate) > loan.borrowerMaxInterestRate && { opacity: 0.5 }]}
+              onPress={handleFund}
+              disabled={acting || parseFloat(interestRate) > loan.borrowerMaxInterestRate}
+            >
               {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Confirm & Fund</Text>}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowFund(false)}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => { setShowFund(false); setFundOverride(false); }}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+          </TouchableWithoutFeedback>
         </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Contribute Modal (group funding) */}
+      <Modal visible={showContribute} animationType="slide" transparent onRequestClose={() => setShowContribute(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowContribute(false)}>
+        <View style={styles.modalBg}>
+          <TouchableWithoutFeedback onPress={() => {}}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Contribute to This Loan</Text>
+            <Text style={styles.modalSub}>
+              GHS {remainingToFund().toFixed(2)} still needed of GHS {loan.amount.toFixed(2)}
+            </Text>
+            <View style={styles.trustTierBanner}>
+              <Ionicons name="shield-checkmark-outline" size={16} color={colors.muted} />
+              <Text style={styles.trustTierBannerText}>
+                Borrower trust tier: {loan.borrowerTrustTier} — max rate: {loan.borrowerMaxInterestRate}%
+              </Text>
+            </View>
+            <Text style={styles.label}>Amount to Contribute (GHS)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder={`Up to ${remainingToFund().toFixed(2)}`}
+              placeholderTextColor={colors.muted}
+              value={contributeAmount}
+              onChangeText={setContributeAmount}
+              keyboardType="numeric"
+            />
+            <Text style={styles.label}>Interest Rate (%)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 5"
+              placeholderTextColor={colors.muted}
+              value={contributeRate}
+              onChangeText={setContributeRate}
+              keyboardType="numeric"
+            />
+            {parseFloat(contributeRate) > loan.borrowerMaxInterestRate && (
+              <Text style={styles.rateErrorText}>
+                Exceeds the {loan.borrowerMaxInterestRate}% max for this borrower
+              </Text>
+            )}
+            {parseFloat(contributeAmount) > 0 && (
+              <Text style={styles.calcText}>
+                You'll receive: GHS {(parseFloat(contributeAmount) * (1 + parseFloat(contributeRate || '0') / 100)).toFixed(2)}
+              </Text>
+            )}
+            <TouchableOpacity
+              style={[styles.primaryBtn, parseFloat(contributeRate) > loan.borrowerMaxInterestRate && { opacity: 0.5 }]}
+              onPress={handleContribute}
+              disabled={acting || parseFloat(contributeRate) > loan.borrowerMaxInterestRate}
+            >
+              {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Confirm Contribution</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowContribute(false)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+          </TouchableWithoutFeedback>
+        </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Counter-Offer Modal */}
-      <Modal visible={showCounterOffer} animationType="slide" transparent>
+      <Modal visible={showCounterOffer} animationType="slide" transparent onRequestClose={() => setShowCounterOffer(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowCounterOffer(false)}>
         <View style={styles.modalBg}>
+          <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Propose Different Rate</Text>
             <Text style={styles.modalSub}>Current rate: {loan.interestRate}%</Text>
@@ -635,12 +1029,16 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+          </TouchableWithoutFeedback>
         </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Repay Modal */}
-      <Modal visible={showRepay} animationType="slide" transparent>
+      <Modal visible={showRepay} animationType="slide" transparent onRequestClose={() => setShowRepay(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowRepay(false)}>
         <View style={styles.modalBg}>
+          <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Repay Loan</Text>
             <Text style={styles.modalSub}>Outstanding: GHS {totalOwed.toFixed(2)}</Text>
@@ -660,12 +1058,16 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+          </TouchableWithoutFeedback>
         </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Dispute Modal */}
-      <Modal visible={showDispute} animationType="slide" transparent>
+      <Modal visible={showDispute} animationType="slide" transparent onRequestClose={() => setShowDispute(false)}>
+        <TouchableWithoutFeedback onPress={() => setShowDispute(false)}>
         <View style={styles.modalBg}>
+          <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Open Dispute</Text>
             <Text style={styles.label}>Reason *</Text>
@@ -693,7 +1095,9 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+          </TouchableWithoutFeedback>
         </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       <View style={{ height: 40 }} />

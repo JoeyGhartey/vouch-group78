@@ -3,6 +3,7 @@ package com.vouch.loan.controller;
 import com.vouch.loan.dto.FundLoanRequest;
 import com.vouch.loan.dto.LoanRequest;
 import com.vouch.loan.dto.LoanResponse;
+import com.vouch.loan.service.AuthServiceClient;
 import com.vouch.loan.service.LoanService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import java.util.Map;
 public class LoanController {
 
     private final LoanService loanService;
+    private final AuthServiceClient authServiceClient;
 
     @PostMapping("/request")
     public ResponseEntity<LoanResponse> requestLoan(Authentication auth, @Valid @RequestBody LoanRequest request) {
@@ -105,6 +107,18 @@ public class LoanController {
     @GetMapping("/{loanId}")
     public ResponseEntity<LoanResponse> getLoan(Authentication auth, @PathVariable Long loanId) {
         return ResponseEntity.ok(loanService.getLoan(auth.getName(), loanId));
+    }
+
+    // One-time admin fix: backfills totalLoansGiven/totalLoansReceived for every
+    // user from their full loan history, since those fields never got written
+    // for anything disbursed before syncLoanCountStats existed. Safe to call
+    // more than once. Admin-only since it touches every user's stats at once.
+    @PostMapping("/admin/backfill-loan-count-stats")
+    public ResponseEntity<Map<String, Object>> backfillLoanCountStats(Authentication auth) {
+        if (auth == null || !"ADMIN".equals(authServiceClient.getUserRole(auth.getName()))) {
+            return ResponseEntity.status(403).body(Map.of("message", "Admin access required"));
+        }
+        return ResponseEntity.ok(loanService.backfillLoanCountStats());
     }
 
     @GetMapping("/health")

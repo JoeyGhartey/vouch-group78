@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { login } from '../services/api';
@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { fonts } from '../theme/fonts';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -37,75 +38,65 @@ const getFriendlyError = (message: string, loginMethod: LoginMethod): string => 
   return message || 'Something went wrong. Please try again.';
 };
 
+const HERO_TEXT_MUTED = '#8a8f98';
+
 const createStyles = (c: ColorScheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
-  logoSection: { alignItems: 'center', marginBottom: 48 },
-  logoBox: {
-    width: 72, height: 72, borderRadius: 22,
-    backgroundColor: c.dark, justifyContent: 'center', alignItems: 'center',
-    marginBottom: 16, shadowColor: c.dark, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15, shadowRadius: 12, elevation: 6,
+  scroll: { flexGrow: 1, paddingBottom: 32 },
+  heroSection: {
+    backgroundColor: '#000000',
+    paddingTop: 68, paddingBottom: 40, paddingHorizontal: 28,
+    borderBottomRightRadius: 64,
   },
-  logoText: { fontSize: 36, fontWeight: '900', color: c.accent },
-  logoName: { fontSize: 28, fontWeight: '900', color: c.dark, letterSpacing: 6 },
-  logoSub: { fontSize: 13, color: c.muted, marginTop: 6 },
+  logoRow: { flexDirection: 'row', alignItems: 'center' },
+  logoImage: { width: 44, height: 48, marginRight: 10 },
+  logoName: { fontSize: 15, fontWeight: '800', fontFamily: fonts.extrabold, color: c.accent, letterSpacing: 4 },
+  headline: {
+    fontSize: 34, fontWeight: '800', fontFamily: fonts.extrabold, color: '#FFFFFF',
+    marginTop: 22, letterSpacing: -0.8, lineHeight: 38, maxWidth: '85%',
+  },
+  logoSub: { fontSize: 13, color: HERO_TEXT_MUTED, marginTop: 8 },
   form: {
-    backgroundColor: c.surface, borderRadius: 20, padding: 24,
+    backgroundColor: c.surface, borderTopLeftRadius: 4, borderTopRightRadius: 28,
+    borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
+    padding: 22, paddingTop: 8,
+    marginHorizontal: 16, marginTop: -20,
     borderWidth: 1, borderColor: c.border,
-    shadowColor: c.dark, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12, shadowRadius: 20, elevation: 8,
   },
-  formTitle: { fontSize: 20, fontWeight: '700', color: c.dark, marginBottom: 4 },
-  formSub: { fontSize: 13, color: c.muted, marginBottom: 20 },
   toggle: {
-    flexDirection: 'row',
-    backgroundColor: c.bg,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: c.border,
-    padding: 3,
+    flexDirection: 'row', gap: 20,
+    borderBottomWidth: 1, borderBottomColor: c.border,
     marginBottom: 4,
   },
-  toggleBtn: {
-    flex: 1,
-    paddingVertical: 9,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  toggleBtnActive: {
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.border,
-    shadowColor: c.dark,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  toggleText: { fontSize: 13, fontWeight: '600', color: c.muted },
-  toggleTextActive: { color: c.dark },
-  label: { fontSize: 12, color: c.muted, fontWeight: '600', marginBottom: 6, marginTop: 16 },
+  toggleBtn: { paddingVertical: 14, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  toggleBtnActive: { borderBottomColor: c.accent },
+  toggleText: { fontSize: 13, fontWeight: '600', fontFamily: fonts.semibold, color: c.muted, letterSpacing: 0.3 },
+  toggleTextActive: { color: c.dark, fontWeight: '800', fontFamily: fonts.extrabold },
+  label: { fontSize: 11, color: c.muted, fontWeight: '700', fontFamily: fonts.bold, marginBottom: 6, marginTop: 18, letterSpacing: 0.6, textTransform: 'uppercase' },
   input: {
-    backgroundColor: c.bg, borderRadius: 12, padding: 14,
-    fontSize: 15, color: c.dark, borderWidth: 1, borderColor: c.border,
+    backgroundColor: 'transparent', borderRadius: 0, paddingVertical: 10, paddingHorizontal: 2,
+    fontSize: 16, color: c.dark, borderBottomWidth: 1.5, borderColor: c.border,
   },
   inputError: {
-    borderColor: '#dc2626',
+    borderColor: c.danger,
   },
   errorText: {
-    fontSize: 11, color: '#dc2626', marginTop: 4, fontWeight: '500',
+    fontSize: 11, color: c.danger, marginTop: 4, fontWeight: '500', fontFamily: fonts.medium,
   },
   btn: {
-    backgroundColor: c.dark, borderRadius: 12, padding: 16,
-    alignItems: 'center', marginTop: 24,
+    backgroundColor: c.buttonDark, borderRadius: 12, padding: 16,
+    alignItems: 'center', marginTop: 28,
+    shadowColor: c.accent, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25, shadowRadius: 10, elevation: 4,
   },
-  btnText: { color: c.surface, fontSize: 16, fontWeight: '700' },
-  linkBtn: { alignItems: 'center', marginTop: 20 },
+  btnText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700', fontFamily: fonts.bold },
+  linkBtn: { alignItems: 'center', marginTop: 18 },
   linkText: { color: c.muted, fontSize: 14 },
-  linkBold: { color: c.accent, fontWeight: '700' },
-  forgotBtn: { alignItems: 'flex-end', marginTop: 6 },
-  forgotText: { fontSize: 12, color: c.accent, fontWeight: '600' },
+  linkBold: { color: c.accent, fontWeight: '700', fontFamily: fonts.bold },
+  forgotBtn: { alignItems: 'flex-end', marginTop: 10 },
+  forgotText: { fontSize: 12, color: c.accent, fontWeight: '600', fontFamily: fonts.semibold },
 });
 
 export default function LoginScreen({ navigation }: Props) {
@@ -169,20 +160,18 @@ export default function LoginScreen({ navigation }: Props) {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-        {/* Logo */}
-        <View style={styles.logoSection}>
-          <View style={styles.logoBox}>
-            <Text style={styles.logoText}>V</Text>
+        {/* Hero */}
+        <View style={styles.heroSection}>
+          <View style={styles.logoRow}>
+            <Image source={require('../../assets/logo.png')} style={styles.logoImage} resizeMode="contain" />
+            <Text style={styles.logoName}>VOUCH</Text>
           </View>
-          <Text style={styles.logoName}>VOUCH</Text>
+          <Text style={styles.headline}>Good to have you back.</Text>
           <Text style={styles.logoSub}>Inner Circle Lending</Text>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
-          <Text style={styles.formTitle}>Welcome back</Text>
-          <Text style={styles.formSub}>Log in to your account</Text>
-
           {/* Toggle */}
           <View style={styles.toggle}>
             <TouchableOpacity
@@ -212,9 +201,10 @@ export default function LoginScreen({ navigation }: Props) {
                 placeholder="e.g. 0241234567"
                 placeholderTextColor={colors.muted}
                 value={phone}
-                onChangeText={(t) => { setPhone(t); setIdentifierError(''); }}
+                onChangeText={(t) => { setPhone(t.replace(/[^0-9]/g, '').slice(0, 10)); setIdentifierError(''); }}
                 keyboardType="phone-pad"
                 autoCapitalize="none"
+                maxLength={10}
               />
               {identifierError ? <Text style={styles.errorText}>{identifierError}</Text> : null}
             </>
@@ -249,12 +239,16 @@ export default function LoginScreen({ navigation }: Props) {
           />
           {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
+          <TouchableOpacity style={styles.forgotBtn} onPress={() => navigation.navigate('ForgotPassword')}>
+            <Text style={styles.forgotText}>Forgot Password?</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.btn, loading && { opacity: 0.6 }]}
             onPress={handleLogin}
             disabled={loading}
           >
-            {loading ? <ActivityIndicator color={colors.surface} /> : <Text style={styles.btnText}>Log In</Text>}
+            {loading ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Log In</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.navigate('Register')}>

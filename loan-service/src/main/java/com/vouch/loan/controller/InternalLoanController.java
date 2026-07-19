@@ -26,12 +26,17 @@ public class InternalLoanController {
 
     @PostMapping("/{loanId}/repay-complete")
     public ResponseEntity<Map<String, Object>> completeRepayment(
-            @PathVariable Long loanId, @RequestBody Map<String, Double> body) {
-        return ResponseEntity.ok(loanService.completeRepayment(loanId, body.get("amount")));
+            @PathVariable Long loanId, @RequestBody(required = false) Map<String, Double> body) {
+        return ResponseEntity.ok(loanService.completeRepayment(loanId, body != null ? body.get("amount") : null));
     }
 
     @PostMapping("/{loanId}/set-disputed")
     public ResponseEntity<Map<String, Object>> setDisputed(@PathVariable Long loanId) {
         return ResponseEntity.ok(loanService.setLoanDisputed(loanId));
+    }
+
+    @PostMapping("/{loanId}/resolve-dispute")
+    public ResponseEntity<Map<String, Object>> resolveDispute(@PathVariable Long loanId) {
+        return ResponseEntity.ok(loanService.resolveLoanDispute(loanId));
     }
 }

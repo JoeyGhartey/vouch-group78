@@ -43,4 +43,8 @@ public class AuthServiceClient {
     public String getUserFirstName(Long userId) {
         return (String) getUserInfo(userId).get("firstName");
     }
+
+    public String getUserRole(String phone) {
+        return (String) getUserInfoByPhone(phone).get("role");
+    }
 }

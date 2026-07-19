@@ -1,11 +1,13 @@
 package com.vouch.expense.service;
 
 import com.vouch.expense.dto.SharedExpenseRequest;
+import com.vouch.expense.dto.InternalTransactionRequest;
 import com.vouch.expense.entity.ExpenseSplit;
 import com.vouch.expense.entity.SharedExpense;
 import com.vouch.expense.repository.ExpenseSplitRepository;
 import com.vouch.expense.repository.SharedExpenseRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,16 +17,41 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SharedExpenseService {
 
     private final SharedExpenseRepository sharedExpenseRepository;
     private final ExpenseSplitRepository expenseSplitRepository;
     private final AuthServiceClient authServiceClient;
+    private final CircleServiceClient circleServiceClient;
     private final NotificationServiceClient notificationServiceClient;
+    private final PersonalExpenseService personalExpenseService;
 
     @Transactional
     public Map<String, Object> createSharedExpense(String phone, SharedExpenseRequest request) {
         Long paidById = authServiceClient.getUserIdByPhone(phone);
+        circleServiceClient.validateMembership(request.getCircleId(), paidById);
+        boolean payerAlreadyPaid = request.getPayerAlreadyPaid() == null || request.getPayerAlreadyPaid();
+
+        // Every participant/split target must actually belong to this circle —
+        // otherwise anyone could invent a shared expense assigning debts to
+        // people who never agreed to be in it.
+        for (Long participantId : request.getParticipantIds()) {
+            circleServiceClient.validateMembership(request.getCircleId(), participantId);
+        }
+        if (request.getCustomSplits() != null) {
+            for (Long splitUserId : request.getCustomSplits().keySet()) {
+                circleServiceClient.validateMembership(request.getCircleId(), splitUserId);
+            }
+            double sum = request.getCustomSplits().values().stream().mapToDouble(Double::doubleValue).sum();
+            boolean allPositive = request.getCustomSplits().values().stream().allMatch(v -> v != null && v > 0);
+            if (!allPositive) {
+                throw new RuntimeException("Each split amount must be greater than zero");
+            }
+            if (Math.abs(sum - request.getTotalAmount()) > 0.01) {
+                throw new RuntimeException("Split amounts (GHS " + sum + ") must add up to the total (GHS " + request.getTotalAmount() + ")");
+            }
+        }
 
         SharedExpense expense = SharedExpense.builder()
                 .circleId(request.getCircleId()).paidById(paidById)
@@ -39,18 +66,23 @@ public class SharedExpenseService {
         if (request.getCustomSplits() != null && !request.getCustomSplits().isEmpty()) {
             for (Map.Entry<Long, Double> entry : request.getCustomSplits().entrySet()) {
                 splits.add(ExpenseSplit.builder().sharedExpense(expense).userId(entry.getKey())
-                        .amountOwed(entry.getValue()).settled(entry.getKey().equals(paidById)).build());
+                        .amountOwed(entry.getValue()).settled(entry.getKey().equals(paidById) && payerAlreadyPaid).build());
             }
         } else {
             double splitAmount = request.getTotalAmount() / participantIds.size();
             for (Long pid : participantIds) {
                 splits.add(ExpenseSplit.builder().sharedExpense(expense).userId(pid)
-                        .amountOwed(splitAmount).settled(pid.equals(paidById)).build());
+                        .amountOwed(splitAmount).settled(pid.equals(paidById) && payerAlreadyPaid).build());
             }
         }
         expenseSplitRepository.saveAll(splits);
 
-        String payerName = authServiceClient.getUserName(paidById);
+        Set<Long> memberIds = new HashSet<>(participantIds);
+        for (ExpenseSplit s : splits) {
+            memberIds.add(s.getUserId());
+        }
+        Map<Long, Map<String, Object>> members = authServiceClient.getUsersInfo(memberIds);
+        String payerName = AuthServiceClient.nameOf(members.get(paidById));
         for (Long pid : participantIds) {
             if (!pid.equals(paidById)) {
                 notificationServiceClient.send(pid, "Shared Expense",
@@ -64,7 +96,7 @@ public class SharedExpenseService {
         response.put("totalAmount", expense.getTotalAmount()); response.put("paidBy", payerName);
         response.put("splits", splits.stream().map(s -> {
             Map<String, Object> sm = new HashMap<>();
-            sm.put("userId", s.getUserId()); sm.put("name", authServiceClient.getUserName(s.getUserId()));
+            sm.put("userId", s.getUserId()); sm.put("name", AuthServiceClient.nameOf(members.get(s.getUserId())));
             sm.put("amountOwed", s.getAmountOwed()); sm.put("settled", s.getSettled()); return sm;
         }).collect(Collectors.toList()));
         response.put("message", "Shared expense created successfully");
@@ -72,12 +104,19 @@ public class SharedExpenseService {
     }
 
     public List<Map<String, Object>> getCircleExpenses(String phone, Long circleId) {
-        authServiceClient.getUserIdByPhone(phone);
-        return sharedExpenseRepository.findByCircleIdOrderByCreatedAtDesc(circleId).stream().map(expense -> {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        circleServiceClient.validateMembership(circleId, userId);
+        List<SharedExpense> expenses = sharedExpenseRepository.findByCircleIdOrderByCreatedAtDesc(circleId);
+        Set<Long> payerIds = new HashSet<>();
+        for (SharedExpense expense : expenses) {
+            payerIds.add(expense.getPaidById());
+        }
+        Map<Long, Map<String, Object>> payers = authServiceClient.getUsersInfo(payerIds);
+        return expenses.stream().map(expense -> {
             Map<String, Object> map = new HashMap<>();
             map.put("expenseId", expense.getId()); map.put("description", expense.getDescription());
             map.put("totalAmount", expense.getTotalAmount()); map.put("category", expense.getCategory());
-            map.put("paidBy", authServiceClient.getUserName(expense.getPaidById()));
+            map.put("paidBy", AuthServiceClient.nameOf(payers.get(expense.getPaidById())));
             map.put("paidById", expense.getPaidById());
             map.put("createdAt", expense.getCreatedAt());
             map.put("splits", expense.getSplits().stream().map(s -> {
@@ -94,15 +133,27 @@ public class SharedExpenseService {
     }
 
     public Map<String, Object> getCircleBalances(String phone, Long circleId) {
-        authServiceClient.getUserIdByPhone(phone);
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        circleServiceClient.validateMembership(circleId, userId);
         List<SharedExpense> expenses = sharedExpenseRepository.findByCircleId(circleId);
         Map<String, Double> balances = new HashMap<>();
 
+        Set<Long> userIds = new HashSet<>();
         for (SharedExpense expense : expenses) {
-            String payerName = authServiceClient.getUserName(expense.getPaidById());
+            userIds.add(expense.getPaidById());
             for (ExpenseSplit split : expense.getSplits()) {
                 if (!split.getSettled() && !split.getUserId().equals(expense.getPaidById())) {
-                    String owerName = authServiceClient.getUserName(split.getUserId());
+                    userIds.add(split.getUserId());
+                }
+            }
+        }
+        Map<Long, Map<String, Object>> users = authServiceClient.getUsersInfo(userIds);
+
+        for (SharedExpense expense : expenses) {
+            String payerName = AuthServiceClient.nameOf(users.get(expense.getPaidById()));
+            for (ExpenseSplit split : expense.getSplits()) {
+                if (!split.getSettled() && !split.getUserId().equals(expense.getPaidById())) {
+                    String owerName = AuthServiceClient.nameOf(users.get(split.getUserId()));
                     String key = owerName + " → " + payerName;
                     balances.merge(key, split.getAmountOwed(), Double::sum);
                 }
@@ -152,6 +203,25 @@ public class SharedExpenseService {
         if (!userId.equals(expense.getPaidById())) throw new RuntimeException("Only the person who paid can confirm this payment");
         split.setSettled(true); split.setSettledAt(LocalDateTime.now());
         expenseSplitRepository.save(split);
+
+        try {
+            personalExpenseService.addInternalTransaction(new InternalTransactionRequest(
+                    split.getUserId(), "Paid share - " + expense.getDescription(), split.getAmountOwed(), "Shared Expense", "EXPENSE"));
+            personalExpenseService.addInternalTransaction(new InternalTransactionRequest(
+                    expense.getPaidById(), "Received share - " + expense.getDescription(), split.getAmountOwed(), "Shared Expense", "INCOME"));
+        } catch (Exception e) {
+            log.warn("Failed to log personal transactions for split {}: {}", splitId, e.getMessage());
+        }
+
         return "Payment confirmed. Split settled.";
+    }
+
+    @Transactional
+    public String deleteSharedExpense(String phone, Long expenseId) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        SharedExpense expense = sharedExpenseRepository.findById(expenseId).orElseThrow(() -> new RuntimeException("Expense not found"));
+        if (!userId.equals(expense.getPaidById())) throw new RuntimeException("Only the person who created this expense can delete it");
+        sharedExpenseRepository.delete(expense);
+        return "Shared expense deleted";
     }
 }
