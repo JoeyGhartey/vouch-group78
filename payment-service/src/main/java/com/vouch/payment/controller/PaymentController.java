@@ -33,6 +33,15 @@ public class PaymentController {
         return ResponseEntity.ok(paystackService.initializeLoanRepayment(auth.getName(), loanId, amount));
     }
 
+    @PostMapping("/group-contribute/{loanId}")
+    public ResponseEntity<PaymentInitResponse> initializeGroupContribution(
+            Authentication auth,
+            @PathVariable Long loanId,
+            @RequestBody Map<String, Double> body) {
+        Double amount = body != null ? body.get("amount") : null;
+        return ResponseEntity.ok(paystackService.initializeGroupContribution(auth.getName(), loanId, amount));
+    }
+
     @GetMapping("/verify/{reference}")
     public ResponseEntity<Map<String, Object>> verifyTransaction(@PathVariable String reference) {
         return ResponseEntity.ok(paystackService.verifyTransaction(reference));

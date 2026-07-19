@@ -154,7 +154,9 @@ export const fundLoan = (data: unknown) => request('/loans/fund', 'POST', data);
 export const contributeToLoan = (data: unknown) => request('/loans/group/contribute', 'POST', data);
 export const getLoanContributions = (loanId: number) => request(`/loans/group/${loanId}/contributions`);
 export const signAgreement = (loanId: number) => request(`/loans/${loanId}/sign`, 'POST');
+export const signGroupAgreement = (loanId: number) => request(`/loans/group/${loanId}/sign`, 'POST');
 export const disburseLoan = (loanId: number) => request(`/loans/${loanId}/disburse`, 'POST');
+export const disburseGroupLoan = (loanId: number) => request(`/loans/group/${loanId}/disburse`, 'POST');
 export const repayLoan = (loanId: number, amount?: number) => request(`/loans/${loanId}/repay`, 'POST', amount ? { amount } : null);
 export const defaultLoan = (loanId: number) => request(`/loans/${loanId}/default`, 'POST');
 export const cancelLoan = (loanId: number) => request(`/loans/${loanId}/cancel`, 'POST');
@@ -208,6 +210,7 @@ export const getCircleInsights = (circleId: number) => request(`/circles/${circl
 // Payments
 export const initializeDisbursement = (loanId: number) => request(`/payments/disburse/${loanId}`, 'POST');
 export const initializeRepayment = (loanId: number, amount?: number) => request(`/payments/repay/${loanId}`, 'POST', amount ? { amount } : null);
+export const initializeGroupContribution = (loanId: number, amount: number) => request(`/payments/group-contribute/${loanId}`, 'POST', { amount });
 export const verifyPayment = (reference: string) => request(`/payments/verify/${reference}`);
 
 // Admin

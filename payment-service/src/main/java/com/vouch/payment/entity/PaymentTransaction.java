@@ -59,7 +59,8 @@ public class PaymentTransaction {
 
     public enum TransactionType {
         LOAN_DISBURSEMENT,
-        LOAN_REPAYMENT
+        LOAN_REPAYMENT,
+        GROUP_CONTRIBUTION
     }
 
     public enum TransactionStatus {

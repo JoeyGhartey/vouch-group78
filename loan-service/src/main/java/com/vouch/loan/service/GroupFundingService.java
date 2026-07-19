@@ -227,6 +227,7 @@ public class GroupFundingService {
             map.put("repaymentDue", c.getAmount() * (1 + c.getInterestRate() / 100));
             map.put("amountRepaid", c.getAmountRepaid());
             map.put("contributedAt", c.getContributedAt());
+            map.put("signed", c.getSigned());
             return map;
         }).collect(Collectors.toList());
 
@@ -285,7 +286,8 @@ public class GroupFundingService {
                 .orElseThrow(() -> new RuntimeException("Agreement not found"));
 
         boolean isBorrower = signerId.equals(loan.getBorrowerId());
-        boolean isContributor = loanContributionRepository.findByLoanAndLenderId(loan, signerId).isPresent();
+        LoanContribution myContribution = loanContributionRepository.findByLoanAndLenderId(loan, signerId).orElse(null);
+        boolean isContributor = myContribution != null;
 
         if (!isBorrower && !isContributor) {
             throw new RuntimeException("You are not a party to this loan");
@@ -295,19 +297,37 @@ public class GroupFundingService {
             if (agreement.getBorrowerSigned()) throw new RuntimeException("You have already signed");
             agreement.setBorrowerSigned(true);
             agreement.setBorrowerSignedAt(LocalDateTime.now());
+            loanAgreementRepository.save(agreement);
         }
 
         if (isContributor) {
-            agreement.setLenderSigned(true);
-            agreement.setLenderSignedAt(LocalDateTime.now());
+            if (Boolean.TRUE.equals(myContribution.getSigned())) {
+                throw new RuntimeException("You have already signed");
+            }
+            myContribution.setSigned(true);
+            myContribution.setSignedAt(LocalDateTime.now());
+            loanContributionRepository.save(myContribution);
         }
 
-        loanAgreementRepository.save(agreement);
+        // The "lender side" of a group agreement is only fully signed once
+        // every contributor has individually signed -- not the moment any
+        // single one of them does. Re-check across all contributors every time.
+        List<LoanContribution> allContributions = loanContributionRepository.findByLoan(loan);
+        long signedCount = allContributions.stream().filter(c -> Boolean.TRUE.equals(c.getSigned())).count();
+        boolean allContributorsSigned = !allContributions.isEmpty() && signedCount == allContributions.size();
+
+        if (allContributorsSigned && !agreement.getLenderSigned()) {
+            agreement.setLenderSigned(true);
+            agreement.setLenderSignedAt(LocalDateTime.now());
+            loanAgreementRepository.save(agreement);
+        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("signed", true);
         response.put("borrowerSigned", agreement.getBorrowerSigned());
         response.put("lenderSigned", agreement.getLenderSigned());
+        response.put("signedContributors", signedCount);
+        response.put("totalContributors", allContributions.size());
 
         if (agreement.getBorrowerSigned() && agreement.getLenderSigned()) {
             loan.setStatus(Loan.LoanStatus.AGREEMENT_SIGNED);
@@ -318,7 +338,10 @@ public class GroupFundingService {
                     "All parties have signed the loan agreement. Awaiting disbursement.",
                     "LOAN_AGREEMENT_SIGNED", loan.getId());
         } else {
-            response.put("message", "Your signature has been recorded. Waiting for other parties.");
+            String message = isContributor && !allContributorsSigned
+                    ? "Your signature has been recorded. Waiting for " + (allContributions.size() - signedCount) + " more contributor(s) to sign."
+                    : "Your signature has been recorded. Waiting for other parties.";
+            response.put("message", message);
             response.put("allSigned", false);
         }
 
