@@ -10,11 +10,10 @@ import com.vouch.auth.repository.UserRepository;
 import com.vouch.auth.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,6 +22,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -38,7 +38,12 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
     private final RestTemplate restTemplate;
-    private final JavaMailSender mailSender;
+
+    @Value("${sendgrid.api-key}")
+    private String sendGridApiKey;
+
+    @Value("${sendgrid.from-email}")
+    private String sendGridFromEmail;
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByPhone(request.getPhone())) {
@@ -200,14 +205,30 @@ public class AuthService {
         return Map.of("message", "Password reset successful. You can now log in with your new password.");
     }
 
+    // Sent via SendGrid's HTTP API (not SMTP) — Railway blocks outbound SMTP
+    // ports on non-Pro plans, but a normal HTTPS POST goes through unaffected.
     private void sendOtpEmail(String email, String otp) {
+        if (sendGridApiKey == null || sendGridApiKey.isBlank()) {
+            log.warn("SENDGRID_API_KEY is not configured — cannot send OTP email to {}", email);
+            throw new RuntimeException("Email delivery isn't configured yet. Try resetting with your phone number instead.");
+        }
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(email);
-            message.setSubject("Vouch password reset code");
-            message.setText("Your Vouch password reset code is " + otp + ".\n\n" +
-                    "It expires in " + OTP_VALID_MINUTES + " minutes. If you didn't request this, ignore this email.");
-            mailSender.send(message);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(sendGridApiKey);
+
+            String body = "Your Vouch password reset code is " + otp + ".\n\n" +
+                    "It expires in " + OTP_VALID_MINUTES + " minutes. If you didn't request this, ignore this email.";
+
+            Map<String, Object> payload = Map.of(
+                    "personalizations", List.of(Map.of("to", List.of(Map.of("email", email)))),
+                    "from", Map.of("email", sendGridFromEmail, "name", "Vouch"),
+                    "subject", "Vouch password reset code",
+                    "content", List.of(Map.of("type", "text/plain", "value", body))
+            );
+
+            restTemplate.postForEntity("https://api.sendgrid.com/v3/mail/send",
+                    new HttpEntity<>(payload, headers), String.class);
         } catch (Exception e) {
             log.warn("Failed to email password reset OTP to {}: {}", email, e.getMessage());
             throw new RuntimeException("Could not send the reset code to that email address right now. Please try again shortly.");
