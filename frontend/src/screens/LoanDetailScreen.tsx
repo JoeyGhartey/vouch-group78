@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, TextInput, Modal, TouchableWithoutFeedback,
+  ActivityIndicator, TextInput, Modal, TouchableWithoutFeedback, Pressable,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -191,7 +191,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   counterBtnText: { color: c.surface, fontSize: 14, fontWeight: '700' },
 
   // Terms & Conditions modal
-  termsScroll: { maxHeight: 260, marginBottom: 16 },
+  termsScroll: { maxHeight: 340, marginBottom: 16 },
   termsText: { fontSize: 13, color: c.muted, lineHeight: 20 },
   termsSectionTitle: { fontSize: 13, fontWeight: '700', color: c.dark, marginTop: 12, marginBottom: 4 },
   checkboxRow: {
@@ -703,12 +703,16 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       <Modal visible={showTerms} animationType="slide" transparent onRequestClose={() => setShowTerms(false)}>
         <TouchableWithoutFeedback onPress={() => setShowTerms(false)}>
         <View style={styles.modalBg}>
-          <TouchableWithoutFeedback onPress={() => {}}>
+          {/* Pressable, not TouchableWithoutFeedback — the legacy Touchable
+              family competes with the ScrollView below for the touch
+              responder on Android and can block scrolling entirely.
+              Pressable coexists with nested scroll gestures correctly. */}
+          <Pressable onPress={() => {}}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Loan Agreement</Text>
             <Text style={styles.modalSub}>Please read and accept before signing</Text>
 
-            <ScrollView style={styles.termsScroll} showsVerticalScrollIndicator>
+            <ScrollView style={styles.termsScroll} showsVerticalScrollIndicator nestedScrollEnabled>
               <Text style={styles.termsSectionTitle}>1. Repayment Obligation</Text>
               <Text style={styles.termsText}>
                 The borrower agrees to repay the full principal amount plus the agreed interest rate by the specified due date. Failure to repay on time will result in overdue interest accruing daily during a 7-day grace period.
@@ -768,7 +772,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
-          </TouchableWithoutFeedback>
+          </Pressable>
         </View>
         </TouchableWithoutFeedback>
       </Modal>

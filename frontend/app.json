@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "Vouch",
     "slug": "vouch",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -20,7 +20,7 @@
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true
     },

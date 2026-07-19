@@ -3,6 +3,21 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+// Without this, a push received while the app is open and in the foreground
+// arrives silently — no banner, no sound — since expo-notifications requires
+// you to explicitly opt in to foreground presentation. This runs once on
+// import (this file is pulled in early via AuthContext) and applies for the
+// whole app session.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
 export async function registerForPushNotifications(): Promise<string | null> {
   if (!Device.isDevice) {
     console.warn('Push notifications require a physical device');
