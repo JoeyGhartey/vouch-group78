@@ -3,14 +3,14 @@ import * as SecureStore from 'expo-secure-store';
 // No api-gateway deployed — each service is called directly on its own host.
 // This mirrors the routing rules that would otherwise live in api-gateway/application.yml.
 const SERVICE_URLS: Record<string, string> = {
-  auth: 'https://auth-service-production-a5aa.up.railway.app/api',
-  profile: 'https://auth-service-production-a5aa.up.railway.app/api',
-  notifications: 'https://notification-service-production-17f2.up.railway.app/api',
-  circles: 'https://loan-service-production-fc1e.up.railway.app/api',
-  loans: 'https://loan-service-production-fc1e.up.railway.app/api',
-  payments: 'https://payment-service-production-3e1d.up.railway.app/api',
-  disputes: 'https://dispute-service-production.up.railway.app/api',
-  expenses: 'https://expense-service-u749.onrender.com/api',
+  auth: 'https://vouch-api-gateway-4e6z.onrender.com/api',
+  profile: 'https://vouch-api-gateway-4e6z.onrender.com/api',
+  notifications: 'https://vouch-api-gateway-4e6z.onrender.com/api',
+  circles: 'https://vouch-api-gateway-4e6z.onrender.com/api',
+  loans: 'https://vouch-api-gateway-4e6z.onrender.com/api',
+  payments: 'https://vouch-api-gateway-4e6z.onrender.com/api',
+  disputes: 'https://vouch-api-gateway-4e6z.onrender.com/api',
+  expenses: 'https://vouch-api-gateway-4e6z.onrender.com/api',
 };
 
 const resolveBaseUrl = (endpoint: string): string => {
