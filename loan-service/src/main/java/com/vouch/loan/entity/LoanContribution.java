@@ -44,6 +44,15 @@ public class LoanContribution {
 
     private LocalDateTime signedAt;
 
+    // Set once this contributor's Paystack payment for their pledged share
+    // has been verified -- happens after everyone has signed, not at pledge
+    // time. Nullable for the same reason as `signed`: adding a NOT NULL
+    // column to a table with existing rows fails in Postgres.
+    @Builder.Default
+    private Boolean paid = false;
+
+    private LocalDateTime paidAt;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime contributedAt;
 

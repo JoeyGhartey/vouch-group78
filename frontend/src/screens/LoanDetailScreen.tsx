@@ -15,7 +15,7 @@ import {
   rejectAgreement, proposeCounterOffer, respondToCounterOffer,
   getDisputeByLoan, escalateDispute,
   contributeToLoan, getLoanContributions,
-  signGroupAgreement, disburseGroupLoan, initializeGroupContribution,
+  signGroupAgreement, initializeGroupContribution,
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
@@ -64,6 +64,7 @@ interface Contribution {
   interestRate: number;
   amountRepaid: number;
   signed: boolean;
+  paid: boolean;
 }
 
 interface ContributionsSummary {
@@ -343,13 +344,10 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     return contributions ? contributions.remaining : loan.amount;
   };
 
-  // Contributing to a group loan is two steps: record the pledge (validates
-  // eligibility, rate cap, remaining amount), then immediately collect real
-  // payment for that pledge via the same Paystack checkout the single-lender
-  // disbursement flow uses -- into the same platform test account. Unlike
-  // single-lender loans, group loans collect from each contributor as they
-  // join rather than in one lump sum at the end.
-  const handleContribute = async (): Promise<void> => {
+  // Contributing is a free pledge only -- no money moves yet. Real payment
+  // happens later, once the loan is fully funded and every party (borrower +
+  // all lenders) has signed the agreement, via handlePayShare below.
+  const handleContribute = (): void => {
     const amt = parseFloat(contributeAmount);
     const rate = parseFloat(contributeRate);
     if (!amt || amt <= 0) {
@@ -361,13 +359,29 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     if (!contributeRate || rate < 0) {
       showAlert('error', 'Error', 'Enter a valid interest rate'); return;
     }
+    doAction(async () => {
+      await contributeToLoan({ loanId: loan!.id, amount: amt, interestRate: rate });
+      setShowContribute(false);
+      setContributeAmount('');
+      setContributeRate('');
+    }, 'Contribution recorded.');
+  };
 
-    setShowContribute(false);
+  // Shown once the loan is AGREEMENT_SIGNED -- each contributor sends their
+  // own pledged amount via Paystack. loan-service auto-activates the loan
+  // the moment every contributor has paid, so there's no separate manual
+  // "release funds" step.
+  const handlePayShare = async (): Promise<void> => {
+    if (!myContribution) return;
+    const ok = await confirm(
+      'Send Your Share',
+      `You will be taken to Paystack to send GHS ${myContribution.amount.toFixed(2)} to ${loan!.borrowerName}. Continue?`,
+      'Continue to Payment'
+    );
+    if (!ok) return;
     setActing(true);
     try {
-      await contributeToLoan({ loanId: loan!.id, amount: amt, interestRate: rate });
-
-      const response = await initializeGroupContribution(loan!.id, amt) as PaymentInitResponse;
+      const response = await initializeGroupContribution(loan!.id, myContribution.amount) as PaymentInitResponse;
       if (response.authorizationUrl) {
         const result = response.callbackUrl
           ? await WebBrowser.openAuthSessionAsync(response.authorizationUrl, response.callbackUrl)
@@ -376,13 +390,12 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
           try {
             const verification = await verifyPayment(response.reference) as { status: string; message: string };
             if (verification.status === 'SUCCESS') {
-              showAlert('success', 'Success', 'Contribution recorded and payment sent.');
+              showAlert('success', 'Success', 'Your share has been sent.');
             } else {
               showAlert('error', 'Payment Pending', verification.message);
             }
           } catch {
-            // Verification call itself failed (network etc.) -- the contribution
-            // is already recorded either way, so just refresh below.
+            // Verification call itself failed (network etc.) -- refresh below regardless.
           }
         }
       }
@@ -391,8 +404,6 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       showAlert('error', 'Error', (e as Error).message);
     } finally {
       setActing(false);
-      setContributeAmount('');
-      setContributeRate('');
     }
   };
 
@@ -486,19 +497,6 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     } finally {
       setActing(false);
     }
-  };
-
-  // Group loans don't need a Paystack step here -- every contributor already
-  // paid their share into the platform account when they contributed. This
-  // just flips the loan to ACTIVE now that all parties have signed.
-  const handleGroupDisburse = async (): Promise<void> => {
-    const ok = await confirm(
-      'Release Funds',
-      `All contributions for this GHS ${loan!.amount} loan have already been collected via Paystack. Mark it disbursed to ${loan!.borrowerName}?`,
-      'Release Funds'
-    );
-    if (!ok) return;
-    doAction(async () => { await disburseGroupLoan(loan!.id); }, 'Loan disbursed and active.');
   };
 
   const handleRepay = async (): Promise<void> => {
@@ -698,18 +696,28 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
           {contributions.remaining > 0 && loan.status === 'REQUESTED' && (
             <Text style={styles.remaining}>GHS {contributions.remaining.toFixed(2)} still needed</Text>
           )}
-          {contributions.contributions.map((c) => (
-            <View key={c.id} style={styles.detailRow}>
-              <View style={[styles.detailIconBox, { backgroundColor: colors.accent + '22' }]}>
-                <Ionicons name="person-outline" size={15} color={colors.accent} />
+          {contributions.contributions.map((c) => {
+            // Contributions progress through three stages, each shown only
+            // once it's relevant: pledged (REQUESTED) -> signed (AGREEMENT_PENDING)
+            // -> paid (AGREEMENT_SIGNED onward, once real money starts moving).
+            let statusSuffix = '';
+            if (loan.status === 'AGREEMENT_PENDING') {
+              statusSuffix = c.signed ? '  ✓ Signed' : '  · Awaiting signature';
+            } else if (loan.status !== 'REQUESTED') {
+              statusSuffix = c.paid ? '  ✓ Paid' : '  · Awaiting payment';
+            }
+            return (
+              <View key={c.id} style={styles.detailRow}>
+                <View style={[styles.detailIconBox, { backgroundColor: colors.accent + '22' }]}>
+                  <Ionicons name="person-outline" size={15} color={colors.accent} />
+                </View>
+                <Text style={styles.detailLabel}>{c.lenderName}</Text>
+                <Text style={styles.detailValue}>
+                  GHS {c.amount.toFixed(2)} @ {c.interestRate}%{statusSuffix}
+                </Text>
               </View>
-              <Text style={styles.detailLabel}>{c.lenderName}</Text>
-              <Text style={styles.detailValue}>
-                GHS {c.amount.toFixed(2)} @ {c.interestRate}%
-                {loan.status !== 'REQUESTED' ? (c.signed ? '  ✓ Signed' : '  · Awaiting signature') : ''}
-              </Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
 
@@ -852,10 +860,16 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             <Text style={styles.btnText}>Send GHS {loan.amount} to {loan.borrowerName}</Text>
           </TouchableOpacity>
         )}
-        {loan.status === 'AGREEMENT_SIGNED' && loan.isGroupFunded && isContributor && (
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleGroupDisburse} disabled={acting}>
-            <Text style={styles.btnText}>Release GHS {loan.amount} to {loan.borrowerName}</Text>
+        {loan.status === 'AGREEMENT_SIGNED' && loan.isGroupFunded && isContributor && !myContribution?.paid && (
+          <TouchableOpacity style={styles.primaryBtn} onPress={handlePayShare} disabled={acting}>
+            <Text style={styles.btnText}>Send Your Share: GHS {myContribution?.amount.toFixed(2)}</Text>
           </TouchableOpacity>
+        )}
+        {loan.status === 'AGREEMENT_SIGNED' && loan.isGroupFunded && isContributor && myContribution?.paid && (
+          <View style={styles.alreadySignedBadge}>
+            <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
+            <Text style={styles.alreadySignedText}>You've sent your share — waiting for other lenders</Text>
+          </View>
         )}
         {['ACTIVE', 'DUE', 'GRACE_PERIOD'].includes(loan.status) && isBorrower && (
           <TouchableOpacity style={styles.primaryBtn} onPress={() => { setActing(false); setRepayAmount(totalOwed.toFixed(2)); setShowRepay(true); }}>
