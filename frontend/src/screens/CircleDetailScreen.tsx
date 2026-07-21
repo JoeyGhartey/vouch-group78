@@ -71,6 +71,7 @@ interface Loan {
   lenderName?: string;
   interestRate: number;
   totalRepaymentAmount: number;
+  isGroupFunded?: boolean;
 }
 
 interface ExpenseSplit {
@@ -561,7 +562,9 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                     </View>
                   </View>
                   <Text style={styles.loanReason}>{loan.reason}</Text>
-                  <Text style={styles.loanParties}>{loan.borrowerName} ← {loan.lenderName || 'Waiting for lender'}</Text>
+                  <Text style={styles.loanParties}>
+                    {loan.borrowerName} ← {loan.lenderName || (loan.isGroupFunded ? 'Group Funded' : 'Waiting for lender')}
+                  </Text>
                   {loan.interestRate > 0 && (
                     <Text style={styles.loanInterest}>{loan.interestRate}% · Repay GHS {loan.totalRepaymentAmount}</Text>
                   )}

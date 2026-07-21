@@ -29,6 +29,7 @@ interface Loan {
   totalRepaymentAmount: number;
   amountRepaid: number;
   dueDate?: string;
+  isGroupFunded?: boolean;
 }
 
 interface Circle {
@@ -277,7 +278,7 @@ export default function LoansScreen({ navigation }: Props) {
               <View style={styles.loanMeta}>
                 <Text style={styles.metaText}>
                   {activeTab === 'borrowed'
-                    ? `Lender: ${item.lenderName || 'Waiting...'}`
+                    ? `Lender: ${item.lenderName || (item.isGroupFunded ? 'Group Funded' : 'Waiting...')}`
                     : `Borrower: ${item.borrowerName}`}
                 </Text>
                 {item.interestRate > 0 && (
