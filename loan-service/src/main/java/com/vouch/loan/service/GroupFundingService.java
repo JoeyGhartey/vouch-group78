@@ -228,6 +228,7 @@ public class GroupFundingService {
             map.put("amountRepaid", c.getAmountRepaid());
             map.put("contributedAt", c.getContributedAt());
             map.put("signed", c.getSigned());
+            map.put("paid", c.getPaid());
             return map;
         }).collect(Collectors.toList());
 
@@ -348,6 +349,10 @@ public class GroupFundingService {
         return response;
     }
 
+    // Manual/fallback path -- the normal path is automatic, via
+    // markContributionPaid below, once every contributor's payment clears.
+    // Still requires every contributor to have paid, so this can't be used
+    // to short-circuit collection.
     @Transactional
     public Map<String, Object> disburseGroupLoan(String phone, Long loanId) {
         Long requesterId = authServiceClient.getUserIdByPhone(phone);
@@ -366,6 +371,48 @@ public class GroupFundingService {
             throw new RuntimeException("Only a contributing lender can disburse");
         }
 
+        List<LoanContribution> contributions = loanContributionRepository.findByLoan(loan);
+        boolean allPaid = !contributions.isEmpty()
+                && contributions.stream().allMatch(c -> Boolean.TRUE.equals(c.getPaid()));
+        if (!allPaid) {
+            throw new RuntimeException("Not all contributors have sent their share yet");
+        }
+
+        return finalizeGroupDisbursement(loan);
+    }
+
+    // Called by payment-service (via InternalLoanController) once a
+    // contributor's Paystack payment for their pledged share has been
+    // verified. Records the payment, then auto-disburses the moment every
+    // contributor has paid -- nobody has to manually click a "release" step.
+    @Transactional
+    public void markContributionPaid(Long loanId, Long lenderId) {
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        LoanContribution contribution = loanContributionRepository.findByLoanAndLenderId(loan, lenderId)
+                .orElseThrow(() -> new RuntimeException("No contribution found for this lender on this loan"));
+
+        contribution.setPaid(true);
+        contribution.setPaidAt(LocalDateTime.now());
+        loanContributionRepository.save(contribution);
+
+        if (loan.getStatus() != Loan.LoanStatus.AGREEMENT_SIGNED) {
+            // Shouldn't normally happen -- payment-service only allows this
+            // once the loan is AGREEMENT_SIGNED -- but don't auto-disburse
+            // out of the expected state if it somehow does.
+            return;
+        }
+
+        List<LoanContribution> contributions = loanContributionRepository.findByLoan(loan);
+        boolean allPaid = !contributions.isEmpty()
+                && contributions.stream().allMatch(c -> Boolean.TRUE.equals(c.getPaid()));
+        if (allPaid) {
+            finalizeGroupDisbursement(loan);
+        }
+    }
+
+    private Map<String, Object> finalizeGroupDisbursement(Loan loan) {
         loan.setStatus(Loan.LoanStatus.ACTIVE);
         loan.setDisbursedAt(LocalDateTime.now());
         if (loan.getDueDate() == null) {

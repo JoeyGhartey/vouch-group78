@@ -41,4 +41,11 @@ public class LoanServiceClient {
                 loanServiceUrl + "/api/internal/loans/" + loanId + "/repay-complete",
                 Map.of("amount", amount), Map.class);
     }
+
+    @SuppressWarnings("unchecked")
+    public void completeGroupContribution(Long loanId, Long lenderId) {
+        restTemplate.postForObject(
+                loanServiceUrl + "/api/internal/loans/" + loanId + "/group-contribution-paid",
+                Map.of("lenderId", lenderId), Map.class);
+    }
 }

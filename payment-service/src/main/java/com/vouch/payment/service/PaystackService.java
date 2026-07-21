@@ -119,11 +119,12 @@ public class PaystackService {
                 .build();
     }
 
-    // Group loans collect payment per-contributor, at the moment each person
-    // pledges their share, rather than in one lump sum at the end -- there's
-    // no single lender to charge at disbursement time. Every contributor's
-    // payment lands in the same platform Paystack account as everything else;
-    // this only records who paid what and how much, for bookkeeping.
+    // Group loans collect payment per-contributor, once everyone (borrower +
+    // all lenders) has signed the agreement -- not at pledge time. Pledging
+    // is free; nobody's money moves until the deal is actually finalized.
+    // Every contributor's payment lands in the same platform Paystack
+    // account as everything else; loan-service tracks who's paid via
+    // markContributionPaid and auto-activates the loan once everyone has.
     @Transactional
     public PaymentInitResponse initializeGroupContribution(String phone, Long loanId, Double amount) {
         Long payerId = authServiceClient.getUserIdByPhone(phone);
@@ -140,12 +141,11 @@ public class PaystackService {
         if (payerId.equals(borrowerId)) {
             throw new RuntimeException("You cannot contribute to your own loan");
         }
-        // REQUESTED covers most contributions; AGREEMENT_PENDING covers the
-        // contribution that pushes the loan over its funding target, since
-        // loan-service flips the status the instant that contribution lands,
-        // just before this payment step runs.
-        if (!"REQUESTED".equals(status) && !"AGREEMENT_PENDING".equals(status)) {
-            throw new RuntimeException("This loan is no longer accepting contributions");
+        // Payment happens after everyone has signed, not at pledge time --
+        // pledging is a free commitment, but real money only moves once the
+        // deal is actually finalized and every party has agreed to terms.
+        if (!"AGREEMENT_SIGNED".equals(status)) {
+            throw new RuntimeException("This loan isn't ready for payment yet -- all parties must sign the agreement first");
         }
         if (amount == null || amount <= 0) {
             throw new RuntimeException("Amount must be positive");
@@ -413,13 +413,14 @@ public class PaystackService {
         }
     }
 
-    // The LoanContribution row and the borrower/contributor notifications for
-    // it are already created synchronously by GroupFundingService.contributeToLoan
-    // at the moment the contribution is recorded, before this payment even starts.
-    // This only confirms the money side completed -- it doesn't touch loan state.
+    // Tells loan-service this contributor's share has cleared. loan-service
+    // records it against their LoanContribution row and auto-activates the
+    // loan the moment every contributor has paid -- no separate manual
+    // "release" step needed.
     private void processGroupContribution(PaymentTransaction transaction) {
         log.info("Group contribution payment of GHS {} confirmed for loan {} from lender {}",
                 transaction.getAmount(), transaction.getLoanId(), transaction.getPayerId());
+        loanServiceClient.completeGroupContribution(transaction.getLoanId(), transaction.getPayerId());
         notificationServiceClient.send(transaction.getPayerId(), "Payment Sent",
                 "Your contribution of GHS " + transaction.getAmount() + " has been sent successfully.",
                 "LOAN_FUNDED", transaction.getLoanId());

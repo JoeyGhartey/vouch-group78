@@ -1,5 +1,6 @@
 package com.vouch.loan.controller;
 
+import com.vouch.loan.service.GroupFundingService;
 import com.vouch.loan.service.LoanService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import java.util.Map;
 public class InternalLoanController {
 
     private final LoanService loanService;
+    private final GroupFundingService groupFundingService;
 
     @GetMapping("/{loanId}")
     public ResponseEntity<Map<String, Object>> getLoanDetails(@PathVariable Long loanId) {
@@ -28,6 +30,14 @@ public class InternalLoanController {
     public ResponseEntity<Map<String, Object>> completeRepayment(
             @PathVariable Long loanId, @RequestBody(required = false) Map<String, Double> body) {
         return ResponseEntity.ok(loanService.completeRepayment(loanId, body != null ? body.get("amount") : null));
+    }
+
+    @PostMapping("/{loanId}/group-contribution-paid")
+    public ResponseEntity<Map<String, Object>> markGroupContributionPaid(
+            @PathVariable Long loanId, @RequestBody Map<String, Object> body) {
+        Long lenderId = Long.valueOf(body.get("lenderId").toString());
+        groupFundingService.markContributionPaid(loanId, lenderId);
+        return ResponseEntity.ok(Map.of("status", "ok"));
     }
 
     @PostMapping("/{loanId}/set-disputed")
