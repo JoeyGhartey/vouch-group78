@@ -673,10 +673,21 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
           <Ionicons name="swap-horizontal" size={20} color={colors.muted} />
         </View>
         <View style={styles.partyBox}>
-          <View style={[styles.avatarCircle, { backgroundColor: loan.lenderName ? colors.statusBlue : colors.slate400 }]}>
-            <Text style={styles.avatarText}>{loan.lenderName ? initialOf(loan.lenderName) : '?'}</Text>
+          <View style={[styles.avatarCircle, {
+            backgroundColor: loan.isGroupFunded ? colors.accent : (loan.lenderName ? colors.statusBlue : colors.slate400),
+          }]}>
+            {loan.isGroupFunded
+              ? <Ionicons name="people" size={20} color="#fff" />
+              : <Text style={styles.avatarText}>{loan.lenderName ? initialOf(loan.lenderName) : '?'}</Text>}
           </View>
-          <Text style={styles.partyName} numberOfLines={1}>{loan.lenderName || 'Waiting'}</Text>
+          {/* Group loans never set a single lenderName -- there isn't one --
+              so showing "Waiting" here was misleading regardless of how far
+              along the loan actually was. Show contributor count instead. */}
+          <Text style={styles.partyName} numberOfLines={1}>
+            {loan.isGroupFunded
+              ? `${contributions?.contributorCount ?? 0} Lender${contributions?.contributorCount === 1 ? '' : 's'}`
+              : (loan.lenderName || 'Waiting')}
+          </Text>
           <Text style={styles.partyRole}>Lender</Text>
         </View>
       </View>
