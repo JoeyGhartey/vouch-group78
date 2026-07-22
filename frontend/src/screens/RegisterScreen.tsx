@@ -89,17 +89,18 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
 
   providerRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
   providerBtn: {
-    flex: 1, padding: 13, borderRadius: 10,
-    alignItems: 'center', borderWidth: 0, opacity: 0.75,
-  },
-  providerSelected: {
-    opacity: 1,
-    shadowColor: c.dark,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
+  flex: 1, padding: 13, borderRadius: 10,
+  alignItems: 'center', borderWidth: 2.5, borderColor: 'transparent', opacity: 0.5,
+},
+providerSelected: {
+  opacity: 1,
+  borderColor: c.accent,
+  shadowColor: c.dark,
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.25,
+  shadowRadius: 6,
+  elevation: 4,
+},
   providerText: { fontSize: 13, fontWeight: '700', fontFamily: fonts.bold },
 
   // Checkbox
@@ -290,17 +291,12 @@ export default function RegisterScreen({ navigation }: Props) {
               const providerColors = PROVIDER_STYLES[p];
               const isSelected = momoProvider === p;
               return (
-                <TouchableOpacity
-                  key={p}
-                  style={[
-                    styles.providerBtn,
-                    { backgroundColor: providerColors.bg },
-                    isSelected && styles.providerSelected,
-                  ]}
-                  onPress={() => setMomoProvider(p)}
-                >
-                  <Text style={[styles.providerText, { color: providerColors.text }]}>{p}</Text>
-                </TouchableOpacity>
+                <TouchableOpacity key={p} style={[styles.providerBtn, { backgroundColor: providerColors.bg }, isSelected && styles.providerSelected]} onPress={() => setMomoProvider(p)}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+    {isSelected && <Ionicons name="checkmark-circle" size={14} color={providerColors.text} />}
+    <Text style={[styles.providerText, { color: providerColors.text }]}>{p}</Text>
+  </View>
+</TouchableOpacity>
               );
             })}
           </View>
@@ -394,6 +390,8 @@ export default function RegisterScreen({ navigation }: Props) {
           <TouchableOpacity style={[styles.btn, loading && { opacity: 0.6 }]} onPress={handleRegister} disabled={loading}>
             {loading ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Create Account</Text>}
           </TouchableOpacity>
+
+          
 
           <TouchableOpacity style={styles.linkBtn} onPress={() => navigation.navigate('Login')}>
             <Text style={styles.linkText}>Already have an account? <Text style={styles.linkBold}>Log In</Text></Text>
