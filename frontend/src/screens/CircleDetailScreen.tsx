@@ -663,6 +663,26 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                                   <Ionicons name="checkmark-circle" size={14} color={colors.success} />
                                   <Text style={styles.settledText}>Settled</Text>
                                 </View>
+                              ) : isMe && isCurrentUserPayer ? (
+                                // This is the payer's own split (they toggled "I have not
+                                // paid yet" when creating the expense) -- there's no other
+                                // party to request from or wait on confirmation from, so
+                                // skip the two-step dance entirely with a direct settle.
+                                // Without this branch, isMe's "pending" case below matches
+                                // first and permanently hides the confirm action they also
+                                // have as the payer, leaving their own split stuck.
+                                <View>
+                                  <TouchableOpacity
+                                    style={[styles.settleBtn, confirmingId === split.id && { opacity: 0.6 }]}
+                                    onPress={() => handleConfirmPayment(split.id)}
+                                    disabled={confirmingId === split.id}
+                                  >
+                                    {confirmingId === split.id
+                                      ? <ActivityIndicator size="small" color={colors.buttonDarkText} />
+                                      : <Text style={styles.settleBtnText}>Mark as Paid</Text>}
+                                  </TouchableOpacity>
+                                  {confirmError[split.id] && <Text style={{ color: colors.danger, fontSize: 11, marginTop: 2 }}>{confirmError[split.id]}</Text>}
+                                </View>
                               ) : isMe && !split.paymentRequested ? (
                                 <View>
                                   <TouchableOpacity
