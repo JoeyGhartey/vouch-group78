@@ -299,6 +299,8 @@ public class LoanService {
 
         double platformFee = Math.round(loan.getAmount() * PLATFORM_FEE_PERCENT / 100 * 100.0) / 100.0;
         double amountAfterFee = loan.getAmount() - platformFee;
+        loan.setPlatformFee(platformFee);
+        loan.setBorrowerReceivedAmount(amountAfterFee);
         loan.setStatus(Loan.LoanStatus.DISBURSED);
         loan.setDisbursedAt(LocalDateTime.now());
 
@@ -331,7 +333,7 @@ public class LoanService {
         expenseServiceClient.logTransaction(
                 loan.getBorrowerId(),
                 "Loan received - " + loan.getCircle().getName(),
-                loan.getAmount(),
+                amountAfterFee,
                 "Loan",
                 "INCOME"
         );
@@ -935,6 +937,8 @@ public class LoanService {
                 .gracePeriodEnd(loan.getGracePeriodEnd())
                 .createdAt(loan.getCreatedAt())
                 .disbursedAt(loan.getDisbursedAt())
+                .platformFee(loan.getPlatformFee())
+                .borrowerReceivedAmount(loan.getBorrowerReceivedAmount())
                 .message(message)
                 .borrowerSigned(agreement != null ? agreement.getBorrowerSigned() : false)
                 .lenderSigned(agreement != null ? agreement.getLenderSigned() : false)
