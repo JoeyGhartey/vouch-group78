@@ -17,13 +17,6 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Register'>;
 };
 
-// MoMo provider brand colors — fixed, not themed
-const PROVIDER_STYLES: Record<string, { bg: string; text: string }> = {
-  MTN:        { bg: '#FFC300', text: '#1a1a1a' },
-  Telecel:    { bg: '#CC0000', text: '#FFFFFF' },
-  AirtelTigo: { bg: '#005DAA', text: '#FFFFFF' },
-};
-
 // Password strength checker
 const getPasswordStrength = (pwd: string, c: ColorScheme): { score: number; label: string; color: string } => {
   let score = 0;
@@ -90,17 +83,18 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   providerRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
   providerBtn: {
     flex: 1, padding: 13, borderRadius: 10,
-    alignItems: 'center', borderWidth: 0, opacity: 0.75,
+    alignItems: 'center', borderWidth: 1.5, borderColor: c.border, backgroundColor: c.surface,
   },
   providerSelected: {
-    opacity: 1,
+    backgroundColor: c.buttonDark, borderColor: c.buttonDark,
     shadowColor: c.dark,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
   },
-  providerText: { fontSize: 13, fontWeight: '700', fontFamily: fonts.bold },
+  providerText: { fontSize: 13, fontWeight: '700', fontFamily: fonts.bold, color: c.muted },
+  providerTextSelected: { color: c.buttonDarkText },
 
   // Checkbox
   checkboxRow: {
@@ -287,19 +281,17 @@ export default function RegisterScreen({ navigation }: Props) {
           <Text style={[styles.label, styles.labelFirst]}>MoMo Provider</Text>
           <View style={styles.providerRow}>
             {providers.map((p) => {
-              const providerColors = PROVIDER_STYLES[p];
               const isSelected = momoProvider === p;
               return (
                 <TouchableOpacity
                   key={p}
                   style={[
                     styles.providerBtn,
-                    { backgroundColor: providerColors.bg },
                     isSelected && styles.providerSelected,
                   ]}
                   onPress={() => setMomoProvider(p)}
                 >
-                  <Text style={[styles.providerText, { color: providerColors.text }]}>{p}</Text>
+                  <Text style={[styles.providerText, isSelected && styles.providerTextSelected]}>{p}</Text>
                 </TouchableOpacity>
               );
             })}
