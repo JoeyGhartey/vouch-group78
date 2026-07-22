@@ -48,6 +48,8 @@ interface Loan {
   dueDate?: string;
   createdAt: string;
   disbursedAt?: string;
+  platformFee?: number;
+  borrowerReceivedAmount?: number;
   gracePeriodEnd?: string;
   borrowerSigned?: boolean;
   lenderSigned?: boolean;
@@ -635,6 +637,8 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     ['Due Date', fmtDate(loan.dueDate), 'alarm-outline'],
     ['Created', fmtDate(loan.createdAt), 'time-outline'],
     ...(loan.disbursedAt ? [['Disbursed', fmtDate(loan.disbursedAt), 'send-outline'] as [string, string, IconName]] : []),
+    ...(loan.platformFee ? [['Platform Fee (2%)', `GHS ${loan.platformFee.toFixed(2)}`, 'pricetag-outline'] as [string, string, IconName]] : []),
+    ...(loan.borrowerReceivedAmount ? [['Borrower Received', `GHS ${loan.borrowerReceivedAmount.toFixed(2)}`, 'wallet-outline'] as [string, string, IconName]] : []),
     ...(loan.overdueInterestAccrued > 0 ? [['Overdue Interest', `GHS ${loan.overdueInterestAccrued.toFixed(2)}`, 'warning-outline'] as [string, string, IconName]] : []),
     ...(loan.gracePeriodEnd ? [['Grace Period Ends', fmtDate(loan.gracePeriodEnd), 'hourglass-outline'] as [string, string, IconName]] : []),
   ];
@@ -906,12 +910,13 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
 
       {/* Terms & Conditions Modal */}
       <Modal visible={showTerms} animationType="slide" transparent onRequestClose={() => setShowTerms(false)}>
-        <TouchableWithoutFeedback onPress={() => setShowTerms(false)}>
-        <View style={styles.modalBg}>
-          {/* Pressable, not TouchableWithoutFeedback — the legacy Touchable
-              family competes with the ScrollView below for the touch
-              responder on Android and can block scrolling entirely.
-              Pressable coexists with nested scroll gestures correctly. */}
+        {/* Pressable all the way down, not TouchableWithoutFeedback -- that
+            family competes with the ScrollView below for the touch responder
+            on Android and can block scrolling even when it's an ancestor
+            rather than the ScrollView's direct parent. This is the only
+            modal in this file with an actual ScrollView inside it, which is
+            why it's the only one that hit this. */}
+        <Pressable style={styles.modalBg} onPress={() => setShowTerms(false)}>
           <Pressable onPress={() => {}}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Loan Agreement</Text>
@@ -978,8 +983,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             </TouchableOpacity>
           </View>
           </Pressable>
-        </View>
-        </TouchableWithoutFeedback>
+        </Pressable>
       </Modal>
 
       {/* Fund Modal */}

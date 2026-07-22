@@ -92,6 +92,13 @@ public class Loan {
     private LocalDateTime completedAt;
     private LocalDateTime defaultedAt;
 
+    // Set once, at disbursement time, from LoanService.PLATFORM_FEE_PERCENT.
+    // The borrower still owes back the full `amount` plus interest -- the fee
+    // only affects what they're recorded as having actually received, not
+    // what they repay. Nullable: unset until the loan actually disburses.
+    private Double platformFee;
+    private Double borrowerReceivedAmount;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

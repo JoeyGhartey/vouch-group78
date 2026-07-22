@@ -412,7 +412,16 @@ public class GroupFundingService {
         }
     }
 
+    // Mirrors LoanService.PLATFORM_FEE_PERCENT -- group disbursement previously
+    // charged no fee at all and never even logged the borrower's "loan
+    // received" income transaction, unlike the single-lender path.
+    private static final double PLATFORM_FEE_PERCENT = 2.0;
+
     private Map<String, Object> finalizeGroupDisbursement(Loan loan) {
+        double platformFee = Math.round(loan.getAmount() * PLATFORM_FEE_PERCENT / 100 * 100.0) / 100.0;
+        double amountAfterFee = loan.getAmount() - platformFee;
+        loan.setPlatformFee(platformFee);
+        loan.setBorrowerReceivedAmount(amountAfterFee);
         loan.setStatus(Loan.LoanStatus.ACTIVE);
         loan.setDisbursedAt(LocalDateTime.now());
         if (loan.getDueDate() == null) {
@@ -434,9 +443,18 @@ public class GroupFundingService {
 
         loanRepository.save(loan);
 
+        expenseServiceClient.logTransaction(
+                loan.getBorrowerId(),
+                "Loan received - " + loan.getCircle().getName(),
+                amountAfterFee,
+                "Loan",
+                "INCOME"
+        );
+
         String borrowerFirstName = authServiceClient.getUserFirstName(loan.getBorrowerId());
         notificationServiceClient.send(loan.getBorrowerId(), "Group Loan Disbursed",
-                "Your group loan of GHS " + loan.getAmount() + " from " + contributions.size() + " lenders has been disbursed.",
+                "Your group loan of GHS " + loan.getAmount() + " from " + contributions.size() + " lenders has been disbursed. "
+                        + "Platform fee: GHS " + String.format("%.2f", platformFee) + ". You received: GHS " + String.format("%.2f", amountAfterFee),
                 "LOAN_DISBURSED", loan.getId());
         for (LoanContribution c : contributions) {
             notificationServiceClient.send(c.getLenderId(), "Group Loan Disbursed",
@@ -448,6 +466,8 @@ public class GroupFundingService {
         response.put("message", "Group loan disbursed successfully");
         response.put("loanId", loan.getId());
         response.put("amount", loan.getAmount());
+        response.put("platformFee", platformFee);
+        response.put("borrowerReceivedAmount", amountAfterFee);
         response.put("lenderCount", contributions.size());
         response.put("dueDate", loan.getDueDate());
         return response;

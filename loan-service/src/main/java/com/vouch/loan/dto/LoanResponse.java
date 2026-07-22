@@ -27,6 +27,8 @@ public class LoanResponse {
     private LocalDateTime gracePeriodEnd;
     private LocalDateTime createdAt;
     private LocalDateTime disbursedAt;
+    private Double platformFee;
+    private Double borrowerReceivedAmount;
     private String message;
     private Boolean borrowerSigned;
     private Boolean lenderSigned;
