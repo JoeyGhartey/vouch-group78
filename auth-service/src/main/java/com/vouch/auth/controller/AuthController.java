@@ -1,8 +1,10 @@
 package com.vouch.auth.controller;
 
 import com.vouch.auth.dto.AuthResponse;
+import com.vouch.auth.dto.ForgotPasswordRequest;
 import com.vouch.auth.dto.LoginRequest;
 import com.vouch.auth.dto.RegisterRequest;
+import com.vouch.auth.dto.ResetPasswordRequest;
 import com.vouch.auth.security.JwtUtil;
 import com.vouch.auth.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,6 +36,16 @@ public class AuthController {
         // ✅ Pass IP address for rate limiting
         String ipAddress = getClientIp(httpRequest);
         return ResponseEntity.ok(authService.login(request, ipAddress));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        return ResponseEntity.ok(authService.forgotPassword(request));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        return ResponseEntity.ok(authService.resetPassword(request));
     }
 
     @GetMapping("/validate")
@@ -68,11 +80,18 @@ public class AuthController {
         ));
     }
 
-    // ✅ Extract real IP address even behind a proxy
+    // Extract the real client IP behind Railway's edge proxy. X-Forwarded-For
+    // is a chain: client-claimed values first, then each proxy hop appends its
+    // own view of the connection. A client can put anything it wants in the
+    // header, so trusting the FIRST entry (as originally written) let an
+    // attacker spoof any IP and bypass the lockout entirely. The LAST entry is
+    // the one Railway's own proxy appended right before forwarding to us, which
+    // is the one hop in this chain we actually trust.
     private String getClientIp(HttpServletRequest request) {
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
+            String[] ips = xForwardedFor.split(",");
+            return ips[ips.length - 1].trim();
         }
         return request.getRemoteAddr();
     }
