@@ -29,7 +29,6 @@ public class User {
     private String email;
 
     private String momoProvider;
-
     private String momoNumber;
 
     @Builder.Default
@@ -74,19 +73,37 @@ public class User {
 
     private String pushToken;
 
-    // Password-reset OTP: a hashed 6-digit code + expiry, set by forgotPassword
-    // and cleared after a successful (or expired) resetPassword. Never store the
-    // plain code — it's hashed with the same BCrypt encoder used for passwords.
+    // Password reset OTP
     private String resetOtpHash;
     private LocalDateTime resetOtpExpiry;
 
     @Builder.Default
     private Integer resetOtpAttempts = 0;
 
+    // ✅ Security: track failed login attempts and lockout
+    @Builder.Default
+    private Integer failedLoginAttempts = 0;
+
+    private LocalDateTime accountLockedUntil;
+
+    @Builder.Default
+    private Boolean accountLocked = false;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         lastActive = LocalDateTime.now();
+    }
+
+    // ✅ Helper: check if account is currently locked
+    public boolean isCurrentlyLocked() {
+        if (!Boolean.TRUE.equals(accountLocked)) return false;
+        if (accountLockedUntil == null) return true;
+        if (LocalDateTime.now().isAfter(accountLockedUntil)) {
+            // Lock has expired — will be cleared on next login attempt
+            return false;
+        }
+        return true;
     }
 
     public enum Role {
