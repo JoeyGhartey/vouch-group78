@@ -39,11 +39,11 @@ public class SecurityConfig {
                 // ✅ Public endpoints — no token needed
                 .requestMatchers(
                     "/api/auth/login",
-                    "/api/auth/register",
+                    "/api/auth/register/initiate",
+                    "/api/auth/register/verify",
+                    "/api/auth/register/resend",
                     "/api/auth/forgot-password",
                     "/api/auth/reset-password",
-                    "/api/auth/verify-email",
-                    "/api/auth/resend-verification",
                     "/api/auth/health",
                     "/api/auth/validate",
                     "/api/internal/**"

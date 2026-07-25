@@ -1,5 +1,6 @@
 package com.vouch.auth.dto;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -26,7 +27,10 @@ public class RegisterRequest {
     @NotBlank(message = "Last name is required")
     private String lastName;
 
+    @NotBlank(message = "Email is required")
+    @Email(message = "Enter a valid email address")
     private String email;
+
     private String momoProvider;
 
     @Pattern(regexp = "^$|^[0-9]{10}$", message = "MoMo number must be exactly 10 digits")

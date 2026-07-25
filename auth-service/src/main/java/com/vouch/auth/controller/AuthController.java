@@ -4,7 +4,9 @@ import com.vouch.auth.dto.AuthResponse;
 import com.vouch.auth.dto.ForgotPasswordRequest;
 import com.vouch.auth.dto.LoginRequest;
 import com.vouch.auth.dto.RegisterRequest;
+import com.vouch.auth.dto.ResendRegistrationOtpRequest;
 import com.vouch.auth.dto.ResetPasswordRequest;
+import com.vouch.auth.dto.VerifyRegistrationRequest;
 import com.vouch.auth.security.JwtUtil;
 import com.vouch.auth.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,9 +26,21 @@ public class AuthController {
     private final AuthService authService;
     private final JwtUtil jwtUtil;
 
-    @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(authService.register(request));
+    // Step 1 of registration -- nothing is created yet, just an OTP emailed.
+    @PostMapping("/register/initiate")
+    public ResponseEntity<Map<String, String>> initiateRegistration(@Valid @RequestBody RegisterRequest request) {
+        return ResponseEntity.ok(authService.initiateRegistration(request));
+    }
+
+    // Step 2 -- the real account is created only once the OTP checks out.
+    @PostMapping("/register/verify")
+    public ResponseEntity<AuthResponse> verifyRegistration(@Valid @RequestBody VerifyRegistrationRequest request) {
+        return ResponseEntity.ok(authService.verifyRegistration(request));
+    }
+
+    @PostMapping("/register/resend")
+    public ResponseEntity<Map<String, String>> resendRegistrationOtp(@Valid @RequestBody ResendRegistrationOtpRequest request) {
+        return ResponseEntity.ok(authService.resendRegistrationOtp(request));
     }
 
     @PostMapping("/login")

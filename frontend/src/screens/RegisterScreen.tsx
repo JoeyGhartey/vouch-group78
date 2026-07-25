@@ -5,9 +5,8 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { register } from '../services/api';
+import { initiateRegistration } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
-import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
@@ -146,7 +145,6 @@ export default function RegisterScreen({ navigation }: Props) {
   const [momoNumber, setMomoNumber] = useState<string>('');
   const [momoSameAsPhone, setMomoSameAsPhone] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
-  const { signIn } = useAuth();
   const { showAlert } = useAppAlert();
 
   const strength = getPasswordStrength(password, colors);
@@ -183,11 +181,14 @@ export default function RegisterScreen({ navigation }: Props) {
   };
 
   const handleRegister = async (): Promise<void> => {
-    if (!firstName || !lastName || !phone || !password) {
+    if (!firstName || !lastName || !phone || !email || !password) {
       showAlert('error', 'Error', 'Please fill in all required fields'); return;
     }
     if (phone.length !== 10) {
       showAlert('error', 'Invalid Phone Number', 'Phone number must be exactly 10 digits'); return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showAlert('error', 'Invalid Email', 'Enter a valid email address — we\'ll send a verification code there'); return;
     }
     if (!momoSameAsPhone && momoNumber && momoNumber.length !== 10) {
       showAlert('error', 'Invalid MoMo Number', 'MoMo number must be exactly 10 digits, or left empty to use your phone number'); return;
@@ -209,11 +210,13 @@ export default function RegisterScreen({ navigation }: Props) {
     }
     setLoading(true);
     try {
-      const response = await register({
+      await initiateRegistration({
         firstName, lastName, phone, email, password,
         momoProvider, momoNumber: momoNumber || phone,
-      }) as { token: string; [key: string]: unknown };
-      await signIn(response, true);
+      });
+      // No account exists yet and no token is issued at this step -- the
+      // account is only actually created once the emailed code is verified.
+      navigation.navigate('VerifyEmail', { phone, email });
     } catch (error) {
       showAlert('error', 'Registration Failed', (error as Error).message || 'Could not create account');
     } finally {
@@ -268,8 +271,9 @@ export default function RegisterScreen({ navigation }: Props) {
             maxLength={10}
           />
 
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>Email *</Text>
           <TextInput style={styles.input} placeholder="your@email.com" placeholderTextColor={colors.muted} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          <Text style={{ fontSize: 11, color: colors.muted, marginTop: 4 }}>We'll send a verification code here before your account is created.</Text>
 
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIconBox}>

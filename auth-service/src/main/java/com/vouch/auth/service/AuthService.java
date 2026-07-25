@@ -4,8 +4,12 @@ import com.vouch.auth.dto.AuthResponse;
 import com.vouch.auth.dto.ForgotPasswordRequest;
 import com.vouch.auth.dto.LoginRequest;
 import com.vouch.auth.dto.RegisterRequest;
+import com.vouch.auth.dto.ResendRegistrationOtpRequest;
 import com.vouch.auth.dto.ResetPasswordRequest;
+import com.vouch.auth.dto.VerifyRegistrationRequest;
+import com.vouch.auth.entity.PendingRegistration;
 import com.vouch.auth.entity.User;
+import com.vouch.auth.repository.PendingRegistrationRepository;
 import com.vouch.auth.repository.UserRepository;
 import com.vouch.auth.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +38,7 @@ public class AuthService {
     private static final int OTP_VALID_MINUTES = 10;
 
     private final UserRepository userRepository;
+    private final PendingRegistrationRepository pendingRegistrationRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
@@ -48,24 +53,90 @@ public class AuthService {
 
     private static final int MAX_ACCOUNT_ATTEMPTS = 5;
     private static final int LOCKOUT_MINUTES = 30;
+    private static final int REGISTRATION_OTP_VALID_MINUTES = 10;
+    private static final int RESEND_COOLDOWN_SECONDS = 45;
 
-    public AuthResponse register(RegisterRequest request) {
+    // Step 1 of registration: nothing is created in `users` yet. Validates
+    // uniqueness against real accounts, stashes the (already-hashed) submitted
+    // data in a pending row keyed by phone/email, and emails an OTP. If a
+    // pending registration for this phone/email already exists (e.g. the
+    // person abandoned it and is trying again, or never got the email), it's
+    // overwritten with fresh data and a fresh code rather than rejected --
+    // rejecting would just trap someone who lost their first email.
+    public Map<String, String> initiateRegistration(RegisterRequest request) {
         if (userRepository.existsByPhone(request.getPhone())) {
             throw new RuntimeException("Phone number already registered");
         }
-        if (request.getEmail() != null && !request.getEmail().isBlank()
-                && userRepository.existsByEmail(request.getEmail())) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Email address already registered");
+        }
+
+        PendingRegistration pending = pendingRegistrationRepository.findByPhone(request.getPhone())
+                .orElseGet(() -> pendingRegistrationRepository.findByEmail(request.getEmail())
+                        .orElseGet(PendingRegistration::new));
+
+        pending.setPhone(request.getPhone());
+        pending.setEmail(request.getEmail());
+        pending.setPassword(passwordEncoder.encode(request.getPassword()));
+        pending.setFirstName(request.getFirstName());
+        pending.setLastName(request.getLastName());
+        pending.setMomoProvider(request.getMomoProvider());
+        pending.setMomoNumber(request.getMomoNumber());
+
+        String otp = String.format("%06d", OTP_RANDOM.nextInt(1_000_000));
+        pending.setOtpHash(passwordEncoder.encode(otp));
+        pending.setOtpExpiry(LocalDateTime.now().plusMinutes(REGISTRATION_OTP_VALID_MINUTES));
+        pending.setOtpAttempts(0);
+        pending.setLastOtpSentAt(LocalDateTime.now());
+
+        pendingRegistrationRepository.save(pending);
+
+        sendEmail(request.getEmail(), "Verify your Vouch account",
+                "Your Vouch verification code is " + otp + ".\n\n" +
+                "It expires in " + REGISTRATION_OTP_VALID_MINUTES + " minutes. If you didn't try to sign up, ignore this email.");
+
+        return Map.of("message", "Check your inbox — we've emailed a 6-digit code to " + request.getEmail() + ". It expires in 10 minutes.");
+    }
+
+    // Step 2: only now does the real User row get created.
+    public AuthResponse verifyRegistration(VerifyRegistrationRequest request) {
+        PendingRegistration pending = pendingRegistrationRepository.findByPhone(request.getPhone())
+                .orElseThrow(() -> new RuntimeException("No pending registration found for this phone number. Start over from Sign Up."));
+
+        if (pending.getOtpExpiry().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("This code has expired. Request a new one.");
+        }
+        int attempts = pending.getOtpAttempts() == null ? 0 : pending.getOtpAttempts();
+        if (attempts >= 5) {
+            pendingRegistrationRepository.delete(pending);
+            throw new RuntimeException("Too many incorrect attempts. Start over from Sign Up.");
+        }
+        if (!passwordEncoder.matches(request.getOtp(), pending.getOtpHash())) {
+            pending.setOtpAttempts(attempts + 1);
+            pendingRegistrationRepository.save(pending);
+            throw new RuntimeException("Incorrect code.");
+        }
+
+        // Re-check uniqueness at the finish line too, not just at initiate --
+        // someone else could have registered this exact phone/email in the
+        // window between initiate and verify.
+        if (userRepository.existsByPhone(pending.getPhone())) {
+            pendingRegistrationRepository.delete(pending);
+            throw new RuntimeException("Phone number already registered");
+        }
+        if (userRepository.existsByEmail(pending.getEmail())) {
+            pendingRegistrationRepository.delete(pending);
             throw new RuntimeException("Email address already registered");
         }
 
         User user = User.builder()
-                .phone(request.getPhone())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .email(request.getEmail())
-                .momoProvider(request.getMomoProvider())
-                .momoNumber(request.getMomoNumber())
+                .phone(pending.getPhone())
+                .password(pending.getPassword())
+                .firstName(pending.getFirstName())
+                .lastName(pending.getLastName())
+                .email(pending.getEmail())
+                .momoProvider(pending.getMomoProvider())
+                .momoNumber(pending.getMomoNumber())
                 .trustScore(50.0)
                 .totalLoansGiven(0)
                 .totalLoansReceived(0)
@@ -79,6 +150,18 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+        pendingRegistrationRepository.delete(pending);
+
+        // Best-effort only -- the account already exists at this point, so a
+        // welcome-email hiccup must never fail the registration itself.
+        try {
+            sendEmail(user.getEmail(), "Welcome to Vouch",
+                    "Hi " + user.getFirstName() + ",\n\n" +
+                    "Your Vouch account has been created successfully. You can now lend, borrow, and split expenses with your circles.\n\n" +
+                    "If you didn't create this account, contact support immediately.");
+        } catch (Exception e) {
+            log.warn("Welcome email failed for {}, account was still created: {}", user.getEmail(), e.getMessage());
+        }
 
         String token = jwtUtil.generateToken(user.getPhone());
 
@@ -90,6 +173,31 @@ public class AuthService {
                 .trustScore(user.getTrustScore())
                 .message("Registration successful")
                 .build();
+    }
+
+    public Map<String, String> resendRegistrationOtp(ResendRegistrationOtpRequest request) {
+        PendingRegistration pending = pendingRegistrationRepository.findByPhone(request.getPhone())
+                .orElseThrow(() -> new RuntimeException("No pending registration found for this phone number. Start over from Sign Up."));
+
+        if (pending.getLastOtpSentAt() != null
+                && pending.getLastOtpSentAt().plusSeconds(RESEND_COOLDOWN_SECONDS).isAfter(LocalDateTime.now())) {
+            long secondsLeft = java.time.Duration.between(LocalDateTime.now(),
+                    pending.getLastOtpSentAt().plusSeconds(RESEND_COOLDOWN_SECONDS)).toSeconds() + 1;
+            throw new RuntimeException("Please wait " + secondsLeft + " seconds before requesting another code.");
+        }
+
+        String otp = String.format("%06d", OTP_RANDOM.nextInt(1_000_000));
+        pending.setOtpHash(passwordEncoder.encode(otp));
+        pending.setOtpExpiry(LocalDateTime.now().plusMinutes(REGISTRATION_OTP_VALID_MINUTES));
+        pending.setOtpAttempts(0);
+        pending.setLastOtpSentAt(LocalDateTime.now());
+        pendingRegistrationRepository.save(pending);
+
+        sendEmail(pending.getEmail(), "Your new Vouch verification code",
+                "Your new Vouch verification code is " + otp + ".\n\n" +
+                "It expires in " + REGISTRATION_OTP_VALID_MINUTES + " minutes.");
+
+        return Map.of("message", "A new code has been sent to " + pending.getEmail() + ".");
     }
 
     public AuthResponse login(LoginRequest request, String ipAddress) {
@@ -215,7 +323,9 @@ public class AuthService {
             User user = userRepository.findByEmail(identifier)
                     .orElseThrow(() -> new RuntimeException("No account found with that email address"));
             String otp = generateAndStoreOtp(user);
-            sendOtpEmail(user.getEmail(), otp);
+            sendEmail(user.getEmail(), "Vouch password reset code",
+                    "Your Vouch password reset code is " + otp + ".\n\n" +
+                    "It expires in " + OTP_VALID_MINUTES + " minutes. If you didn't request this, ignore this email.");
             return Map.of("message", "Check your inbox — we've emailed a 6-digit code to " + user.getEmail() + ". It expires in 10 minutes.");
         }
 
@@ -281,33 +391,32 @@ public class AuthService {
         return Map.of("message", "Password reset successful. You can now log in with your new password.");
     }
 
-    // Sent via SendGrid's HTTP API (not SMTP) — Railway blocks outbound SMTP
-    // ports on non-Pro plans, but a normal HTTPS POST goes through unaffected.
-    private void sendOtpEmail(String email, String otp) {
+    // Generic email sender via SendGrid's HTTP API (not SMTP) — Railway blocks
+    // outbound SMTP ports on non-Pro plans, but a normal HTTPS POST goes
+    // through unaffected. Shared by password-reset OTPs, registration OTPs,
+    // and the post-verification welcome email.
+    private void sendEmail(String email, String subject, String body) {
         if (sendGridApiKey == null || sendGridApiKey.isBlank()) {
-            log.warn("SENDGRID_API_KEY is not configured — cannot send OTP email to {}", email);
-            throw new RuntimeException("Email delivery isn't configured yet. Try resetting with your phone number instead.");
+            log.warn("SENDGRID_API_KEY is not configured — cannot send email to {}", email);
+            throw new RuntimeException("Email delivery isn't configured yet. Please try again shortly.");
         }
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(sendGridApiKey);
 
-            String body = "Your Vouch password reset code is " + otp + ".\n\n" +
-                    "It expires in " + OTP_VALID_MINUTES + " minutes. If you didn't request this, ignore this email.";
-
             Map<String, Object> payload = Map.of(
                     "personalizations", List.of(Map.of("to", List.of(Map.of("email", email)))),
                     "from", Map.of("email", sendGridFromEmail, "name", "Vouch"),
-                    "subject", "Vouch password reset code",
+                    "subject", subject,
                     "content", List.of(Map.of("type", "text/plain", "value", body))
             );
 
             restTemplate.postForEntity("https://api.sendgrid.com/v3/mail/send",
                     new HttpEntity<>(payload, headers), String.class);
         } catch (Exception e) {
-            log.warn("Failed to email password reset OTP to {}: {}", email, e.getMessage());
-            throw new RuntimeException("Could not send the reset code to that email address right now. Please try again shortly.");
+            log.warn("Failed to email {} ({}): {}", subject, email, e.getMessage());
+            throw new RuntimeException("Could not send an email to that address right now. Please try again shortly.");
         }
     }
 
