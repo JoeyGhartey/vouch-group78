@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { loadToken, saveToken, clearToken, getProfile, registerPushToken } from '../services/api';
 import { registerForPushNotifications } from '../utils/pushNotifications';
+import { hasSeenOnboarding, markOnboardingSeen } from '../utils/onboardingStorage';
 
 interface UserProfile {
   id: number;
@@ -15,9 +16,14 @@ interface UserProfile {
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
-  justRegistered: boolean;
-  setJustRegistered: (value: boolean) => void;
-  signIn: (loginResponse: { token: string; [key: string]: unknown }, isNewRegistration?: boolean) => Promise<void>;
+  // Whether this device has ever completed/skipped onboarding, persisted in
+  // SecureStore so it survives app restarts and is independent of login
+  // state -- a fresh install with no data shows onboarding exactly once,
+  // regardless of whether the person then registers or logs into an
+  // existing account. null while still loading from storage.
+  onboardingSeen: boolean | null;
+  completeOnboarding: () => Promise<void>;
+  signIn: (loginResponse: { token: string; [key: string]: unknown }) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -26,7 +32,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [justRegistered, setJustRegistered] = useState<boolean>(false);
+  const [onboardingSeen, setOnboardingSeen] = useState<boolean | null>(null);
 
   const syncPushToken = async (): Promise<void> => {
     try {
@@ -49,7 +55,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const checkAuth = async (): Promise<void> => {
-      const token = await loadToken();
+      const [token, seen] = await Promise.all([loadToken(), hasSeenOnboarding()]);
+      setOnboardingSeen(seen);
       if (token) {
         await fetchProfile();
         syncPushToken();
@@ -59,13 +66,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkAuth();
   }, []);
 
-  // isNewRegistration is set explicitly by the caller on every sign-in —
-  // never inferred or left over from a previous call — so a plain login can
-  // never accidentally inherit a stale "just registered" flag from earlier
-  // in the same app session (e.g. register -> onboarding -> log out -> log
-  // back in without restarting the app).
-  const signIn = async (loginResponse: { token: string; [key: string]: unknown }, isNewRegistration: boolean = false): Promise<void> => {
-    setJustRegistered(isNewRegistration);
+  const completeOnboarding = async (): Promise<void> => {
+    await markOnboardingSeen();
+    setOnboardingSeen(true);
+  };
+
+  const signIn = async (loginResponse: { token: string; [key: string]: unknown }): Promise<void> => {
     await saveToken(loginResponse.token);
     await fetchProfile();
     syncPushToken();
@@ -74,11 +80,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async (): Promise<void> => {
     await clearToken();
     setUser(null);
-    setJustRegistered(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, justRegistered, setJustRegistered, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, onboardingSeen, completeOnboarding, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

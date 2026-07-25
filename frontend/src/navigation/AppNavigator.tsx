@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ import { fonts } from '../theme/fonts';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
+import VerifyEmailScreen from '../screens/VerifyEmailScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import HomeScreen from '../screens/HomeScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
@@ -37,6 +38,7 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Login: undefined;
   Register: undefined;
+  VerifyEmail: { phone: string; email: string };
   ForgotPassword: undefined;
 };
 
@@ -51,25 +53,8 @@ export type TabParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
-function MainTabs({ navigation }: { navigation: NativeStackNavigationProp<RootStackParamList, 'Main'> }) {
+function MainTabs() {
   const { colors } = useTheme();
-  const { justRegistered } = useAuth();
-
-  // Reaching Onboarding is now always an explicit, imperative navigation
-  // gated on justRegistered -- not something that can happen just by
-  // landing on the stack's default/initial route. Relying on
-  // initialRouteName here previously caused Onboarding to reappear on
-  // every normal login: initialRouteName is only honored the very first
-  // time a navigator mounts, not on every re-render, so once the stack
-  // had already mounted once (e.g. from a prior cold start), toggling it
-  // between 'Onboarding' and 'Main' on login had no effect on which
-  // screen actually showed.
-  useEffect(() => {
-    if (justRegistered) {
-      navigation.navigate('Onboarding' as never);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   return (
     <Tab.Navigator
@@ -98,10 +83,14 @@ function MainTabs({ navigation }: { navigation: NativeStackNavigationProp<RootSt
 }
 
 export default function AppNavigator() {
-  const { user, loading } = useAuth();
+  const { user, loading, onboardingSeen } = useAuth();
   const { colors } = useTheme();
 
-  if (loading) {
+  // onboardingSeen is null only while it's still being read from
+  // SecureStore on cold start -- treat that the same as the general
+  // `loading` flag so we never briefly flash Login/Main before we know
+  // whether this device has ever completed onboarding.
+  if (loading || onboardingSeen === null) {
     return (
       <View style={{ flex: 1, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center' }}>
         <Image
@@ -114,16 +103,25 @@ export default function AppNavigator() {
     );
   }
 
+  // Onboarding is the very first thing a fresh install ever sees -- shown
+  // exactly once, before login or registration, gated purely on the
+  // persisted "have I ever completed onboarding" flag. It's deliberately
+  // NOT tied to registration/login at all, so it never reappears just
+  // because someone signs up, logs out, or logs into a different account
+  // on the same device.
+  const initialRouteName = !onboardingSeen ? 'Onboarding' : user ? 'Main' : 'Login';
+
   return (
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{ headerShown: false }}
-        initialRouteName={user ? 'Main' : 'Login'}
+        initialRouteName={initialRouteName}
       >
-        {user ? (
+        {!onboardingSeen ? (
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        ) : user ? (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="CircleDetail" component={CircleDetailScreen} />
             <Stack.Screen name="RequestLoan" component={RequestLoanScreen} />
@@ -136,6 +134,7 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           </>
         )}

@@ -9,7 +9,6 @@ import { useTheme } from '../context/ThemeContext';
 import { ColorScheme } from '../theme/colors';
 import { fonts } from '../theme/fonts';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { markOnboardingSeen } from '../utils/onboardingStorage';
 import { useAuth } from '../context/AuthContext';
 
 type Props = {
@@ -76,12 +75,14 @@ export default function OnboardingScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const scrollRef = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);
-  const { setJustRegistered } = useAuth();
+  const { completeOnboarding } = useAuth();
 
   const finish = async (): Promise<void> => {
-    await markOnboardingSeen();
-    setJustRegistered(false);
-    navigation.replace('Main');
+    // Marks this device as having seen onboarding (persisted, survives
+    // restarts) and swaps AppNavigator's whole screen set over to the
+    // Login stack -- there's no user session yet at this point, since
+    // onboarding now runs before login/registration, not after.
+    await completeOnboarding();
   };
 
   const handleNext = (): void => {
