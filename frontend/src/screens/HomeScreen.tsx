@@ -645,7 +645,7 @@ export default function HomeScreen({ navigation }: Props) {
       {/* Most Recently Viewed Circle */}
       <View style={styles.sectionRow}>
         <Text style={styles.sectionLabel}>RECENT CIRCLE</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Main')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Main', { screen: 'CirclesTab' })}>
           <Text style={styles.seeAll}>See all</Text>
         </TouchableOpacity>
       </View>
