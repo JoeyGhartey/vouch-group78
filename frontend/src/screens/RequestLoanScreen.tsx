@@ -12,6 +12,8 @@ import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
 import { formatMoney } from '../utils/formatMoney';
+import { LOAN_REASONS, getCustomLoanReasons, addCustomLoanReason } from '../utils/customLoanReasons';
+import { formatCategoryName } from '../utils/customCategories';
 
 // Mirrors LoanService.effectiveGroupFundingThreshold on the backend -- a
 // higher-trust borrower can go further above the circle's base threshold
@@ -64,6 +66,22 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   previewNote: { fontSize: 12, color: c.accent, marginTop: 10, fontStyle: 'italic' as const },
   submitBtn: { backgroundColor: c.buttonDark, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
   submitText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700' },
+  catChip: { backgroundColor: c.surface, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8, borderWidth: 1, borderColor: c.border },
+  catChipSel: { backgroundColor: c.buttonDark, borderColor: c.buttonDark },
+  catChipText: { color: c.muted, fontSize: 12, fontWeight: '600' },
+  catChipTextSel: { color: c.buttonDarkText },
+  saveReasonRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginTop: 10, padding: 12, borderRadius: 12,
+    backgroundColor: c.goldBgTint, borderWidth: 1, borderColor: c.border,
+  },
+  saveReasonCheckbox: {
+    width: 20, height: 20, borderRadius: 5,
+    borderWidth: 2, borderColor: c.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  saveReasonCheckboxChecked: { backgroundColor: c.accent, borderColor: c.accent },
+  saveReasonText: { fontSize: 12, color: c.dark, fontWeight: '600', flex: 1 },
 });
 
 export default function RequestLoanScreen({ route, navigation }: Props) {
@@ -72,12 +90,33 @@ export default function RequestLoanScreen({ route, navigation }: Props) {
   const { showAlert } = useAppAlert();
   const { circleId } = route.params;
   const [amount, setAmount] = useState<string>('');
-  const [reason, setReason] = useState<string>('');
+  const [reasonChip, setReasonChip] = useState<string>('');
+  const [customReason, setCustomReason] = useState<string>('');
+  const [saveAsReason, setSaveAsReason] = useState<boolean>(false);
+  const [customReasons, setCustomReasons] = useState<string[]>([]);
+  const [amountError, setAmountError] = useState<string>('');
+  const [reasonError, setReasonError] = useState<string>('');
   const [repaymentType, setRepaymentType] = useState<string>('FIXED');
   const [repaymentPeriod, setRepaymentPeriod] = useState<string>('1');
   const [loading, setLoading] = useState<boolean>(false);
   const [groupFundingThreshold, setGroupFundingThreshold] = useState<number | null>(null);
   const [trustScore, setTrustScore] = useState<number>(50);
+
+  // Preset reasons plus any the user has permanently saved on this device,
+  // with "Other" always pinned last as the fallback/custom-entry option.
+  const allReasons = useMemo(() => {
+    const base = LOAN_REASONS.slice(0, -1);
+    const extras = customReasons.filter(
+      (r) => !base.some((b) => b.toLowerCase() === r.toLowerCase())
+    );
+    return [...base, ...extras, 'Other'];
+  }, [customReasons]);
+
+  const reason = reasonChip === 'Other' ? customReason : reasonChip;
+
+  useEffect(() => {
+    getCustomLoanReasons().then(setCustomReasons);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -97,12 +136,17 @@ export default function RequestLoanScreen({ route, navigation }: Props) {
   const willRequireGroupFunding = effectiveThreshold != null && parseFloat(amount) >= effectiveThreshold;
 
   const handleRequest = async (): Promise<void> => {
-    if (!amount || parseFloat(amount) <= 0) { showAlert('error', 'Error', 'Enter a valid amount'); return; }
-    if (!reason.trim()) { showAlert('error', 'Error', 'Enter a reason'); return; }
+    setAmountError('');
+    setReasonError('');
+    if (!amount || parseFloat(amount) <= 0) { setAmountError('Enter a valid amount'); return; }
+    if (!reason.trim()) { setReasonError('Select or enter a reason'); return; }
     setLoading(true);
     try {
+      if (reasonChip === 'Other' && saveAsReason) {
+        await addCustomLoanReason(customReason);
+      }
       await requestLoan({
-        circleId, amount: parseFloat(amount), reason,
+        circleId, amount: parseFloat(amount), reason: reason.trim(),
         repaymentType, repaymentPeriodMonths: parseInt(repaymentPeriod) || 1,
       });
       showAlert('success', 'Success', 'Loan request posted to your circle');
@@ -133,19 +177,47 @@ export default function RequestLoanScreen({ route, navigation }: Props) {
             placeholder="e.g. 500"
             placeholderTextColor={colors.muted}
             value={amount}
-            onChangeText={setAmount}
+            onChangeText={(t) => { setAmount(t); setAmountError(''); }}
             keyboardType="numeric"
           />
+          {amountError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{amountError}</Text>}
 
           <Text style={styles.label}>Reason *</Text>
-          <TextInput
-            style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
-            placeholder="Why do you need this loan?"
-            placeholderTextColor={colors.muted}
-            value={reason}
-            onChangeText={setReason}
-            multiline
-          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {allReasons.map((r) => (
+              <TouchableOpacity
+                key={r}
+                style={[styles.catChip, reasonChip === r && styles.catChipSel]}
+                onPress={() => { setReasonChip(r); setReasonError(''); if (r !== 'Other') setSaveAsReason(false); }}
+              >
+                <Text style={[styles.catChipText, reasonChip === r && styles.catChipTextSel]}>{r}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {reasonChip === 'Other' && (
+            <>
+              <TextInput
+                style={[styles.input, { height: 100, textAlignVertical: 'top', marginTop: 10 }]}
+                placeholder="Describe why you need this loan"
+                placeholderTextColor={colors.muted}
+                value={customReason}
+                onChangeText={(t) => { setCustomReason(t); setReasonError(''); }}
+                multiline
+              />
+              {customReason.trim().length > 0 && (
+                <TouchableOpacity style={styles.saveReasonRow} onPress={() => setSaveAsReason((v) => !v)} activeOpacity={0.7}>
+                  <View style={[styles.saveReasonCheckbox, saveAsReason && styles.saveReasonCheckboxChecked]}>
+                    {saveAsReason && <Ionicons name="checkmark" size={13} color={colors.buttonDarkText} />}
+                  </View>
+                  <Text style={styles.saveReasonText}>
+                    Save "{formatCategoryName(customReason)}" as a reason for next time
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+          {reasonError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{reasonError}</Text>}
 
           <Text style={styles.label}>Repayment Type</Text>
           <View style={styles.typeRow}>
