@@ -14,6 +14,7 @@ import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
 import { formatMoney } from '../utils/formatMoney';
+import { getRecentCircleOrder } from '../utils/recentCircles';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList>;
@@ -108,8 +109,19 @@ export default function CirclesScreen({ navigation }: Props) {
 
   const loadCircles = async (): Promise<void> => {
     try {
-      const [activeData, pendingData] = await Promise.all([getMyCircles(), getPendingInvites()]);
-      setCircles(activeData as Circle[]);
+      const [activeData, pendingData, recentOrder] = await Promise.all([
+        getMyCircles(), getPendingInvites(), getRecentCircleOrder(),
+      ]);
+      const active = activeData as Circle[];
+      // Pin the 3 most-recently-accessed circles to the top, in that order.
+      // Everything else keeps its original (backend) order below them --
+      // nothing is hidden, just reordered.
+      const recentIds = recentOrder.slice(0, 3);
+      const pinned = recentIds
+        .map((id) => active.find((c) => c.id === id))
+        .filter((c): c is Circle => c !== undefined);
+      const rest = active.filter((c) => !recentIds.includes(c.id));
+      setCircles([...pinned, ...rest]);
       setPending(pendingData as Circle[]);
     } catch (error) {
       console.error('Error loading circles:', error);
