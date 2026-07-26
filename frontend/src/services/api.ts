@@ -147,6 +147,8 @@ export const inviteMember = (circleId: number, phone: string) => request(`/circl
 export const approveMember = (circleId: number, memberId: number) => request(`/circles/${circleId}/approve/${memberId}`, 'POST');
 export const removeMember = (circleId: number, userId: number) => request(`/circles/${circleId}/remove/${userId}`, 'POST');
 export const leaveCircle = (circleId: number) => request(`/circles/${circleId}/leave`, 'POST');
+export const transferCircleOwnership = (circleId: number, userId: number) => request(`/circles/${circleId}/transfer-ownership/${userId}`, 'POST');
+export const deleteCircle = (circleId: number) => request(`/circles/${circleId}`, 'DELETE');
 export const acceptInvite = (circleId: number) => request(`/circles/${circleId}/accept`, 'POST');
 export const rejectInvite = (circleId: number) => request(`/circles/${circleId}/reject`, 'POST');
 

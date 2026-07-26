@@ -65,6 +65,16 @@ public class CircleController {
         return ResponseEntity.ok(Map.of("message", circleService.leaveCircle(auth.getName(), circleId)));
     }
 
+    @PostMapping("/{circleId}/transfer-ownership/{userId}")
+    public ResponseEntity<Map<String, String>> transferOwnership(Authentication auth, @PathVariable Long circleId, @PathVariable Long userId) {
+        return ResponseEntity.ok(Map.of("message", circleService.transferOwnership(auth.getName(), circleId, userId)));
+    }
+
+    @DeleteMapping("/{circleId}")
+    public ResponseEntity<Map<String, String>> deleteCircle(Authentication auth, @PathVariable Long circleId) {
+        return ResponseEntity.ok(Map.of("message", circleService.deleteCircle(auth.getName(), circleId)));
+    }
+
     @PostMapping("/{circleId}/accept")
     public ResponseEntity<Map<String, String>> acceptInvite(Authentication auth, @PathVariable Long circleId) {
         return ResponseEntity.ok(Map.of("message", circleService.acceptInvite(auth.getName(), circleId)));

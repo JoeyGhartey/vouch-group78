@@ -19,8 +19,17 @@ public class CircleService {
     private final CircleRepository circleRepository;
     private final CircleMemberRepository circleMemberRepository;
     private final LoanRepository loanRepository;
+    private final LoanContributionRepository loanContributionRepository;
     private final AuthServiceClient authServiceClient;
     private final NotificationServiceClient notificationServiceClient;
+    private final ExpenseServiceClient expenseServiceClient;
+
+    // Loan statuses that represent money still genuinely in motion -- anything
+    // NOT in this "closed" list blocks a member from leaving/being removed,
+    // and blocks the whole circle from being deleted.
+    private static final List<Loan.LoanStatus> CLOSED_LOAN_STATUSES = List.of(
+            Loan.LoanStatus.REPAID, Loan.LoanStatus.DEFAULTED, Loan.LoanStatus.CANCELLED
+    );
 
     public Map<String, Object> getCircleInsights(String phone, Long circleId) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
@@ -213,6 +222,12 @@ public class CircleService {
         CircleMember rm = circleMemberRepository.findByCircleAndUserId(circle, removerId).orElseThrow(() -> new RuntimeException("Not a member"));
         if (rm.getMemberRole() != CircleMember.MemberRole.CREATOR) throw new RuntimeException("Only creator can remove");
         CircleMember tm = circleMemberRepository.findByCircleAndUserId(circle, targetUserId).orElseThrow(() -> new RuntimeException("Not a member"));
+        if (hasActiveLoanInCircle(circle, targetUserId)) {
+            throw new RuntimeException("This member has an active loan in this circle and can't be removed until it's settled");
+        }
+        if (expenseServiceClient.hasUnsettledExpenses(targetUserId, circleId)) {
+            throw new RuntimeException("This member has unsettled shared expenses in this circle and can't be removed until they're settled");
+        }
         tm.setStatus(CircleMember.MemberStatus.REMOVED);
         circleMemberRepository.save(tm);
         notificationServiceClient.send(targetUserId, "Removed",
@@ -226,10 +241,79 @@ public class CircleService {
         Long userId = authServiceClient.getUserIdByPhone(phone);
         Circle circle = circleRepository.findById(circleId).orElseThrow(() -> new RuntimeException("Circle not found"));
         CircleMember member = circleMemberRepository.findByCircleAndUserId(circle, userId).orElseThrow(() -> new RuntimeException("Not a member"));
-        if (member.getMemberRole() == CircleMember.MemberRole.CREATOR) throw new RuntimeException("Creator cannot leave");
+        if (member.getMemberRole() == CircleMember.MemberRole.CREATOR) {
+            throw new RuntimeException("As the creator, you need to transfer ownership to another member before you can leave");
+        }
+        if (hasActiveLoanInCircle(circle, userId)) {
+            throw new RuntimeException("You have an active loan in this circle and can't leave until it's settled");
+        }
+        if (expenseServiceClient.hasUnsettledExpenses(userId, circleId)) {
+            throw new RuntimeException("You have unsettled shared expenses in this circle and can't leave until they're settled");
+        }
         member.setStatus(CircleMember.MemberStatus.REMOVED);
         circleMemberRepository.save(member);
         return "You have left the circle";
+    }
+
+    @Transactional
+    public String transferOwnership(String phone, Long circleId, Long newCreatorUserId) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        Circle circle = circleRepository.findById(circleId).orElseThrow(() -> new RuntimeException("Circle not found"));
+        CircleMember current = circleMemberRepository.findByCircleAndUserId(circle, userId).orElseThrow(() -> new RuntimeException("Not a member"));
+        if (current.getMemberRole() != CircleMember.MemberRole.CREATOR) throw new RuntimeException("Only the creator can transfer ownership");
+        if (userId.equals(newCreatorUserId)) throw new RuntimeException("You're already the creator");
+        CircleMember next = circleMemberRepository.findByCircleAndUserId(circle, newCreatorUserId)
+                .orElseThrow(() -> new RuntimeException("That person isn't a member of this circle"));
+        if (next.getStatus() != CircleMember.MemberStatus.ACTIVE) throw new RuntimeException("That person isn't an active member of this circle");
+
+        current.setMemberRole(CircleMember.MemberRole.MEMBER);
+        next.setMemberRole(CircleMember.MemberRole.CREATOR);
+        circle.setCreatorId(newCreatorUserId);
+        circleMemberRepository.save(current);
+        circleMemberRepository.save(next);
+        circleRepository.save(circle);
+
+        notificationServiceClient.send(newCreatorUserId, "You're now the circle creator",
+                "Ownership of \"" + circle.getName() + "\" was transferred to you",
+                "CIRCLE_OWNERSHIP_TRANSFERRED", circle.getId());
+        return "Ownership transferred";
+    }
+
+    @Transactional
+    public String deleteCircle(String phone, Long circleId) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        Circle circle = circleRepository.findById(circleId).orElseThrow(() -> new RuntimeException("Circle not found"));
+        CircleMember member = circleMemberRepository.findByCircleAndUserId(circle, userId).orElseThrow(() -> new RuntimeException("Not a member"));
+        if (member.getMemberRole() != CircleMember.MemberRole.CREATOR) throw new RuntimeException("Only the creator can delete this circle");
+
+        List<CircleMember> activeMembers = circleMemberRepository.findByCircleAndStatus(circle, CircleMember.MemberStatus.ACTIVE);
+        if (activeMembers.size() > 1) {
+            throw new RuntimeException("Remove all other members before deleting this circle");
+        }
+        // Every loan ever created here references circle_id with a NOT NULL FK
+        // (no cascade) -- a circle with any loan history, even fully repaid,
+        // can't be hard-deleted without either violating that constraint or
+        // destroying real financial history. Same reasoning for expenses.
+        if (!loanRepository.findByCircleOrderByCreatedAtDesc(circle).isEmpty()) {
+            throw new RuntimeException("This circle has loan history and can't be deleted");
+        }
+        if (expenseServiceClient.circleHasAnyExpenses(circleId)) {
+            throw new RuntimeException("This circle has shared expense history and can't be deleted");
+        }
+
+        circleRepository.delete(circle);
+        return "Circle deleted";
+    }
+
+    private boolean hasActiveLoanInCircle(Circle circle, Long userId) {
+        List<Loan> loans = loanRepository.findByCircleOrderByCreatedAtDesc(circle);
+        for (Loan loan : loans) {
+            if (CLOSED_LOAN_STATUSES.contains(loan.getStatus())) continue;
+            if (userId.equals(loan.getBorrowerId()) || userId.equals(loan.getLenderId())) return true;
+        }
+        return loanContributionRepository.findByLenderId(userId).stream()
+                .anyMatch(c -> c.getLoan().getCircle().getId().equals(circle.getId())
+                        && !CLOSED_LOAN_STATUSES.contains(c.getLoan().getStatus()));
     }
 
     public void validateMembership(Circle circle, Long userId) {

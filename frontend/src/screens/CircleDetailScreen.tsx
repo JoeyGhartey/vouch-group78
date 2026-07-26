@@ -10,7 +10,7 @@ import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { PieChart } from 'react-native-chart-kit';
 import {
-  getCircle, inviteMember, leaveCircle,
+  getCircle, inviteMember, leaveCircle, removeMember, transferCircleOwnership, deleteCircle,
   getCircleLoans, getCircleExpenses, getCircleBalances, getCircleInsights, deleteSharedExpense,
   requestPayment, confirmPayment, getCircleDisputes, resolveDispute,
 } from '../services/api';
@@ -416,6 +416,49 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
     }
   };
 
+  const handleRemoveMember = async (member: CircleMember): Promise<void> => {
+    const ok = await confirm('Remove Member', `Remove ${member.firstName} ${member.lastName} from this circle?`, 'Yes, Remove');
+    if (!ok) return;
+    try {
+      await removeMember(circleId, member.userId);
+      setSelectedMember(null);
+      loadData();
+    } catch (error) {
+      showAlert('error', 'Error', (error as Error).message);
+    }
+  };
+
+  const handleTransferOwnership = async (member: CircleMember): Promise<void> => {
+    const ok = await confirm(
+      'Transfer Ownership',
+      `Make ${member.firstName} ${member.lastName} the creator of this circle? You'll become a regular member.`,
+      'Yes, Transfer'
+    );
+    if (!ok) return;
+    try {
+      await transferCircleOwnership(circleId, member.userId);
+      setSelectedMember(null);
+      loadData();
+    } catch (error) {
+      showAlert('error', 'Error', (error as Error).message);
+    }
+  };
+
+  const handleDeleteCircle = async (): Promise<void> => {
+    const ok = await confirm(
+      'Delete Circle',
+      'This permanently deletes the circle. Only possible if you\'re the only member left, with no loan or expense history.',
+      'Yes, Delete'
+    );
+    if (!ok) return;
+    try {
+      await deleteCircle(circleId);
+      navigation.goBack();
+    } catch (error) {
+      showAlert('error', 'Error', (error as Error).message);
+    }
+  };
+
   const getStatusColor = (status: string): string => ({
     REQUESTED: colors.warning, AGREEMENT_PENDING: colors.statusOrange, AGREEMENT_SIGNED: colors.statusBlue,
     ACTIVE: colors.success, DUE: colors.warning, GRACE_PERIOD: colors.danger,
@@ -538,6 +581,12 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
               <Ionicons name="exit-outline" size={16} color={colors.danger} style={{ marginRight: 6 }} />
               <Text style={styles.leaveBtnText}>Leave Circle</Text>
             </TouchableOpacity>
+            {isCreator && (
+              <TouchableOpacity style={styles.leaveBtn} onPress={handleDeleteCircle}>
+                <Ionicons name="trash-outline" size={16} color={colors.danger} style={{ marginRight: 6 }} />
+                <Text style={styles.leaveBtnText}>Delete Circle</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -1002,6 +1051,23 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                         <Ionicons name="call-outline" size={16} color={colors.muted} />
                         <Text style={styles.memberPhoneText}>{selectedMember.phone}</Text>
                       </View>
+                    )}
+
+                    {isCreator && selectedMember.memberRole !== 'CREATOR' && (
+                      <>
+                        <TouchableOpacity
+                          style={[styles.primaryBtn, { marginTop: 16 }]}
+                          onPress={() => handleTransferOwnership(selectedMember)}
+                        >
+                          <Text style={styles.primaryBtnText}>Make Circle Creator</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.leaveBtn, { marginTop: 10 }]}
+                          onPress={() => handleRemoveMember(selectedMember)}
+                        >
+                          <Text style={styles.leaveBtnText}>Remove from Circle</Text>
+                        </TouchableOpacity>
+                      </>
                     )}
 
                     <TouchableOpacity style={styles.cancelBtn} onPress={() => setSelectedMember(null)}>
