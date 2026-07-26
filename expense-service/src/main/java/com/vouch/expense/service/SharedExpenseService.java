@@ -69,10 +69,20 @@ public class SharedExpenseService {
                         .amountOwed(entry.getValue()).settled(entry.getKey().equals(paidById) && payerAlreadyPaid).build());
             }
         } else {
-            double splitAmount = request.getTotalAmount() / participantIds.size();
-            for (Long pid : participantIds) {
+            // Rounded to 2dp per split, with the LAST participant absorbing
+            // whatever rounding remainder is left over -- otherwise an amount
+            // like 100/3 would silently lose a cent (33.33 x3 = 99.99, not
+            // 100.00), same fix pattern already used for loan installments.
+            double splitAmount = Math.round(request.getTotalAmount() / participantIds.size() * 100.0) / 100.0;
+            double runningTotal = 0.0;
+            for (int i = 0; i < participantIds.size(); i++) {
+                Long pid = participantIds.get(i);
+                double amount = (i == participantIds.size() - 1)
+                        ? Math.round((request.getTotalAmount() - runningTotal) * 100.0) / 100.0
+                        : splitAmount;
+                runningTotal += amount;
                 splits.add(ExpenseSplit.builder().sharedExpense(expense).userId(pid)
-                        .amountOwed(splitAmount).settled(pid.equals(paidById) && payerAlreadyPaid).build());
+                        .amountOwed(amount).settled(pid.equals(paidById) && payerAlreadyPaid).build());
             }
         }
         expenseSplitRepository.saveAll(splits);

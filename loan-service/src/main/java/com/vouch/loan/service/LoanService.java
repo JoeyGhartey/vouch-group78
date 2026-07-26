@@ -955,11 +955,11 @@ public class LoanService {
 
         int totalLoansTaken = loans.size();
         long activeLoans = loans.stream().filter(l -> ACTIVE_STATUSES.contains(l.getStatus())).count();
-        double totalAmountBorrowed = loans.stream().mapToDouble(Loan::getAmount).sum();
-        double totalInterestPaid = loans.stream()
+        double totalAmountBorrowed = Math.round(loans.stream().mapToDouble(Loan::getAmount).sum() * 100.0) / 100.0;
+        double totalInterestPaid = Math.round(loans.stream()
                 .filter(l -> l.getStatus() == Loan.LoanStatus.REPAID)
                 .mapToDouble(l -> l.getTotalRepaymentAmount() - l.getAmount())
-                .sum();
+                .sum() * 100.0) / 100.0;
         long repaidCount = loans.stream().filter(l -> l.getStatus() == Loan.LoanStatus.REPAID).count();
         double repaymentRate = totalLoansTaken == 0 ? 0.0 : Math.round((double) repaidCount / totalLoansTaken * 1000.0) / 10.0;
         double averageLoanSize = totalLoansTaken == 0 ? 0.0 : Math.round(totalAmountBorrowed / totalLoansTaken * 100.0) / 100.0;
@@ -982,16 +982,16 @@ public class LoanService {
 
         int totalLoansGiven = loans.size();
         long activeLoans = loans.stream().filter(l -> ACTIVE_STATUSES.contains(l.getStatus())).count();
-        double totalAmountLent = loans.stream().mapToDouble(Loan::getAmount).sum();
-        double totalInterestEarned = loans.stream()
+        double totalAmountLent = Math.round(loans.stream().mapToDouble(Loan::getAmount).sum() * 100.0) / 100.0;
+        double totalInterestEarned = Math.round(loans.stream()
                 .filter(l -> l.getStatus() == Loan.LoanStatus.REPAID)
                 .mapToDouble(l -> l.getTotalRepaymentAmount() - l.getAmount())
-                .sum();
+                .sum() * 100.0) / 100.0;
         double returnRate = totalAmountLent == 0 ? 0.0 : Math.round(totalInterestEarned / totalAmountLent * 1000.0) / 10.0;
-        double totalAmountAtRisk = loans.stream()
+        double totalAmountAtRisk = Math.round(loans.stream()
                 .filter(l -> ACTIVE_STATUSES.contains(l.getStatus()))
                 .mapToDouble(l -> l.getTotalRepaymentAmount() + l.getOverdueInterestAccrued() - l.getAmountRepaid())
-                .sum();
+                .sum() * 100.0) / 100.0;
 
         Map<String, Object> result = new java.util.HashMap<>();
         result.put("totalLoansGiven", totalLoansGiven);

@@ -224,7 +224,7 @@ public class GroupFundingService {
             map.put("lenderId", c.getLenderId());
             map.put("amount", c.getAmount());
             map.put("interestRate", c.getInterestRate());
-            map.put("repaymentDue", c.getAmount() * (1 + c.getInterestRate() / 100));
+            map.put("repaymentDue", Math.round(c.getAmount() * (1 + c.getInterestRate() / 100) * 100.0) / 100.0);
             map.put("amountRepaid", c.getAmountRepaid());
             map.put("contributedAt", c.getContributedAt());
             map.put("signed", c.getSigned());
@@ -258,7 +258,10 @@ public class GroupFundingService {
             double lenderShare = c.getAmount() * (1 + c.getInterestRate() / 100);
             double proportion = lenderShare / totalLoanRepayment;
             double lenderRepayment = Math.round(repaymentAmount * proportion * 100.0) / 100.0;
-            c.setAmountRepaid(c.getAmountRepaid() + lenderRepayment);
+            // Re-round the running sum too, not just this increment -- a
+            // Double add can pick up float drift over many partial
+            // repayments even when each individual increment is clean.
+            c.setAmountRepaid(Math.round((c.getAmountRepaid() + lenderRepayment) * 100.0) / 100.0);
             loanContributionRepository.save(c);
             notificationServiceClient.send(c.getLenderId(), "Repayment Received",
                     "You received GHS " + String.format("%.2f", lenderRepayment) + " from " + borrowerFirstName + "'s loan repayment.",

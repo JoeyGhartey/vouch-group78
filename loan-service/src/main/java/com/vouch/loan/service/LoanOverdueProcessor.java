@@ -82,7 +82,7 @@ public class LoanOverdueProcessor {
             if (daysOverdue < 1) daysOverdue = 1;
             double outstandingAmount = loan.getTotalRepaymentAmount() - loan.getAmountRepaid();
             double dailyRate = loan.getDailyOverdueRate() / 100.0;
-            double overdueInterest = outstandingAmount * dailyRate * daysOverdue;
+            double overdueInterest = Math.round(outstandingAmount * dailyRate * daysOverdue * 100.0) / 100.0;
             loan.setOverdueInterestAccrued(overdueInterest);
             loanRepository.save(loan);
             log.info("Loan {} overdue interest updated to {} ({} days overdue)", loan.getId(), overdueInterest, daysOverdue);
