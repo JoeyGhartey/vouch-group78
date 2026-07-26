@@ -8,7 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { getPersonalTransactions, addPersonalExpense, getMonthlySummary, getSpendingLimits, setSpendingLimit, deleteSpendingLimit, resetSpendingLimit, deletePersonalTransaction } from '../services/api';
+import { getPersonalTransactions, addPersonalExpense, getMonthlySummary, getSpendingLimits, setSpendingLimit, deleteSpendingLimit, resetSpendingLimit, deletePersonalTransaction, getMonthlyIncome, setMonthlyIncome } from '../services/api';
 import { aggregateTransactions, ChartPeriod } from '../utils/chartData';
 import { getCustomCategories, addCustomCategory, formatCategoryName } from '../utils/customCategories';
 import { useAppAlert } from '../components/AppAlert';
@@ -45,6 +45,14 @@ interface LimitRecord {
   id: number;
   category: string;
   monthlyLimit: number;
+}
+
+interface IncomeData {
+  amount: number | null;
+  spent: number;
+  percentUsed: number;
+  remaining?: number;
+  negative?: boolean;
 }
 
 interface NewExpense {
@@ -207,6 +215,11 @@ export default function ExpensesScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [limits, setLimits] = useState<LimitRecord[]>([]);
+  const [income, setIncome] = useState<IncomeData | null>(null);
+  const [showIncome, setShowIncome] = useState<boolean>(false);
+  const [incomeInput, setIncomeInput] = useState<string>('');
+  const [incomeError, setIncomeError] = useState<string>('');
+  const [savingIncome, setSavingIncome] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('overview');
@@ -225,6 +238,10 @@ export default function ExpensesScreen() {
   const [showCustomModal, setShowCustomModal] = useState<boolean>(false);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [saveAsCategory, setSaveAsCategory] = useState<boolean>(false);
+  const [amountError, setAmountError] = useState<string>('');
+  const [descriptionError, setDescriptionError] = useState<string>('');
+  const [limitCategoryError, setLimitCategoryError] = useState<string>('');
+  const [limitAmountError, setLimitAmountError] = useState<string>('');
 
   useEffect(() => {
     getCustomCategories().then(setCustomCategories);
@@ -263,14 +280,16 @@ export default function ExpensesScreen() {
 
   const loadData = async (): Promise<void> => {
     try {
-      const [txs, sum, lims] = await Promise.all([
+      const [txs, sum, lims, inc] = await Promise.all([
         getPersonalTransactions(),
         getMonthlySummary(year, month),
         getSpendingLimits(),
+        getMonthlyIncome(),
       ]);
       setTransactions(txs as Transaction[]);
       setSummary(sum as Summary);
       setLimits(lims as LimitRecord[]);
+      setIncome(inc as IncomeData);
     } catch (e) {
       console.error(e);
     } finally {
@@ -341,9 +360,11 @@ export default function ExpensesScreen() {
     : [];
 
   const handleAdd = async (): Promise<void> => {
-    if (!newExpense.amount || parseFloat(newExpense.amount) <= 0) { showAlert('error', 'Error', 'Enter a valid amount'); return; }
+    setAmountError('');
+    setDescriptionError('');
+    if (!newExpense.amount || parseFloat(newExpense.amount) <= 0) { setAmountError('Enter a valid amount'); return; }
     const descriptionOptional = newExpense.type === 'EXPENSE' && !!newExpense.category;
-    if (!newExpense.description.trim() && !descriptionOptional) { showAlert('error', 'Error', 'Enter a description'); return; }
+    if (!newExpense.description.trim() && !descriptionOptional) { setDescriptionError('Enter a description'); return; }
     const finalDescription = newExpense.description.trim() || newExpense.category;
 
     // If "Other" was picked and the user opted to save it, the typed description
@@ -409,7 +430,12 @@ export default function ExpensesScreen() {
   };
 
   const handleSetLimit = async (): Promise<void> => {
-    if (!newLimit.category.trim() || !newLimit.monthlyLimit) { showAlert('error', 'Error', 'Fill in all fields'); return; }
+    setLimitCategoryError('');
+    setLimitAmountError('');
+    let hasError = false;
+    if (!newLimit.category.trim()) { setLimitCategoryError('Select a category'); hasError = true; }
+    if (!newLimit.monthlyLimit) { setLimitAmountError('Enter a monthly limit'); hasError = true; }
+    if (hasError) return;
     try {
       await setSpendingLimit({ category: newLimit.category, monthlyLimit: parseFloat(newLimit.monthlyLimit) });
       setShowLimit(false);
@@ -417,6 +443,26 @@ export default function ExpensesScreen() {
       loadData();
     } catch (e) {
       showAlert('error', 'Error', (e as Error).message);
+    }
+  };
+
+  const handleSetIncome = async (): Promise<void> => {
+    setIncomeError('');
+    const parsed = parseFloat(incomeInput);
+    if (!incomeInput || Number.isNaN(parsed) || parsed <= 0) {
+      setIncomeError('Enter a valid monthly income');
+      return;
+    }
+    setSavingIncome(true);
+    try {
+      await setMonthlyIncome(parsed);
+      setShowIncome(false);
+      setIncomeInput('');
+      loadData();
+    } catch (e) {
+      setIncomeError((e as Error).message);
+    } finally {
+      setSavingIncome(false);
     }
   };
 
@@ -729,7 +775,38 @@ export default function ExpensesScreen() {
         {/* Manage Tab — actionable: transactions + spending limits */}
         {activeTab === 'manage' && (
           <View style={styles.section}>
-            <Text style={styles.manageSectionLabel}>SPENDING LIMITS</Text>
+            <Text style={styles.manageSectionLabel}>MONTHLY INCOME</Text>
+            <TouchableOpacity
+              style={styles.primaryBtn}
+              onPress={() => { setIncomeInput(income?.amount != null ? String(income.amount) : ''); setIncomeError(''); setShowIncome(true); }}
+            >
+              <Ionicons name="cash-outline" size={18} color={colors.buttonDarkText} style={{ marginRight: 6 }} />
+              <Text style={styles.primaryBtnText}>{income?.amount != null ? 'Update Monthly Income' : 'Set Monthly Income'}</Text>
+            </TouchableOpacity>
+            {income?.amount != null && (
+              <View style={styles.card}>
+                <View style={styles.limitRow}>
+                  <View style={styles.limitHeader}>
+                    <View style={styles.limitHeaderLeft}>
+                      <Text style={styles.limitCat}>{income.negative ? 'Over budget' : 'This month'}</Text>
+                    </View>
+                    <Text style={styles.limitAmt}>{income.percentUsed.toFixed(0)}%</Text>
+                  </View>
+                  <View style={styles.limitBar}>
+                    <View style={[styles.limitFill, {
+                      width: `${Math.min(income.percentUsed, 100)}%` as any,
+                      backgroundColor: getLimitColor(income.percentUsed),
+                    }]} />
+                  </View>
+                  <Text style={styles.limitSpentText}>
+                    GHS {formatMoney(income.spent)} spent of GHS {formatMoney(income.amount)} income
+                    {income.negative ? ' — you are into the negative' : ''}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <Text style={[styles.manageSectionLabel, { marginTop: 20 }]}>SPENDING LIMITS</Text>
             <TouchableOpacity style={styles.primaryBtn} onPress={() => setShowLimit(true)}>
               <Ionicons name="add-circle-outline" size={18} color={colors.buttonDarkText} style={{ marginRight: 6 }} />
               <Text style={styles.primaryBtnText}>Set Spending Limit</Text>
@@ -864,9 +941,10 @@ export default function ExpensesScreen() {
                   placeholder="0.00"
                   placeholderTextColor={colors.muted}
                   value={newExpense.amount}
-                  onChangeText={(t) => setNewExpense({ ...newExpense, amount: t })}
+                  onChangeText={(t) => { setNewExpense({ ...newExpense, amount: t }); setAmountError(''); }}
                   keyboardType="numeric"
                 />
+                {amountError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{amountError}</Text>}
 
                 {/* Description placeholder changes based on type */}
                 <Text style={styles.label}>
@@ -877,8 +955,9 @@ export default function ExpensesScreen() {
                   placeholder={isIncome ? 'Source of income (e.g. Salary, Freelance)' : 'What was this for?'}
                   placeholderTextColor={colors.muted}
                   value={newExpense.description}
-                  onChangeText={(t) => setNewExpense({ ...newExpense, description: t })}
+                  onChangeText={(t) => { setNewExpense({ ...newExpense, description: t }); setDescriptionError(''); }}
                 />
+                {descriptionError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{descriptionError}</Text>}
 
                 {/* Category picker — hidden for INCOME */}
                 {!isIncome && (
@@ -943,17 +1022,53 @@ export default function ExpensesScreen() {
               <Text style={styles.label}>Category</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 4, marginBottom: 8 }}>
                 {allCategories.map((cat) => (
-                  <TouchableOpacity key={cat} style={[styles.catChip, newLimit.category === cat && styles.catChipSel]} onPress={() => setNewLimit({ ...newLimit, category: cat })}>
+                  <TouchableOpacity key={cat} style={[styles.catChip, newLimit.category === cat && styles.catChipSel]} onPress={() => { setNewLimit({ ...newLimit, category: cat }); setLimitCategoryError(''); }}>
                     <Text style={[styles.catChipText, newLimit.category === cat && styles.catChipTextSel]}>{cat}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
+              {limitCategoryError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{limitCategoryError}</Text>}
               <Text style={styles.label}>Monthly Limit (GHS)</Text>
-              <TextInput style={styles.input} placeholder="e.g. 500" placeholderTextColor={colors.muted} value={newLimit.monthlyLimit} onChangeText={(t) => setNewLimit({ ...newLimit, monthlyLimit: t })} keyboardType="numeric" />
+              <TextInput style={styles.input} placeholder="e.g. 500" placeholderTextColor={colors.muted} value={newLimit.monthlyLimit} onChangeText={(t) => { setNewLimit({ ...newLimit, monthlyLimit: t }); setLimitAmountError(''); }} keyboardType="numeric" />
+              {limitAmountError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{limitAmountError}</Text>}
               <TouchableOpacity style={styles.primaryBtn} onPress={handleSetLimit}>
                 <Text style={styles.primaryBtnText}>Set Limit</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowLimit(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+            </TouchableWithoutFeedback>
+          </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Set Monthly Income Modal */}
+      <Modal visible={showIncome} animationType="slide" transparent onRequestClose={() => setShowIncome(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <TouchableWithoutFeedback onPress={() => setShowIncome(false)}>
+          <View style={styles.modalBg}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+            <View style={styles.modal}>
+              <Text style={styles.modalTitle}>Set Monthly Income</Text>
+              <Text style={styles.label}>Monthly Income (GHS)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. 3000"
+                placeholderTextColor={colors.muted}
+                value={incomeInput}
+                onChangeText={(t) => { setIncomeInput(t); setIncomeError(''); }}
+                keyboardType="numeric"
+              />
+              {incomeError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{incomeError}</Text>}
+              <Text style={[styles.emptyText, { textAlign: 'left', marginTop: 8 }]}>
+                We'll warn you as your expenses this month get close to this amount, so you can see when you're about to go into the negative.
+              </Text>
+              <TouchableOpacity style={[styles.primaryBtn, savingIncome && { opacity: 0.6 }, { marginTop: 16 }]} onPress={handleSetIncome} disabled={savingIncome}>
+                {savingIncome ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.primaryBtnText}>Save</Text>}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowIncome(false)}>
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
             </View>

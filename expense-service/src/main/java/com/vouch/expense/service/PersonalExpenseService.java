@@ -1,11 +1,14 @@
 package com.vouch.expense.service;
 
 import com.vouch.expense.dto.InternalTransactionRequest;
+import com.vouch.expense.dto.MonthlyIncomeRequest;
 import com.vouch.expense.dto.PersonalExpenseRequest;
 import com.vouch.expense.dto.SpendingLimitRequest;
+import com.vouch.expense.entity.MonthlyIncome;
 import com.vouch.expense.entity.PersonalExpense;
 import com.vouch.expense.entity.SpendingLimit;
 import com.vouch.expense.exception.SpendingLimitExceededException;
+import com.vouch.expense.repository.MonthlyIncomeRepository;
 import com.vouch.expense.repository.PersonalExpenseRepository;
 import com.vouch.expense.repository.SpendingLimitRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,7 @@ public class PersonalExpenseService {
 
     private final PersonalExpenseRepository personalExpenseRepository;
     private final SpendingLimitRepository spendingLimitRepository;
+    private final MonthlyIncomeRepository monthlyIncomeRepository;
     private final AuthServiceClient authServiceClient;
     private final NotificationServiceClient notificationServiceClient;
 
@@ -35,6 +39,7 @@ public class PersonalExpenseService {
         boolean override = request.getOverrideLimit() != null && request.getOverrideLimit();
         if (type == PersonalExpense.TransactionType.EXPENSE) {
             checkSpendingLimit(userId, request.getCategory(), request.getAmount(), override);
+            checkIncomeThreshold(userId, request.getAmount());
         }
 
         PersonalExpense expense = PersonalExpense.builder()
@@ -158,6 +163,86 @@ public class PersonalExpenseService {
         Map<String, Object> r = new HashMap<>();
         r.put("category", limit.getCategory()); r.put("periodStart", limit.getPeriodStart()); r.put("message", "Spending limit reset");
         return r;
+    }
+
+    public Map<String, Object> setMonthlyIncome(String phone, MonthlyIncomeRequest request) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        MonthlyIncome income = monthlyIncomeRepository.findByUserId(userId)
+                .orElse(MonthlyIncome.builder().userId(userId).build());
+        income.setAmount(request.getAmount());
+        monthlyIncomeRepository.save(income);
+        Map<String, Object> r = new HashMap<>();
+        r.put("amount", income.getAmount()); r.put("message", "Monthly income set");
+        return r;
+    }
+
+    public Map<String, Object> getMonthlyIncome(String phone) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        Map<String, Object> r = new HashMap<>();
+        MonthlyIncome income = monthlyIncomeRepository.findByUserId(userId).orElse(null);
+        if (income == null) {
+            r.put("amount", null); r.put("spent", 0); r.put("percentUsed", 0);
+            return r;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime effectivePeriodStart = (income.getPeriodStart() == null || now.isAfter(income.getPeriodStart().plusDays(30)))
+                ? now : income.getPeriodStart();
+        double spent = personalExpenseRepository
+                .findByUserIdAndCreatedAtBetween(userId, effectivePeriodStart, effectivePeriodStart.plusDays(30))
+                .stream()
+                .filter(t -> t.getType() == PersonalExpense.TransactionType.EXPENSE)
+                .mapToDouble(PersonalExpense::getAmount)
+                .sum();
+        r.put("amount", income.getAmount()); r.put("spent", spent);
+        r.put("remaining", income.getAmount() - spent);
+        r.put("percentUsed", Math.round(spent / income.getAmount() * 100 * 10.0) / 10.0);
+        r.put("negative", spent > income.getAmount());
+        return r;
+    }
+
+    // Warns as expenses approach/exceed the user's self-declared monthly income
+    // -- unlike checkSpendingLimit, this NEVER blocks the expense. Spending
+    // limits are a self-imposed ceiling the user deliberately wants enforced;
+    // running out of income is a normal fact of life, and this app exists
+    // partly to help people bridge exactly that gap with loans, so refusing
+    // to record the expense would be actively counterproductive.
+    private void checkIncomeThreshold(Long userId, double newAmount) {
+        MonthlyIncome income = monthlyIncomeRepository.findByUserId(userId).orElse(null);
+        if (income == null) return;
+
+        LocalDateTime now = LocalDateTime.now();
+        if (income.getPeriodStart() == null || now.isAfter(income.getPeriodStart().plusDays(30))) {
+            income.setPeriodStart(now);
+            income.setLastNotifiedThreshold(0);
+            monthlyIncomeRepository.save(income);
+        }
+
+        LocalDateTime periodEnd = income.getPeriodStart().plusDays(30);
+        double currentSpent = personalExpenseRepository
+                .findByUserIdAndCreatedAtBetween(userId, income.getPeriodStart(), periodEnd)
+                .stream()
+                .filter(t -> t.getType() == PersonalExpense.TransactionType.EXPENSE)
+                .mapToDouble(PersonalExpense::getAmount)
+                .sum();
+        double projectedSpent = currentSpent + newAmount;
+        double pct = (projectedSpent / income.getAmount()) * 100;
+
+        int[] thresholds = {50, 80, 90, 100};
+        int highest = 0;
+        for (int t : thresholds) {
+            if (pct >= t && t > income.getLastNotifiedThreshold()) highest = t;
+        }
+        if (highest == 0) return;
+
+        String title = highest >= 100 ? "Income Exceeded" : "Approaching Income Limit";
+        String msg = highest >= 100
+                ? "You've now spent GHS " + String.format("%.0f", projectedSpent) + " this month, more than your GHS "
+                        + income.getAmount().intValue() + " income -- you're into the negative."
+                : highest + "% of your GHS " + income.getAmount().intValue() + " monthly income spent (GHS "
+                        + String.format("%.0f", projectedSpent) + " so far)";
+        notificationServiceClient.send(userId, title, msg, "SPENDING_LIMIT_WARNING", income.getId());
+        income.setLastNotifiedThreshold(highest);
+        monthlyIncomeRepository.save(income);
     }
 
     private void checkSpendingLimit(Long userId, String category, double newAmount, boolean overrideLimit) {

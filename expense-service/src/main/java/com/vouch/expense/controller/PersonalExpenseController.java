@@ -1,5 +1,6 @@
 package com.vouch.expense.controller;
 
+import com.vouch.expense.dto.MonthlyIncomeRequest;
 import com.vouch.expense.dto.PersonalExpenseRequest;
 import com.vouch.expense.dto.SpendingLimitRequest;
 import com.vouch.expense.service.PersonalExpenseService;
@@ -57,5 +58,15 @@ public class PersonalExpenseController {
     @PostMapping("/limits/{limitId}/reset")
     public ResponseEntity<Map<String, Object>> resetSpendingLimit(Authentication auth, @PathVariable Long limitId) {
         return ResponseEntity.ok(personalExpenseService.resetSpendingLimit(auth.getName(), limitId));
+    }
+
+    @PostMapping("/income")
+    public ResponseEntity<Map<String, Object>> setMonthlyIncome(Authentication auth, @Valid @RequestBody MonthlyIncomeRequest request) {
+        return ResponseEntity.ok(personalExpenseService.setMonthlyIncome(auth.getName(), request));
+    }
+
+    @GetMapping("/income")
+    public ResponseEntity<Map<String, Object>> getMonthlyIncome(Authentication auth) {
+        return ResponseEntity.ok(personalExpenseService.getMonthlyIncome(auth.getName()));
     }
 }

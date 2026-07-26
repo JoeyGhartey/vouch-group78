@@ -191,6 +191,8 @@ export const setSpendingLimit = (data: unknown) => request('/expenses/personal/l
 export const getSpendingLimits = () => request('/expenses/personal/limits');
 export const deleteSpendingLimit = (limitId: number) => request(`/expenses/personal/limits/${limitId}`, 'DELETE');
 export const resetSpendingLimit = (limitId: number) => request(`/expenses/personal/limits/${limitId}/reset`, 'POST');
+export const setMonthlyIncome = (amount: number) => request('/expenses/personal/income', 'POST', { amount });
+export const getMonthlyIncome = () => request('/expenses/personal/income');
 
 // Notifications
 export const getNotifications = () => request('/notifications');
