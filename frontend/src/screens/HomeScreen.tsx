@@ -17,6 +17,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { formatMoney } from '../utils/formatMoney';
 import { fonts } from '../theme/fonts';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -432,7 +433,7 @@ export default function HomeScreen({ navigation }: Props) {
           <View style={styles.amountItem}>
             <Text style={styles.amountLabel}>You are owed</Text>
             <Text style={[styles.amountValue, { color: '#4ade80' }]}>
-              {amountsVisible ? `GHS ${totalOwedToYou.toFixed(2)}` : maskAmount}
+              {amountsVisible ? `GHS ${formatMoney(totalOwedToYou)}` : maskAmount}
             </Text>
             <Text style={styles.amountSub}>
               {lentLoans.filter(l => ACTIVE_STATUSES.includes(l.status)).length} active
@@ -442,7 +443,7 @@ export default function HomeScreen({ navigation }: Props) {
           <View style={styles.amountItem}>
             <Text style={styles.amountLabel}>You owe</Text>
             <Text style={[styles.amountValue, { color: totalOwed > 0 ? '#f87171' : '#94a3b8' }]}>
-              {amountsVisible ? `GHS ${totalOwed.toFixed(2)}` : maskAmount}
+              {amountsVisible ? `GHS ${formatMoney(totalOwed)}` : maskAmount}
             </Text>
             <Text style={styles.amountSub}>
               {borrowedLoans.filter(l => ACTIVE_STATUSES.includes(l.status)).length} active
@@ -515,7 +516,7 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text style={styles.spendingValue}>
-            {amountsVisible ? `GHS ${thisMonthSpend.toFixed(0)}` : maskAmount}
+            {amountsVisible ? `GHS ${formatMoney(thisMonthSpend)}` : maskAmount}
           </Text>
           <Ionicons name="chevron-forward" size={16} color={colors.muted} />
         </View>
@@ -573,7 +574,7 @@ export default function HomeScreen({ navigation }: Props) {
                       <Text style={[styles.activityAmount, {
                         color: item.role === 'lender' ? colors.success : colors.danger
                       }]}>
-                        {item.role === 'lender' ? '+' : '-'}GHS {item.amount}
+                        {item.role === 'lender' ? '+' : '-'}GHS {formatMoney(item.amount)}
                       </Text>
                       <View style={[styles.statusPill, { backgroundColor: `${getStatusColor(item.status)}18` }]}>
                         <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
@@ -616,7 +617,7 @@ export default function HomeScreen({ navigation }: Props) {
                     <Text style={[styles.activityAmount, {
                       color: item.role === 'paid' ? colors.success : colors.danger
                     }]}>
-                      {item.role === 'paid' ? '+' : '-'}GHS {amount.toFixed(2)}
+                      {item.role === 'paid' ? '+' : '-'}GHS {formatMoney(amount)}
                     </Text>
                     <View style={[styles.statusPill, { backgroundColor: `${status.color}18` }]}>
                       <Text style={[styles.statusText, { color: status.color }]}>
@@ -660,7 +661,7 @@ export default function HomeScreen({ navigation }: Props) {
                 <View>
                   <Text style={styles.circleName}>{circle.name}</Text>
                   <Text style={styles.circleMeta}>
-                    {circle.memberCount} members · GHS {circle.maxLoanAmount?.toLocaleString()} max
+                    {circle.memberCount} members · GHS {formatMoney(circle.maxLoanAmount)} max
                   </Text>
                 </View>
               </View>

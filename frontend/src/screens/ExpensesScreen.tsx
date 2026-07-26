@@ -15,6 +15,7 @@ import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
 import { useTheme } from '../context/ThemeContext';
 import { ColorScheme } from '../theme/colors';
+import { formatMoney } from '../utils/formatMoney';
 
 interface Transaction {
   id: number;
@@ -371,7 +372,7 @@ export default function ExpensesScreen() {
       setSaveAsCategory(false);
       await persistCategoryIfNeeded();
       loadData();
-      showAlert('success', isIncome ? 'Income Added' : 'Expense Added', `GHS ${parseFloat(newExpense.amount).toFixed(2)} recorded.`);
+      showAlert('success', isIncome ? 'Income Added' : 'Expense Added', `GHS ${formatMoney(parseFloat(newExpense.amount))} recorded.`);
     } catch (e) {
       const msg = (e as Error).message;
       if (msg.includes('Spending limit exceeded')) {
@@ -509,7 +510,7 @@ export default function ExpensesScreen() {
                   <Ionicons name="arrow-up-circle" size={26} color={colors.success} />
                 </View>
                 <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>
-                  <Text style={styles.summaryCurrency}>GHS </Text>{summary.totalIncome?.toFixed(2)}
+                  <Text style={styles.summaryCurrency}>GHS </Text>{formatMoney(summary.totalIncome)}
                 </Text>
                 <Text style={styles.summaryLabel}>Income</Text>
               </View>
@@ -518,7 +519,7 @@ export default function ExpensesScreen() {
                   <Ionicons name="arrow-down-circle" size={26} color={colors.danger} />
                 </View>
                 <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit>
-                  <Text style={styles.summaryCurrency}>GHS </Text>{summary.totalExpenses?.toFixed(2)}
+                  <Text style={styles.summaryCurrency}>GHS </Text>{formatMoney(summary.totalExpenses)}
                 </Text>
                 <Text style={styles.summaryLabel}>Expenses</Text>
               </View>
@@ -526,28 +527,28 @@ export default function ExpensesScreen() {
             <View style={styles.netRow}>
               <Text style={styles.netLabel}>Net</Text>
               <Text style={[styles.netValue, { color: (summary.netBalance ?? 0) >= 0 ? colors.success : colors.danger }]}>
-                GHS {summary.netBalance?.toFixed(2)}
+                GHS {formatMoney(summary.netBalance)}
               </Text>
             </View>
 
             {categoryChartData.length > 0 ? (
               <View style={styles.recapCard}>
                 <Text style={styles.recapText}>
-                  You spent <Text style={styles.recapHighlight}>GHS {summary.totalExpenses?.toFixed(2)}</Text> this month, most on{' '}
+                  You spent <Text style={styles.recapHighlight}>GHS {formatMoney(summary.totalExpenses)}</Text> this month, most on{' '}
                   <Text style={styles.recapHighlight}>{categoryChartData[0].name} ({categoryChartData[0].percentage}%)</Text>.
-                  Income was <Text style={styles.recapHighlight}>GHS {summary.totalIncome?.toFixed(2)}</Text>, net{' '}
+                  Income was <Text style={styles.recapHighlight}>GHS {formatMoney(summary.totalIncome)}</Text>, net{' '}
                   <Text style={[styles.recapHighlight, { color: (summary.netBalance ?? 0) >= 0 ? colors.success : colors.danger }]}>
-                    GHS {summary.netBalance?.toFixed(2)}
+                    GHS {formatMoney(summary.netBalance)}
                   </Text>.
                 </Text>
               </View>
             ) : (
               <View style={styles.recapCard}>
                 <Text style={styles.recapText}>
-                  Income was <Text style={styles.recapHighlight}>GHS {summary.totalIncome?.toFixed(2)}</Text>, expenses{' '}
-                  <Text style={styles.recapHighlight}>GHS {summary.totalExpenses?.toFixed(2)}</Text>, net{' '}
+                  Income was <Text style={styles.recapHighlight}>GHS {formatMoney(summary.totalIncome)}</Text>, expenses{' '}
+                  <Text style={styles.recapHighlight}>GHS {formatMoney(summary.totalExpenses)}</Text>, net{' '}
                   <Text style={[styles.recapHighlight, { color: (summary.netBalance ?? 0) >= 0 ? colors.success : colors.danger }]}>
-                    GHS {summary.netBalance?.toFixed(2)}
+                    GHS {formatMoney(summary.netBalance)}
                   </Text>.
                 </Text>
               </View>
@@ -588,7 +589,7 @@ export default function ExpensesScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  <Text style={styles.chartTotalValue}>GHS {periodTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                  <Text style={styles.chartTotalValue}>GHS {formatMoney(periodTotal)}</Text>
 
                   {chartPeriod === 'custom' && (!customFrom || !customTo) ? (
                     <View style={styles.customEmptyState}>
@@ -624,7 +625,7 @@ export default function ExpensesScreen() {
 
                   {tappedPoint && (
                     <Text style={[styles.tappedPoint, { color: colors.accentDark }]}>
-                      GHS {tappedPoint.value.toFixed(2)} on {tappedPoint.label}
+                      GHS {formatMoney(tappedPoint.value)} on {tappedPoint.label}
                     </Text>
                   )}
                 </>
@@ -649,7 +650,7 @@ export default function ExpensesScreen() {
                         <View style={[styles.legendDot, { backgroundColor: item.color }]} />
                         <Text style={styles.legendCategory}>{item.name}</Text>
                         <Text style={styles.legendPercent}>{item.percentage}%</Text>
-                        <Text style={styles.legendAmount}>GHS {item.population.toFixed(2)}</Text>
+                        <Text style={styles.legendAmount}>GHS {formatMoney(item.population)}</Text>
                       </View>
                     ))}
                   </>
@@ -768,7 +769,7 @@ export default function ExpensesScreen() {
                         }]} />
                       </View>
                       <Text style={styles.limitSpentText}>
-                        GHS {spent.toFixed(0)} spent of GHS {l.monthlyLimit} limit
+                        GHS {formatMoney(spent)} spent of GHS {formatMoney(l.monthlyLimit)} limit
                       </Text>
                     </View>
                   </View>
@@ -798,7 +799,7 @@ export default function ExpensesScreen() {
                     <Text style={styles.txMeta}>{tx.category} · {formatDate(tx.transactionDate)}</Text>
                   </View>
                   <Text style={[styles.txAmt, { color: tx.type === 'INCOME' ? colors.success : colors.danger }]}>
-                    {tx.type === 'INCOME' ? '+' : '-'}GHS {tx.amount}
+                    {tx.type === 'INCOME' ? '+' : '-'}GHS {formatMoney(tx.amount)}
                   </Text>
                   <TouchableOpacity style={styles.txDeleteBtn} onPress={() => handleDeleteTransaction(tx.id, tx.description)}>
                     <Ionicons name="trash-outline" size={18} color={colors.danger} />

@@ -20,6 +20,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { formatMoney } from '../utils/formatMoney';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'CircleDetail'>;
@@ -488,7 +489,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
         <View style={styles.infoDot} />
         <View style={styles.infoItem}>
           <Ionicons name="cash-outline" size={18} color={colors.muted} />
-          <Text style={styles.infoText}>Max GHS {circle.maxLoanAmount?.toLocaleString()}</Text>
+          <Text style={styles.infoText}>Max GHS {formatMoney(circle.maxLoanAmount)}</Text>
         </View>
       </View>
 
@@ -556,7 +557,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
               loans.map((loan) => (
                 <TouchableOpacity key={loan.id} style={styles.loanCard} onPress={() => navigation.navigate('LoanDetail', { loanId: loan.id })}>
                   <View style={styles.loanTop}>
-                    <Text style={styles.loanAmount}>GHS {loan.amount}</Text>
+                    <Text style={styles.loanAmount}>GHS {formatMoney(loan.amount)}</Text>
                     <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(loan.status)}18` }]}>
                       <Text style={[styles.statusText, { color: getStatusColor(loan.status) }]}>{loan.status.replace(/_/g, ' ')}</Text>
                     </View>
@@ -566,7 +567,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                     {loan.borrowerName} ← {loan.lenderName || (loan.isGroupFunded ? 'Group Funded' : 'Waiting for lender')}
                   </Text>
                   {loan.interestRate > 0 && (
-                    <Text style={styles.loanInterest}>{loan.interestRate}% · Repay GHS {loan.totalRepaymentAmount}</Text>
+                    <Text style={styles.loanInterest}>{loan.interestRate}% · Repay GHS {formatMoney(loan.totalRepaymentAmount)}</Text>
                   )}
                 </TouchableOpacity>
               ))
@@ -587,7 +588,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                 {Object.entries(balances).map(([key, amount]) => (
                   <View key={key} style={styles.balanceRow}>
                     <Text style={styles.balanceKey}>{key}</Text>
-                    <Text style={styles.balanceAmount}>GHS {(amount as number).toFixed(2)}</Text>
+                    <Text style={styles.balanceAmount}>GHS {formatMoney(amount as number)}</Text>
                   </View>
                 ))}
               </View>
@@ -609,7 +610,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                       <View style={styles.expenseTop}>
                         <Text style={styles.expenseDesc}>{expense.description}</Text>
                         <View style={styles.expenseAmountRow}>
-                          <Text style={styles.expenseAmount}>GHS {expense.totalAmount}</Text>
+                          <Text style={styles.expenseAmount}>GHS {formatMoney(expense.totalAmount)}</Text>
                           {user?.id === expense.paidById && (
                             <TouchableOpacity
                               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -656,7 +657,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                               </View>
                               <View style={{ flex: 1 }}>
                                 <Text style={[styles.splitName, isMe && { fontWeight: '700' }]}>{name}{isMe ? ' (You)' : ''}</Text>
-                                <Text style={styles.splitAmount}>GHS {split.amountOwed.toFixed(2)}</Text>
+                                <Text style={styles.splitAmount}>GHS {formatMoney(split.amountOwed)}</Text>
                               </View>
                               {split.settled ? (
                                 <View style={styles.settledBadge}>
@@ -759,7 +760,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                       <View style={[styles.legendDot, { backgroundColor: item.color }]} />
                       <Text style={styles.legendCategory}>{item.name}</Text>
                       <Text style={styles.legendPercent}>{item.percentage}%</Text>
-                      <Text style={styles.legendAmount}>GHS {item.population.toFixed(2)}</Text>
+                      <Text style={styles.legendAmount}>GHS {formatMoney(item.population)}</Text>
                     </View>
                   ))}
                 </View>
@@ -772,7 +773,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                 ['Repaid', insights.repaidLoans, 'checkmark-done-outline', colors.success],
                 ['Defaulted', insights.defaultedLoans, 'warning-outline', colors.danger],
                 ['Repayment Rate', `${insights.circleRepaymentRate}%`, 'trending-up-outline', colors.success],
-                ['Total Circulated', `GHS ${insights.totalAmountCirculated}`, 'cash-outline', colors.accent],
+                ['Total Circulated', `GHS ${formatMoney(insights.totalAmountCirculated)}`, 'cash-outline', colors.accent],
                 ['Avg Trust Score', insights.averageTrustScore, 'shield-checkmark-outline', colors.accent],
                 ...(insights.topLender ? [['Top Lender', insights.topLender, 'star-outline', colors.accent]] : []),
                 ...(insights.topBorrower ? [['Top Borrower', insights.topBorrower, 'person-outline', colors.accent]] : []),
@@ -808,7 +809,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                     </View>
                     <Text style={styles.disputeDate}>{formatExpenseDate(dispute.createdAt)}</Text>
                   </View>
-                  <Text style={styles.disputeAmount}>GHS {dispute.loanAmount} Loan</Text>
+                  <Text style={styles.disputeAmount}>GHS {formatMoney(dispute.loanAmount)} Loan</Text>
                   <View style={styles.partiesRow}>
                     <View style={styles.partyItem}>
                       <Text style={styles.partyLabel}>Borrower</Text>
@@ -862,7 +863,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                     <Text style={styles.modalTitle}>Resolve Dispute</Text>
                     {selectedDispute && (
                       <Text style={styles.modalSub}>
-                        GHS {selectedDispute.loanAmount} · {selectedDispute.borrowerName} vs {selectedDispute.lenderName}
+                        GHS {formatMoney(selectedDispute.loanAmount)} · {selectedDispute.borrowerName} vs {selectedDispute.lenderName}
                       </Text>
                     )}
                     <Text style={styles.label}>Outcome</Text>

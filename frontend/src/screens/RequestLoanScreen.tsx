@@ -11,6 +11,7 @@ import { useAppAlert } from '../components/AppAlert';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { formatMoney } from '../utils/formatMoney';
 
 // Mirrors LoanService.effectiveGroupFundingThreshold on the backend -- a
 // higher-trust borrower can go further above the circle's base threshold
@@ -180,7 +181,7 @@ export default function RequestLoanScreen({ route, navigation }: Props) {
                 <Text style={styles.previewTitle}>Loan Preview</Text>
               </View>
               {[
-                ['Amount', `GHS ${parseFloat(amount).toFixed(2)}`],
+                ['Amount', `GHS ${formatMoney(parseFloat(amount))}`],
                 ['Type', repaymentType === 'FIXED' ? 'One-time payment' : 'Monthly installments'],
                 ['Period', `${repaymentPeriod} month(s)`],
               ].map(([label, value], i) => (
@@ -192,7 +193,7 @@ export default function RequestLoanScreen({ route, navigation }: Props) {
               <Text style={styles.previewNote}>Interest rate will be set by the lender</Text>
               {willRequireGroupFunding && (
                 <Text style={[styles.previewNote, { color: colors.warning, fontStyle: 'normal' }]}>
-                  This amount is above your GHS {effectiveThreshold!.toFixed(0)} threshold (based on your trust tier) — it will need funding from multiple circle members instead of a single lender.
+                  This amount is above your GHS {formatMoney(effectiveThreshold)} threshold (based on your trust tier) — it will need funding from multiple circle members instead of a single lender.
                 </Text>
               )}
             </View>

@@ -12,6 +12,7 @@ import { useAppAlert } from '../components/AppAlert';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { formatMoney } from '../utils/formatMoney';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList>;
@@ -225,7 +226,7 @@ export default function LoansScreen({ navigation }: Props) {
           {activeTab === 'borrowed' ? 'Total You Owe' : 'Total Owed to You'}
         </Text>
         <Text style={[styles.summaryAmount, { color: activeTab === 'borrowed' ? colors.danger : colors.success }]}>
-          GHS {totalActive.toFixed(2)}
+          GHS {formatMoney(totalActive)}
         </Text>
         <Text style={styles.summarySub}>
           {loans.filter(l => ['ACTIVE', 'DUE', 'GRACE_PERIOD'].includes(l.status)).length} active loans
@@ -266,7 +267,7 @@ export default function LoansScreen({ navigation }: Props) {
               onPress={() => navigation.navigate('LoanDetail', { loanId: item.id })}
             >
               <View style={styles.loanTop}>
-                <Text style={styles.loanAmount}>GHS {item.amount}</Text>
+                <Text style={styles.loanAmount}>GHS {formatMoney(item.amount)}</Text>
                 <View style={[styles.badge, { backgroundColor: `${statusColor(item.status)}18` }]}>
                   <Text style={[styles.badgeText, { color: statusColor(item.status) }]}>
                     {item.status.replace(/_/g, ' ')}
@@ -296,7 +297,7 @@ export default function LoansScreen({ navigation }: Props) {
                     }]} />
                   </View>
                   <Text style={styles.progressText}>
-                    GHS {item.amountRepaid} / {item.totalRepaymentAmount}
+                    GHS {formatMoney(item.amountRepaid)} / {formatMoney(item.totalRepaymentAmount)}
                   </Text>
                 </View>
               )}

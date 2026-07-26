@@ -12,6 +12,7 @@ import { useAppAlert } from '../components/AppAlert';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { formatMoney } from '../utils/formatMoney';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList>;
@@ -160,7 +161,7 @@ export default function AdminScreen({ navigation }: Props) {
                   </View>
                   <Text style={styles.disputeDate}>{formatDate(dispute.createdAt)}</Text>
                 </View>
-                <Text style={styles.disputeAmount}>GHS {dispute.loanAmount} Loan</Text>
+                <Text style={styles.disputeAmount}>GHS {formatMoney(dispute.loanAmount)} Loan</Text>
                 <View style={styles.partiesRow}>
                   <View style={styles.partyItem}>
                     <Text style={styles.partyLabel}>Borrower</Text>
@@ -207,7 +208,7 @@ export default function AdminScreen({ navigation }: Props) {
                 <Text style={styles.modalTitle}>Resolve Dispute</Text>
                 {selectedDispute && (
                   <Text style={styles.modalSub}>
-                    GHS {selectedDispute.loanAmount} · {selectedDispute.borrowerName} vs {selectedDispute.lenderName}
+                    GHS {formatMoney(selectedDispute.loanAmount)} · {selectedDispute.borrowerName} vs {selectedDispute.lenderName}
                   </Text>
                 )}
                 <Text style={styles.label}>Outcome</Text>

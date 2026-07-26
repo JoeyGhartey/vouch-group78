@@ -13,6 +13,7 @@ import { useConfirmModal } from '../components/ConfirmModal';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { formatMoney } from '../utils/formatMoney';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList>;
@@ -256,7 +257,7 @@ export default function CirclesScreen({ navigation }: Props) {
               ) : null}
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
-                  <Text style={styles.statValue}>GHS {item.maxLoanAmount?.toLocaleString()}</Text>
+                  <Text style={styles.statValue}>GHS {formatMoney(item.maxLoanAmount)}</Text>
                   <Text style={styles.statLabel}>Max Loan</Text>
                 </View>
                 <View style={styles.statDivider} />
@@ -266,7 +267,7 @@ export default function CirclesScreen({ navigation }: Props) {
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
-                  <Text style={styles.statValue}>GHS {item.groupFundingThreshold?.toLocaleString()}</Text>
+                  <Text style={styles.statValue}>GHS {formatMoney(item.groupFundingThreshold)}</Text>
                   <Text style={styles.statLabel}>Group Threshold</Text>
                 </View>
               </View>

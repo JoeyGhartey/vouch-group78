@@ -11,6 +11,7 @@ import { useAppAlert } from '../components/AppAlert';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { formatMoney } from '../utils/formatMoney';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'AddSharedExpense'>;
@@ -196,7 +197,7 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
               </View>
               <View style={styles.previewRow}>
                 <Text style={styles.previewLabel}>Total</Text>
-                <Text style={styles.previewValue}>GHS {parseFloat(amount).toFixed(2)}</Text>
+                <Text style={styles.previewValue}>GHS {formatMoney(parseFloat(amount))}</Text>
               </View>
               <View style={styles.previewRow}>
                 <Text style={styles.previewLabel}>Split</Text>
@@ -205,7 +206,7 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
               <View style={[styles.previewRow, { borderBottomWidth: 0 }]}>
                 <Text style={styles.previewLabel}>Each pays</Text>
                 <Text style={[styles.previewValue, { color: colors.success, fontSize: 18 }]}>
-                  GHS {splitAmount.toFixed(2)}
+                  GHS {formatMoney(splitAmount)}
                 </Text>
               </View>
             </View>

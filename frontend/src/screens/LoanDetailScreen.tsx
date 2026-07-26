@@ -22,6 +22,7 @@ import { useConfirmModal } from '../components/ConfirmModal';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { formatMoney } from '../utils/formatMoney';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'LoanDetail'>;
@@ -333,7 +334,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   const handleFundAloneOverride = async (): Promise<void> => {
     const ok = await confirm(
       'Fund This Loan Alone?',
-      `This loan is recommended for group funding based on the borrower's trust tier. You're choosing to fund the full GHS ${loan!.amount} yourself and take on the full risk alone. Continue?`,
+      `This loan is recommended for group funding based on the borrower's trust tier. You're choosing to fund the full GHS ${formatMoney(loan!.amount)} yourself and take on the full risk alone. Continue?`,
       'Yes, Fund Alone'
     );
     if (!ok) return;
@@ -356,7 +357,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       showAlert('error', 'Error', 'Enter a valid amount'); return;
     }
     if (amt > remainingToFund()) {
-      showAlert('error', 'Error', `Amount exceeds what's still needed (GHS ${remainingToFund().toFixed(2)})`); return;
+      showAlert('error', 'Error', `Amount exceeds what's still needed (GHS ${formatMoney(remainingToFund())})`); return;
     }
     if (!contributeRate || rate < 0) {
       showAlert('error', 'Error', 'Enter a valid interest rate'); return;
@@ -377,7 +378,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     if (!myContribution) return;
     const ok = await confirm(
       'Send Your Share',
-      `You will be taken to Paystack to send GHS ${myContribution.amount.toFixed(2)} to ${loan!.borrowerName}. Continue?`,
+      `You will be taken to Paystack to send GHS ${formatMoney(myContribution.amount)} to ${loan!.borrowerName}. Continue?`,
       'Continue to Payment'
     );
     if (!ok) return;
@@ -459,7 +460,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   };
 
   const handleDisburse = async (): Promise<void> => {
-    const ok = await confirm('Disburse Loan', `You will be taken to Paystack to send GHS ${loan!.amount} to ${loan!.borrowerName}. Continue?`, 'Continue to Payment');
+    const ok = await confirm('Disburse Loan', `You will be taken to Paystack to send GHS ${formatMoney(loan!.amount)} to ${loan!.borrowerName}. Continue?`, 'Continue to Payment');
     if (!ok) return;
     setActing(true);
     try {
@@ -506,7 +507,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     confirmingRef.current = true;
     const amt = repayAmount ? parseFloat(repayAmount) : undefined;
     setShowRepay(false);
-    const ok = await confirm('Confirm Repayment', `You will be taken to Paystack to repay GHS ${amt?.toFixed(2) || totalOwed.toFixed(2)}. Continue?`, 'Continue to Payment');
+    const ok = await confirm('Confirm Repayment', `You will be taken to Paystack to repay GHS ${formatMoney(amt !== undefined ? amt : totalOwed)}. Continue?`, 'Continue to Payment');
     if (!ok) { setShowRepay(true); return; }
     setActing(true);
     try {
@@ -630,16 +631,16 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     ['Circle', loan.circleName, 'people-outline'],
     ['Reason', loan.reason, 'document-text-outline'],
     ['Interest Rate', `${loan.interestRate}%`, 'trending-up-outline'],
-    ['Total Repayment', `GHS ${loan.totalRepaymentAmount}`, 'cash-outline'],
-    ['Amount Repaid', `GHS ${loan.amountRepaid}`, 'checkmark-done-outline'],
+    ['Total Repayment', `GHS ${formatMoney(loan.totalRepaymentAmount)}`, 'cash-outline'],
+    ['Amount Repaid', `GHS ${formatMoney(loan.amountRepaid)}`, 'checkmark-done-outline'],
     ['Repayment Type', loan.repaymentType, 'repeat-outline'],
     ['Period', `${loan.repaymentPeriodMonths} month(s)`, 'calendar-outline'],
     ['Due Date', fmtDate(loan.dueDate), 'alarm-outline'],
     ['Created', fmtDate(loan.createdAt), 'time-outline'],
     ...(loan.disbursedAt ? [['Disbursed', fmtDate(loan.disbursedAt), 'send-outline'] as [string, string, IconName]] : []),
-    ...(loan.platformFee ? [['Platform Fee (2%)', `GHS ${loan.platformFee.toFixed(2)}`, 'pricetag-outline'] as [string, string, IconName]] : []),
-    ...(loan.borrowerReceivedAmount ? [['Borrower Received', `GHS ${loan.borrowerReceivedAmount.toFixed(2)}`, 'wallet-outline'] as [string, string, IconName]] : []),
-    ...(loan.overdueInterestAccrued > 0 ? [['Overdue Interest', `GHS ${loan.overdueInterestAccrued.toFixed(2)}`, 'warning-outline'] as [string, string, IconName]] : []),
+    ...(loan.platformFee ? [['Platform Fee (2%)', `GHS ${formatMoney(loan.platformFee)}`, 'pricetag-outline'] as [string, string, IconName]] : []),
+    ...(loan.borrowerReceivedAmount ? [['Borrower Received', `GHS ${formatMoney(loan.borrowerReceivedAmount)}`, 'wallet-outline'] as [string, string, IconName]] : []),
+    ...(loan.overdueInterestAccrued > 0 ? [['Overdue Interest', `GHS ${formatMoney(loan.overdueInterestAccrued)}`, 'warning-outline'] as [string, string, IconName]] : []),
     ...(loan.gracePeriodEnd ? [['Grace Period Ends', fmtDate(loan.gracePeriodEnd), 'hourglass-outline'] as [string, string, IconName]] : []),
   ];
 
@@ -658,7 +659,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       <View style={styles.amountCard}>
         <Text style={styles.loanIdTag}>LOAN #{loan.id}</Text>
         <Text style={styles.amountLabel}>Loan Amount</Text>
-        <Text style={styles.amount}>GHS {loan.amount}</Text>
+        <Text style={styles.amount}>GHS {formatMoney(loan.amount)}</Text>
         <View style={[styles.badge, { backgroundColor: statusColor(loan.status) }]}>
           <Ionicons name={statusIcon(loan.status)} size={14} color={colors.surface} />
           <Text style={styles.badgeText}>{loan.status.replace(/_/g, ' ')}</Text>
@@ -706,10 +707,10 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             <View style={[styles.progressFill, { width: `${Math.min(contributions.percentFunded, 100)}%` as any }]} />
           </View>
           <Text style={styles.progressText}>
-            GHS {contributions.totalContributed.toFixed(2)} / {loan.amount.toFixed(2)} funded ({contributions.contributorCount} contributor{contributions.contributorCount === 1 ? '' : 's'})
+            GHS {formatMoney(contributions.totalContributed)} / {formatMoney(loan.amount)} funded ({contributions.contributorCount} contributor{contributions.contributorCount === 1 ? '' : 's'})
           </Text>
           {contributions.remaining > 0 && loan.status === 'REQUESTED' && (
-            <Text style={styles.remaining}>GHS {contributions.remaining.toFixed(2)} still needed</Text>
+            <Text style={styles.remaining}>GHS {formatMoney(contributions.remaining)} still needed</Text>
           )}
           {contributions.contributions.map((c) => {
             // Contributions progress through three stages, each shown only
@@ -728,7 +729,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
                 </View>
                 <Text style={styles.detailLabel}>{c.lenderName}</Text>
                 <Text style={styles.detailValue}>
-                  GHS {c.amount.toFixed(2)} @ {c.interestRate}%{statusSuffix}
+                  GHS {formatMoney(c.amount)} @ {c.interestRate}%{statusSuffix}
                 </Text>
               </View>
             );
@@ -764,9 +765,9 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             }]} />
           </View>
           <Text style={styles.progressText}>
-            GHS {loan.amountRepaid.toFixed(2)} / {(loan.totalRepaymentAmount + loan.overdueInterestAccrued).toFixed(2)}
+            GHS {formatMoney(loan.amountRepaid)} / {formatMoney(loan.totalRepaymentAmount + loan.overdueInterestAccrued)}
           </Text>
-          {totalOwed > 0 && <Text style={styles.remaining}>Remaining: GHS {totalOwed.toFixed(2)}</Text>}
+          {totalOwed > 0 && <Text style={styles.remaining}>Remaining: GHS {formatMoney(totalOwed)}</Text>}
         </View>
       )}
 
@@ -872,12 +873,12 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
         )}
         {loan.status === 'AGREEMENT_SIGNED' && isLender && !loan.isGroupFunded && (
           <TouchableOpacity style={styles.primaryBtn} onPress={handleDisburse} disabled={acting}>
-            <Text style={styles.btnText}>Send GHS {loan.amount} to {loan.borrowerName}</Text>
+            <Text style={styles.btnText}>Send GHS {formatMoney(loan.amount)} to {loan.borrowerName}</Text>
           </TouchableOpacity>
         )}
         {loan.status === 'AGREEMENT_SIGNED' && loan.isGroupFunded && isContributor && !myContribution?.paid && (
           <TouchableOpacity style={styles.primaryBtn} onPress={handlePayShare} disabled={acting}>
-            <Text style={styles.btnText}>Send Your Share: GHS {myContribution?.amount.toFixed(2)}</Text>
+            <Text style={styles.btnText}>Send Your Share: GHS {formatMoney(myContribution?.amount)}</Text>
           </TouchableOpacity>
         )}
         {loan.status === 'AGREEMENT_SIGNED' && loan.isGroupFunded && isContributor && myContribution?.paid && (
@@ -993,7 +994,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
           <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>{fundOverride ? 'Fund This Loan Alone' : 'Fund This Loan'}</Text>
-            <Text style={styles.modalSub}>GHS {loan.amount} to {loan.borrowerName}</Text>
+            <Text style={styles.modalSub}>GHS {formatMoney(loan.amount)} to {loan.borrowerName}</Text>
             {fundOverride && (
               <View style={[styles.trustTierBanner, { borderColor: colors.warningBorderTint, backgroundColor: colors.warningBgTint }]}>
                 <Ionicons name="warning-outline" size={16} color={colors.warning} />
@@ -1024,7 +1025,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             )}
             {parseFloat(interestRate) > 0 && (
               <Text style={styles.calcText}>
-                Total repayment: GHS {(loan.amount * (1 + parseFloat(interestRate || '0') / 100)).toFixed(2)}
+                Total repayment: GHS {formatMoney(loan.amount * (1 + parseFloat(interestRate || '0') / 100))}
               </Text>
             )}
             <TouchableOpacity
@@ -1051,7 +1052,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Contribute to This Loan</Text>
             <Text style={styles.modalSub}>
-              GHS {remainingToFund().toFixed(2)} still needed of GHS {loan.amount.toFixed(2)}
+              GHS {formatMoney(remainingToFund())} still needed of GHS {formatMoney(loan.amount)}
             </Text>
             <View style={styles.trustTierBanner}>
               <Ionicons name="shield-checkmark-outline" size={16} color={colors.muted} />
@@ -1084,7 +1085,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
             )}
             {parseFloat(contributeAmount) > 0 && (
               <Text style={styles.calcText}>
-                You'll receive: GHS {(parseFloat(contributeAmount) * (1 + parseFloat(contributeRate || '0') / 100)).toFixed(2)}
+                You'll receive: GHS {formatMoney(parseFloat(contributeAmount) * (1 + parseFloat(contributeRate || '0') / 100))}
               </Text>
             )}
             <TouchableOpacity
@@ -1139,7 +1140,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
           <TouchableWithoutFeedback onPress={() => {}}>
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Repay Loan</Text>
-            <Text style={styles.modalSub}>Outstanding: GHS {totalOwed.toFixed(2)}</Text>
+            <Text style={styles.modalSub}>Outstanding: GHS {formatMoney(totalOwed)}</Text>
             <Text style={styles.label}>Amount (GHS)</Text>
             <TextInput
               style={styles.input}

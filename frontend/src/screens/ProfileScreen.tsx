@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { formatMoney } from '../utils/formatMoney';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList>;
@@ -479,10 +480,10 @@ export default function ProfileScreen({ navigation }: Props) {
               {([
                 ['Total Loans Taken', borrowerInsights.totalLoansTaken, 'document-text-outline', colors.accent],
                 ['Active Loans', borrowerInsights.activeLoans, 'time-outline', colors.statusBlue],
-                ['Total Borrowed', `GHS ${borrowerInsights.totalAmountBorrowed}`, 'cash-outline', colors.dark],
-                ['Interest Paid', `GHS ${borrowerInsights.totalInterestPaid}`, 'trending-up-outline', colors.danger],
+                ['Total Borrowed', `GHS ${formatMoney(borrowerInsights.totalAmountBorrowed)}`, 'cash-outline', colors.dark],
+                ['Interest Paid', `GHS ${formatMoney(borrowerInsights.totalInterestPaid)}`, 'trending-up-outline', colors.danger],
                 ['Repayment Rate', `${borrowerInsights.repaymentRate}%`, 'checkmark-done-outline', colors.success],
-                ['Avg Loan Size', `GHS ${borrowerInsights.averageLoanSize}`, 'calculator-outline', colors.dark],
+                ['Avg Loan Size', `GHS ${formatMoney(borrowerInsights.averageLoanSize)}`, 'calculator-outline', colors.dark],
               ] as [string, string | number, keyof typeof Ionicons.glyphMap, string][]).map(([label, value, icon, color], i) => (
                 <View key={i} style={styles.statCard}>
                   <View style={[styles.statCardIconBox, { backgroundColor: `${color}18` }]}>
@@ -510,10 +511,10 @@ export default function ProfileScreen({ navigation }: Props) {
               {([
                 ['Total Loans Given', lenderInsights.totalLoansGiven, 'document-text-outline', colors.accent],
                 ['Active Loans', lenderInsights.activeLoans, 'time-outline', colors.statusBlue],
-                ['Total Lent', `GHS ${lenderInsights.totalAmountLent}`, 'cash-outline', colors.dark],
-                ['Interest Earned', `GHS ${lenderInsights.totalInterestEarned}`, 'trending-up-outline', colors.success],
+                ['Total Lent', `GHS ${formatMoney(lenderInsights.totalAmountLent)}`, 'cash-outline', colors.dark],
+                ['Interest Earned', `GHS ${formatMoney(lenderInsights.totalInterestEarned)}`, 'trending-up-outline', colors.success],
                 ['Return Rate', `${lenderInsights.returnRate}%`, 'checkmark-done-outline', colors.success],
-                ['Amount At Risk', `GHS ${lenderInsights.totalAmountAtRisk}`, 'warning-outline', colors.danger],
+                ['Amount At Risk', `GHS ${formatMoney(lenderInsights.totalAmountAtRisk)}`, 'warning-outline', colors.danger],
               ] as [string, string | number, keyof typeof Ionicons.glyphMap, string][]).map(([label, value, icon, color], i) => (
                 <View key={i} style={styles.statCard}>
                   <View style={[styles.statCardIconBox, { backgroundColor: `${color}18` }]}>
