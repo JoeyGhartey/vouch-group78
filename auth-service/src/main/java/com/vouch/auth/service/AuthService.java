@@ -91,9 +91,10 @@ public class AuthService {
 
         pendingRegistrationRepository.save(pending);
 
-        sendEmail(request.getEmail(), "Verify your Vouch account",
-                "Your Vouch verification code is " + otp + ".\n\n" +
-                "It expires in " + REGISTRATION_OTP_VALID_MINUTES + " minutes. If you didn't try to sign up, ignore this email.");
+        sendEmail(request.getEmail(), "Verify your Vouch account", "Verify your email",
+                "Enter this code in the app to finish creating your account. It expires in " + REGISTRATION_OTP_VALID_MINUTES + " minutes. " +
+                "If you didn't try to sign up for Vouch, you can safely ignore this email.",
+                otp);
 
         return Map.of("message", "Check your inbox — we've emailed a 6-digit code to " + request.getEmail() + ". It expires in 10 minutes.");
     }
@@ -155,10 +156,10 @@ public class AuthService {
         // Best-effort only -- the account already exists at this point, so a
         // welcome-email hiccup must never fail the registration itself.
         try {
-            sendEmail(user.getEmail(), "Welcome to Vouch",
-                    "Hi " + user.getFirstName() + ",\n\n" +
-                    "Your Vouch account has been created successfully. You can now lend, borrow, and split expenses with your circles.\n\n" +
-                    "If you didn't create this account, contact support immediately.");
+            sendEmail(user.getEmail(), "Welcome to Vouch", "You're all set, " + user.getFirstName() + "!",
+                    "Your Vouch account has been created successfully. You can now lend, borrow, and split expenses with the people you trust. " +
+                    "If you didn't create this account, please contact support immediately.",
+                    null);
         } catch (Exception e) {
             log.warn("Welcome email failed for {}, account was still created: {}", user.getEmail(), e.getMessage());
         }
@@ -193,9 +194,9 @@ public class AuthService {
         pending.setLastOtpSentAt(LocalDateTime.now());
         pendingRegistrationRepository.save(pending);
 
-        sendEmail(pending.getEmail(), "Your new Vouch verification code",
-                "Your new Vouch verification code is " + otp + ".\n\n" +
-                "It expires in " + REGISTRATION_OTP_VALID_MINUTES + " minutes.");
+        sendEmail(pending.getEmail(), "Your new Vouch verification code", "Verify your email",
+                "Enter this code in the app to finish creating your account. It expires in " + REGISTRATION_OTP_VALID_MINUTES + " minutes.",
+                otp);
 
         return Map.of("message", "A new code has been sent to " + pending.getEmail() + ".");
     }
@@ -323,9 +324,10 @@ public class AuthService {
             User user = userRepository.findByEmail(identifier)
                     .orElseThrow(() -> new RuntimeException("No account found with that email address"));
             String otp = generateAndStoreOtp(user);
-            sendEmail(user.getEmail(), "Vouch password reset code",
-                    "Your Vouch password reset code is " + otp + ".\n\n" +
-                    "It expires in " + OTP_VALID_MINUTES + " minutes. If you didn't request this, ignore this email.");
+            sendEmail(user.getEmail(), "Vouch password reset code", "Reset your password",
+                    "Enter this code in the app to reset your password. It expires in " + OTP_VALID_MINUTES + " minutes. " +
+                    "If you didn't request this, you can safely ignore this email.",
+                    otp);
             return Map.of("message", "Check your inbox — we've emailed a 6-digit code to " + user.getEmail() + ". It expires in 10 minutes.");
         }
 
@@ -394,8 +396,19 @@ public class AuthService {
     // Generic email sender via SendGrid's HTTP API (not SMTP) — Railway blocks
     // outbound SMTP ports on non-Pro plans, but a normal HTTPS POST goes
     // through unaffected. Shared by password-reset OTPs, registration OTPs,
-    // and the post-verification welcome email.
-    private void sendEmail(String email, String subject, String body) {
+    // and the post-verification welcome email. Sends BOTH a plain-text and an
+    // HTML part (multipart) -- besides looking like a real product email
+    // instead of a bare string, sending both formats is itself a
+    // deliverability signal spam filters weigh; plain-text-only bulk mail is
+    // penalized more heavily than a proper multipart message.
+    //
+    // Note on deliverability: sendGridFromEmail is a Gmail address, not a
+    // domain Vouch controls, so SendGrid can't set up SPF/DKIM authentication
+    // for it (that requires DNS records on an owned domain). Until this sends
+    // from an authenticated custom domain, some inbox providers will still be
+    // suspicious of it regardless of how the email itself looks -- branding
+    // it properly narrows the gap but doesn't fully close it.
+    private void sendEmail(String email, String subject, String heading, String message, String otpCode) {
         if (sendGridApiKey == null || sendGridApiKey.isBlank()) {
             log.warn("SENDGRID_API_KEY is not configured — cannot send email to {}", email);
             throw new RuntimeException("Email delivery isn't configured yet. Please try again shortly.");
@@ -405,11 +418,17 @@ public class AuthService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(sendGridApiKey);
 
+            String plainTextBody = message + (otpCode != null ? "\n\nYour code: " + otpCode : "");
+            String htmlBody = buildBrandedEmailHtml(heading, message, otpCode);
+
             Map<String, Object> payload = Map.of(
                     "personalizations", List.of(Map.of("to", List.of(Map.of("email", email)))),
                     "from", Map.of("email", sendGridFromEmail, "name", "Vouch"),
                     "subject", subject,
-                    "content", List.of(Map.of("type", "text/plain", "value", body))
+                    "content", List.of(
+                            Map.of("type", "text/plain", "value", plainTextBody),
+                            Map.of("type", "text/html", "value", htmlBody)
+                    )
             );
 
             restTemplate.postForEntity("https://api.sendgrid.com/v3/mail/send",
@@ -418,6 +437,50 @@ public class AuthService {
             log.warn("Failed to email {} ({}): {}", subject, email, e.getMessage());
             throw new RuntimeException("Could not send an email to that address right now. Please try again shortly.");
         }
+    }
+
+    // Inline-styled HTML shell matching the app's black-and-gold branding
+    // (same palette as the login/signup screens). Email clients strip
+    // <style> blocks and external CSS unpredictably, so every style here is
+    // inlined directly on each element rather than relying on a stylesheet.
+    private String buildBrandedEmailHtml(String heading, String message, String otpCode) {
+        String otpBlock = otpCode == null ? "" : """
+                <div style="margin:28px 0;padding:20px;background-color:#f7f5ef;border:1px solid #e5e0d0;border-radius:12px;text-align:center;">
+                  <span style="font-size:32px;font-weight:800;letter-spacing:8px;color:#111111;font-family:'Courier New',monospace;">%s</span>
+                </div>
+                """.formatted(otpCode);
+
+        return """
+                <!DOCTYPE html>
+                <html>
+                <body style="margin:0;padding:0;background-color:#f2f2f2;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+                  <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background-color:#f2f2f2;padding:32px 0;">
+                    <tr>
+                      <td align="center">
+                        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;max-width:480px;width:100%%;">
+                          <tr>
+                            <td style="background-color:#000000;padding:32px 32px 28px 32px;">
+                              <span style="color:#C9A84C;font-size:20px;font-weight:800;letter-spacing:4px;">VOUCH</span>
+                              <div style="color:#8a8f98;font-size:12px;margin-top:6px;">Inner Circle Lending</div>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:32px;">
+                              <h1 style="margin:0 0 12px 0;font-size:20px;color:#111111;">%s</h1>
+                              <p style="margin:0;font-size:14px;line-height:22px;color:#555555;">%s</p>
+                              %s
+                              <p style="margin:24px 0 0 0;font-size:12px;line-height:18px;color:#999999;">
+                                This is an automated message from Vouch. If you weren't expecting this email, you can safely ignore it.
+                              </p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </body>
+                </html>
+                """.formatted(heading, message, otpBlock);
     }
 
     private void sendOtpPush(String pushToken, String otp) {
