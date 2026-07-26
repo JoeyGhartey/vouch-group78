@@ -166,6 +166,7 @@ export default function NotificationsScreen({ navigation }: Props) {
       LOAN_DISBURSED: 'arrow-up-circle-outline', LOAN_REPAID: 'checkmark-done-outline',
       LOAN_OVERDUE: 'warning-outline', LOAN_GRACE_PERIOD: 'time-outline',
       LOAN_DEFAULTED: 'alert-circle-outline', CIRCLE_INVITE: 'people-outline',
+      CIRCLE_INVITE_REJECTED: 'close-circle-outline',
       CIRCLE_MEMBER_APPROVED: 'person-add-outline', CIRCLE_MEMBER_REMOVED: 'person-remove-outline',
       SHARED_EXPENSE_CREATED: 'receipt-outline', DISPUTE_OPENED: 'scale-outline',
       DISPUTE_RESOLVED: 'shield-checkmark-outline', SPENDING_LIMIT_WARNING: 'warning-outline',
@@ -174,7 +175,7 @@ export default function NotificationsScreen({ navigation }: Props) {
   };
 
   const getIconColor = (type: string): string => {
-    if (['LOAN_DEFAULTED', 'LOAN_OVERDUE', 'DISPUTE_OPENED', 'CIRCLE_MEMBER_REMOVED'].includes(type)) return colors.danger;
+    if (['LOAN_DEFAULTED', 'LOAN_OVERDUE', 'DISPUTE_OPENED', 'CIRCLE_MEMBER_REMOVED', 'CIRCLE_INVITE_REJECTED'].includes(type)) return colors.danger;
     if (['LOAN_REPAID', 'LOAN_AGREEMENT_SIGNED', 'CIRCLE_MEMBER_APPROVED', 'DISPUTE_RESOLVED'].includes(type)) return colors.success;
     if (['LOAN_DISBURSED', 'LOAN_FUNDED'].includes(type)) return colors.accent;
     return colors.muted;

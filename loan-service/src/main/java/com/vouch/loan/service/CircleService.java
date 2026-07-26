@@ -154,7 +154,8 @@ public class CircleService {
         if (active.size() >= 15) throw new RuntimeException("Circle full (max 15)");
 
         CircleMember.MemberStatus status = circle.getRequireApprovalToJoin() ? CircleMember.MemberStatus.PENDING : CircleMember.MemberStatus.ACTIVE;
-        circleMemberRepository.save(CircleMember.builder().circle(circle).userId(inviteeId).status(status).memberRole(CircleMember.MemberRole.MEMBER).build());
+        circleMemberRepository.save(CircleMember.builder().circle(circle).userId(inviteeId).status(status)
+                .memberRole(CircleMember.MemberRole.MEMBER).invitedBy(inviterId).build());
 
         String inviterName = authServiceClient.getUserFirstName(inviterId);
         notificationServiceClient.send(inviteeId, "Circle Invitation",
@@ -196,8 +197,9 @@ public class CircleService {
         notificationServiceClient.resolveCircleInvite(userId, circleId);
 
         String userName = authServiceClient.getUserFirstName(userId);
-        notificationServiceClient.send(circle.getCreatorId(), "Member Joined",
-                userName + " accepted the invite to \"" + circle.getName() + "\"",
+        Long notifyUserId = member.getInvitedBy() != null ? member.getInvitedBy() : circle.getCreatorId();
+        notificationServiceClient.send(notifyUserId, "Invite Accepted",
+                userName + " accepted your invite to \"" + circle.getName() + "\"",
                 "CIRCLE_MEMBER_APPROVED", circle.getId());
         return "You have joined \"" + circle.getName() + "\"";
     }
@@ -215,6 +217,12 @@ public class CircleService {
         member.setStatus(CircleMember.MemberStatus.REMOVED);
         circleMemberRepository.save(member);
         notificationServiceClient.resolveCircleInvite(userId, circleId);
+
+        String userName = authServiceClient.getUserFirstName(userId);
+        Long notifyUserId = member.getInvitedBy() != null ? member.getInvitedBy() : circle.getCreatorId();
+        notificationServiceClient.send(notifyUserId, "Invite Declined",
+                userName + " declined your invite to \"" + circle.getName() + "\"",
+                "CIRCLE_INVITE_REJECTED", circle.getId());
         return "Invite rejected";
     }
 

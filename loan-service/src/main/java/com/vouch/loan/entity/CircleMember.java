@@ -22,6 +22,14 @@ public class CircleMember {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    // Who actually sent this invite -- not necessarily the circle creator,
+    // since any active member can invite. Nullable (not nullable=false):
+    // Hibernate's schema auto-update can't add a NOT NULL column to a table
+    // that already has rows without a default. Null just means "sent before
+    // this field existed" -- callers fall back to circle.getCreatorId().
+    @Column(name = "invited_by")
+    private Long invitedBy;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     @Column(nullable = false)
