@@ -151,12 +151,16 @@ export default function CirclesScreen({ navigation }: Props) {
     if (!newCircle.name.trim()) { showAlert('error', 'Error', 'Circle name is required'); return; }
     setCreating(true);
     try {
+      const parseWithDefault = (value: string, fallback: number): number => {
+        const parsed = parseFloat(value);
+        return Number.isNaN(parsed) ? fallback : parsed;
+      };
       await createCircle({
         name: newCircle.name,
         description: newCircle.description,
-        maxLoanAmount: parseFloat(newCircle.maxLoanAmount) || 5000,
-        groupFundingThreshold: parseFloat(newCircle.groupFundingThreshold) || 3000,
-        minTrustScore: parseFloat(newCircle.minTrustScore) || 0,
+        maxLoanAmount: parseWithDefault(newCircle.maxLoanAmount, 5000),
+        groupFundingThreshold: parseWithDefault(newCircle.groupFundingThreshold, 3000),
+        minTrustScore: parseWithDefault(newCircle.minTrustScore, 0),
       });
       setShowCreate(false);
       setNewCircle({ name: '', description: '', maxLoanAmount: '5000', groupFundingThreshold: '3000', minTrustScore: '0' });
