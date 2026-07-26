@@ -9,6 +9,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import Svg from 'react-native-svg';
 const { Circle } = require('react-native-svg');
+import { getLastAccessedCircleId } from '../utils/recentCircles';
 import {
   getProfile, getMyCircles, getUnreadCount,
   getMyBorrowedLoans, getMyLentLoans, getCircleExpenses, getPersonalTransactions,
@@ -248,6 +249,7 @@ export default function HomeScreen({ navigation }: Props) {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [circles, setCircles] = useState<Circle[]>([]);
+  const [lastAccessedCircleId, setLastAccessedCircleId] = useState<number | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [borrowedLoans, setBorrowedLoans] = useState<Loan[]>([]);
   const [lentLoans, setLentLoans] = useState<Loan[]>([]);
@@ -295,7 +297,15 @@ export default function HomeScreen({ navigation }: Props) {
     }
   };
 
-  useFocusEffect(useCallback(() => { loadData(); }, []));
+  useFocusEffect(useCallback(() => {
+    loadData();
+    getLastAccessedCircleId().then(setLastAccessedCircleId);
+  }, []));
+
+  // Most recently opened circle takes priority; falls back to whatever the
+  // backend returns first (e.g. a brand-new user who hasn't opened any
+  // circle detail screen yet).
+  const recentCircle = circles.find((c) => c.id === lastAccessedCircleId) ?? circles[0] ?? null;
 
   const toggleActivity = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -632,9 +642,9 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
       )}
 
-      {/* My Circles */}
+      {/* Most Recently Viewed Circle */}
       <View style={styles.sectionRow}>
-        <Text style={styles.sectionLabel}>MY CIRCLES</Text>
+        <Text style={styles.sectionLabel}>RECENT CIRCLE</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Main')}>
           <Text style={styles.seeAll}>See all</Text>
         </TouchableOpacity>
@@ -646,28 +656,26 @@ export default function HomeScreen({ navigation }: Props) {
           <Text style={styles.emptyText}>No circles yet</Text>
           <Text style={styles.emptySubText}>Create a circle to start lending</Text>
         </View>
-      ) : (
+      ) : recentCircle && (
         <View style={styles.circleList}>
-          {circles.slice(0, 3).map((circle) => (
-            <TouchableOpacity
-              key={circle.id}
-              style={styles.circleCard}
-              onPress={() => navigation.navigate('CircleDetail', { circleId: circle.id })}
-            >
-              <View style={styles.circleLeft}>
-                <View style={styles.circleIconBox}>
-                  <Ionicons name="people-outline" size={18} color={colors.accent} />
-                </View>
-                <View>
-                  <Text style={styles.circleName}>{circle.name}</Text>
-                  <Text style={styles.circleMeta}>
-                    {circle.memberCount} members · GHS {formatMoney(circle.maxLoanAmount)} max
-                  </Text>
-                </View>
+          <TouchableOpacity
+            key={recentCircle.id}
+            style={styles.circleCard}
+            onPress={() => navigation.navigate('CircleDetail', { circleId: recentCircle.id })}
+          >
+            <View style={styles.circleLeft}>
+              <View style={styles.circleIconBox}>
+                <Ionicons name="people-outline" size={18} color={colors.accent} />
               </View>
-              <Ionicons name="chevron-forward" size={15} color={colors.muted} />
-            </TouchableOpacity>
-          ))}
+              <View>
+                <Text style={styles.circleName}>{recentCircle.name}</Text>
+                <Text style={styles.circleMeta}>
+                  {recentCircle.memberCount} members · GHS {formatMoney(recentCircle.maxLoanAmount)} max
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={15} color={colors.muted} />
+          </TouchableOpacity>
         </View>
       )}
 

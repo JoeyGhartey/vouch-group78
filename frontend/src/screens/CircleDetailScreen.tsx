@@ -21,6 +21,7 @@ import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
 import { formatMoney } from '../utils/formatMoney';
+import { recordCircleAccess } from '../utils/recentCircles';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'CircleDetail'>;
@@ -326,7 +327,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  useFocusEffect(useCallback(() => { loadData(); }, []));
+  useFocusEffect(useCallback(() => { loadData(); recordCircleAccess(circleId); }, [circleId]));
 
   const handleRequestPayment = async (splitId: number): Promise<void> => {
     setRequestingId(splitId);
