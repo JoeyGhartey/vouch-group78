@@ -29,11 +29,11 @@ public class InternalNotificationController {
         return ResponseEntity.ok(notification);
     }
 
-    @DeleteMapping("/circle-invite")
-    public ResponseEntity<Map<String, String>> resolveCircleInvite(
-            @RequestParam Long userId, @RequestParam Long circleId) {
-        notificationService.resolveCircleInviteNotification(userId, circleId);
-        return ResponseEntity.ok(Map.of("message", "Resolved"));
+    @PutMapping("/circle-invite")
+    public ResponseEntity<Map<String, String>> updateCircleInvite(@Valid @RequestBody CreateNotificationRequest request) {
+        notificationService.updateCircleInviteNotification(
+                request.getUserId(), request.getReferenceId(), request.getTitle(), request.getMessage(), request.getType());
+        return ResponseEntity.ok(Map.of("message", "Updated"));
     }
 
     @PostMapping("/bulk")

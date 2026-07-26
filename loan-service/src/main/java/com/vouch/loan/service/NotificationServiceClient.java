@@ -35,17 +35,26 @@ public class NotificationServiceClient {
         }
     }
 
-    // Called when a circle invite is accepted/rejected/approved -- clears the
-    // original CIRCLE_INVITE notification so it stops showing Accept/Reject
-    // buttons for an invite that's already been resolved. Best-effort: a
-    // failure here shouldn't block the actual accept/reject/approve action.
-    public void resolveCircleInvite(Long userId, Long circleId) {
+    // Called when a circle invite is accepted/rejected/approved -- rewrites the
+    // original CIRCLE_INVITE notification in place (instead of deleting it) so
+    // it stays in the user's history but reads as "You accepted/declined..."
+    // and no longer shows Accept/Reject buttons. Best-effort: a failure here
+    // shouldn't block the actual accept/reject/approve action.
+    public void updateCircleInviteNotification(Long userId, Long circleId, String title, String message, String type) {
         try {
+            Map<String, Object> request = Map.of(
+                    "userId", userId,
+                    "title", title,
+                    "message", message,
+                    "type", type,
+                    "referenceId", circleId
+            );
             restTemplate.exchange(
-                    notificationServiceUrl + "/api/internal/notifications/circle-invite?userId=" + userId + "&circleId=" + circleId,
-                    org.springframework.http.HttpMethod.DELETE, null, Void.class);
+                    notificationServiceUrl + "/api/internal/notifications/circle-invite",
+                    org.springframework.http.HttpMethod.PUT,
+                    new org.springframework.http.HttpEntity<>(request), Void.class);
         } catch (Exception e) {
-            log.warn("Failed to resolve circle-invite notification for user {} circle {}: {}", userId, circleId, e.getMessage());
+            log.warn("Failed to update circle-invite notification for user {} circle {}: {}", userId, circleId, e.getMessage());
         }
     }
 }

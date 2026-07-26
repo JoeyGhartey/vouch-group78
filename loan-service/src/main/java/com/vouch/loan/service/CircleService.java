@@ -175,10 +175,8 @@ public class CircleService {
         if (pm.getStatus() != CircleMember.MemberStatus.PENDING) throw new RuntimeException("Not pending");
         pm.setStatus(CircleMember.MemberStatus.ACTIVE);
         circleMemberRepository.save(pm);
-        notificationServiceClient.resolveCircleInvite(pm.getUserId(), circleId);
-        notificationServiceClient.send(pm.getUserId(), "Approved",
-                "You've been approved to join \"" + circle.getName() + "\"",
-                "CIRCLE_MEMBER_APPROVED", circle.getId());
+        notificationServiceClient.updateCircleInviteNotification(pm.getUserId(), circleId, "Approved",
+                "You've been approved to join \"" + circle.getName() + "\"", "CIRCLE_MEMBER_APPROVED");
         return "Member approved";
     }
 
@@ -194,7 +192,8 @@ public class CircleService {
         }
         member.setStatus(CircleMember.MemberStatus.ACTIVE);
         circleMemberRepository.save(member);
-        notificationServiceClient.resolveCircleInvite(userId, circleId);
+        notificationServiceClient.updateCircleInviteNotification(userId, circleId, "Invite Accepted",
+                "You accepted the invite to join \"" + circle.getName() + "\"", "CIRCLE_MEMBER_APPROVED");
 
         String userName = authServiceClient.getUserFirstName(userId);
         Long notifyUserId = member.getInvitedBy() != null ? member.getInvitedBy() : circle.getCreatorId();
@@ -216,7 +215,8 @@ public class CircleService {
         }
         member.setStatus(CircleMember.MemberStatus.REMOVED);
         circleMemberRepository.save(member);
-        notificationServiceClient.resolveCircleInvite(userId, circleId);
+        notificationServiceClient.updateCircleInviteNotification(userId, circleId, "Invite Declined",
+                "You declined the invite to join \"" + circle.getName() + "\"", "CIRCLE_INVITE_REJECTED");
 
         String userName = authServiceClient.getUserFirstName(userId);
         Long notifyUserId = member.getInvitedBy() != null ? member.getInvitedBy() : circle.getCreatorId();

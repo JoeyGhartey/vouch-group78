@@ -98,15 +98,29 @@ public class NotificationService {
         return "Notification deleted";
     }
 
-    // Called when a circle invite is accepted/rejected/approved -- deletes the
-    // original CIRCLE_INVITE notification so it stops showing "Accept"/"Reject"
-    // buttons for something that's already been resolved. Internal-only (called
-    // by loan-service, not exposed to the mobile app), so no phone/auth lookup.
+    // Called when a circle invite is accepted/rejected/approved -- rewrites the
+    // original CIRCLE_INVITE notification in place (new title/message/type)
+    // instead of deleting it, so it stays in the user's notification history
+    // but reads as "You accepted/declined..." and no longer shows Accept/Reject
+    // buttons (those only render for type == CIRCLE_INVITE). Internal-only
+    // (called by loan-service, not exposed to the mobile app).
     @Transactional
-    public void resolveCircleInviteNotification(Long userId, Long circleId) {
+    public void updateCircleInviteNotification(Long userId, Long circleId, String title, String message, String type) {
         List<Notification> matches = notificationRepository.findByUserIdAndTypeAndReferenceId(
                 userId, Notification.NotificationType.CIRCLE_INVITE, circleId);
-        notificationRepository.deleteAll(matches);
+        if (matches.isEmpty()) {
+            // No original invite notification to rewrite (e.g. the user already
+            // deleted it themselves) -- fall back to a fresh notification so
+            // they still get told, rather than silently telling no one.
+            send(userId, title, message, type, circleId);
+            return;
+        }
+        for (Notification n : matches) {
+            n.setTitle(title);
+            n.setMessage(message);
+            n.setType(Notification.NotificationType.valueOf(type));
+        }
+        notificationRepository.saveAll(matches);
     }
 
     @Transactional
