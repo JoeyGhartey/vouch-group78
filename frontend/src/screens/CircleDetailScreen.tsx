@@ -284,7 +284,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<string>('members');
+  const [activeTab, setActiveTab] = useState<string>('insights');
   const [showInvite, setShowInvite] = useState<boolean>(false);
   const [inviteIdentifier, setInviteIdentifier] = useState<string>('');
   const [inviteError, setInviteError] = useState<string>('');
@@ -464,7 +464,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.accent} /></View>;
   if (!circle) return <View style={styles.center}><Text style={{ color: colors.danger }}>Circle not found</Text></View>;
 
-  const tabs = ['members', 'loans', 'expenses', 'insights', ...(isCreator ? ['disputes'] : [])];
+  const tabs = ['insights', 'loans', 'expenses', ...(isCreator ? ['disputes'] : []), 'members'];
 
   return (
     <View style={styles.container}>
