@@ -41,7 +41,7 @@ public class CircleController {
     }
 
     @PutMapping("/{circleId}")
-    public ResponseEntity<CircleResponse> updateCircle(Authentication auth, @PathVariable Long circleId, @RequestBody UpdateCircleRequest request) {
+    public ResponseEntity<CircleResponse> updateCircle(Authentication auth, @PathVariable Long circleId, @Valid @RequestBody UpdateCircleRequest request) {
         return ResponseEntity.ok(circleService.updateCircle(auth.getName(), circleId, request));
     }
 

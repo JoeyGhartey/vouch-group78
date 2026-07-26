@@ -102,6 +102,9 @@ export default function CirclesScreen({ navigation }: Props) {
     groupFundingThreshold: '3000', minTrustScore: '0',
   });
   const [creating, setCreating] = useState<boolean>(false);
+  const [nameError, setNameError] = useState<string>('');
+  const [maxLoanAmountError, setMaxLoanAmountError] = useState<string>('');
+  const [groupFundingThresholdError, setGroupFundingThresholdError] = useState<string>('');
 
   const loadCircles = async (): Promise<void> => {
     try {
@@ -148,18 +151,29 @@ export default function CirclesScreen({ navigation }: Props) {
   };
 
   const handleCreate = async (): Promise<void> => {
-    if (!newCircle.name.trim()) { showAlert('error', 'Error', 'Circle name is required'); return; }
+    setNameError('');
+    setMaxLoanAmountError('');
+    setGroupFundingThresholdError('');
+    if (!newCircle.name.trim()) { setNameError('Circle name is required'); return; }
+
+    const parseWithDefault = (value: string, fallback: number): number => {
+      const parsed = parseFloat(value);
+      return Number.isNaN(parsed) ? fallback : parsed;
+    };
+    const maxLoanAmount = parseWithDefault(newCircle.maxLoanAmount, 5000);
+    const groupFundingThreshold = parseWithDefault(newCircle.groupFundingThreshold, 3000);
+    let hasError = false;
+    if (maxLoanAmount <= 0) { setMaxLoanAmountError('Must be greater than 0'); hasError = true; }
+    if (groupFundingThreshold <= 0) { setGroupFundingThresholdError('Must be greater than 0'); hasError = true; }
+    if (hasError) return;
+
     setCreating(true);
     try {
-      const parseWithDefault = (value: string, fallback: number): number => {
-        const parsed = parseFloat(value);
-        return Number.isNaN(parsed) ? fallback : parsed;
-      };
       await createCircle({
         name: newCircle.name,
         description: newCircle.description,
-        maxLoanAmount: parseWithDefault(newCircle.maxLoanAmount, 5000),
-        groupFundingThreshold: parseWithDefault(newCircle.groupFundingThreshold, 3000),
+        maxLoanAmount,
+        groupFundingThreshold,
         minTrustScore: parseWithDefault(newCircle.minTrustScore, 0),
       });
       setShowCreate(false);
@@ -180,7 +194,7 @@ export default function CirclesScreen({ navigation }: Props) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>My Circles</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowCreate(true)}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => { setNameError(''); setMaxLoanAmountError(''); setGroupFundingThresholdError(''); setShowCreate(true); }}>
           <Ionicons name="add" size={18} color={colors.buttonDarkText} />
           <Text style={styles.addBtnText}>Create</Text>
         </TouchableOpacity>
@@ -191,7 +205,7 @@ export default function CirclesScreen({ navigation }: Props) {
           <Ionicons name="people-outline" size={48} color={colors.muted} />
           <Text style={styles.emptyTitle}>No circles yet</Text>
           <Text style={styles.emptyText}>Create one to start lending with friends</Text>
-          <TouchableOpacity style={styles.emptyBtn} onPress={() => setShowCreate(true)}>
+          <TouchableOpacity style={styles.emptyBtn} onPress={() => { setNameError(''); setShowCreate(true); }}>
             <Text style={styles.emptyBtnText}>Create Circle</Text>
           </TouchableOpacity>
         </View>
@@ -290,16 +304,19 @@ export default function CirclesScreen({ navigation }: Props) {
                 <Text style={styles.modalTitle}>Create a Circle</Text>
 
                 <Text style={styles.label}>Circle Name *</Text>
-                <TextInput style={styles.input} placeholder="e.g. The Boys" placeholderTextColor={colors.muted} value={newCircle.name} onChangeText={(t) => setNewCircle({ ...newCircle, name: t })} />
+                <TextInput style={styles.input} placeholder="e.g. The Boys" placeholderTextColor={colors.muted} value={newCircle.name} onChangeText={(t) => { setNewCircle({ ...newCircle, name: t }); setNameError(''); }} />
+                {nameError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{nameError}</Text>}
 
                 <Text style={styles.label}>Description</Text>
                 <TextInput style={[styles.input, { height: 80 }]} placeholder="What's this circle about?" placeholderTextColor={colors.muted} value={newCircle.description} onChangeText={(t) => setNewCircle({ ...newCircle, description: t })} multiline />
 
                 <Text style={styles.label}>Max Loan Amount (GHS)</Text>
-                <TextInput style={styles.input} placeholder="5000" placeholderTextColor={colors.muted} value={newCircle.maxLoanAmount} onChangeText={(t) => setNewCircle({ ...newCircle, maxLoanAmount: t })} keyboardType="numeric" />
+                <TextInput style={styles.input} placeholder="5000" placeholderTextColor={colors.muted} value={newCircle.maxLoanAmount} onChangeText={(t) => { setNewCircle({ ...newCircle, maxLoanAmount: t }); setMaxLoanAmountError(''); }} keyboardType="numeric" />
+                {maxLoanAmountError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{maxLoanAmountError}</Text>}
 
                 <Text style={styles.label}>Group Funding Threshold (GHS)</Text>
-                <TextInput style={styles.input} placeholder="3000" placeholderTextColor={colors.muted} value={newCircle.groupFundingThreshold} onChangeText={(t) => setNewCircle({ ...newCircle, groupFundingThreshold: t })} keyboardType="numeric" />
+                <TextInput style={styles.input} placeholder="3000" placeholderTextColor={colors.muted} value={newCircle.groupFundingThreshold} onChangeText={(t) => { setNewCircle({ ...newCircle, groupFundingThreshold: t }); setGroupFundingThresholdError(''); }} keyboardType="numeric" />
+                {groupFundingThresholdError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{groupFundingThresholdError}</Text>}
 
                 <Text style={styles.label}>Minimum Trust Score</Text>
                 <TextInput style={styles.input} placeholder="0" placeholderTextColor={colors.muted} value={newCircle.minTrustScore} onChangeText={(t) => setNewCircle({ ...newCircle, minTrustScore: t })} keyboardType="numeric" />
