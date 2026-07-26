@@ -34,4 +34,18 @@ public class NotificationServiceClient {
             log.warn("Failed to send notification to user {}: {}", userId, e.getMessage());
         }
     }
+
+    // Called when a circle invite is accepted/rejected/approved -- clears the
+    // original CIRCLE_INVITE notification so it stops showing Accept/Reject
+    // buttons for an invite that's already been resolved. Best-effort: a
+    // failure here shouldn't block the actual accept/reject/approve action.
+    public void resolveCircleInvite(Long userId, Long circleId) {
+        try {
+            restTemplate.exchange(
+                    notificationServiceUrl + "/api/internal/notifications/circle-invite?userId=" + userId + "&circleId=" + circleId,
+                    org.springframework.http.HttpMethod.DELETE, null, Void.class);
+        } catch (Exception e) {
+            log.warn("Failed to resolve circle-invite notification for user {} circle {}: {}", userId, circleId, e.getMessage());
+        }
+    }
 }

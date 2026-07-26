@@ -98,6 +98,17 @@ public class NotificationService {
         return "Notification deleted";
     }
 
+    // Called when a circle invite is accepted/rejected/approved -- deletes the
+    // original CIRCLE_INVITE notification so it stops showing "Accept"/"Reject"
+    // buttons for something that's already been resolved. Internal-only (called
+    // by loan-service, not exposed to the mobile app), so no phone/auth lookup.
+    @Transactional
+    public void resolveCircleInviteNotification(Long userId, Long circleId) {
+        List<Notification> matches = notificationRepository.findByUserIdAndTypeAndReferenceId(
+                userId, Notification.NotificationType.CIRCLE_INVITE, circleId);
+        notificationRepository.deleteAll(matches);
+    }
+
     @Transactional
     public String deleteReadNotifications(String phone) {
         Long userId = authServiceClient.getUserIdByPhone(phone);

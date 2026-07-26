@@ -174,6 +174,7 @@ public class CircleService {
         if (pm.getStatus() != CircleMember.MemberStatus.PENDING) throw new RuntimeException("Not pending");
         pm.setStatus(CircleMember.MemberStatus.ACTIVE);
         circleMemberRepository.save(pm);
+        notificationServiceClient.resolveCircleInvite(pm.getUserId(), circleId);
         notificationServiceClient.send(pm.getUserId(), "Approved",
                 "You've been approved to join \"" + circle.getName() + "\"",
                 "CIRCLE_MEMBER_APPROVED", circle.getId());
@@ -192,6 +193,7 @@ public class CircleService {
         }
         member.setStatus(CircleMember.MemberStatus.ACTIVE);
         circleMemberRepository.save(member);
+        notificationServiceClient.resolveCircleInvite(userId, circleId);
 
         String userName = authServiceClient.getUserFirstName(userId);
         notificationServiceClient.send(circle.getCreatorId(), "Member Joined",
@@ -212,6 +214,7 @@ public class CircleService {
         }
         member.setStatus(CircleMember.MemberStatus.REMOVED);
         circleMemberRepository.save(member);
+        notificationServiceClient.resolveCircleInvite(userId, circleId);
         return "Invite rejected";
     }
 
