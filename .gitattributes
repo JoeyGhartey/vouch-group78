@@ -1,0 +1,13 @@
+# Normalize all text files to LF line endings in the repo.
+# Prevents CRLF/LF churn from showing every file as "modified"
+# when nothing actually changed.
+* text=auto eol=lf
+
+# Binary files - never touch line endings.
+*.docx binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.jar binary
