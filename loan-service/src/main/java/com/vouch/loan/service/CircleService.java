@@ -137,7 +137,10 @@ public class CircleService {
         Double trustScore = ((Number) inviteeInfo.get("trustScore")).doubleValue();
 
         if (circleMemberRepository.existsByCircleAndUserId(circle, inviteeId)) throw new RuntimeException("Already a member or invited");
-        if (trustScore < circle.getMinTrustScore()) throw new RuntimeException("Trust score too low");
+        if (trustScore < circle.getMinTrustScore()) {
+            throw new RuntimeException("This person's trust score (" + Math.round(trustScore) +
+                    ") is below this circle's minimum requirement (" + Math.round(circle.getMinTrustScore()) + ")");
+        }
         List<CircleMember> active = circleMemberRepository.findByCircleAndStatus(circle, CircleMember.MemberStatus.ACTIVE);
         if (active.size() >= 15) throw new RuntimeException("Circle full (max 15)");
 
