@@ -295,6 +295,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   const [showResolve, setShowResolve] = useState<boolean>(false);
   const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
   const [resolution, setResolution] = useState<string>('');
+  const [resolutionError, setResolutionError] = useState<string>('');
   const [adminNotes, setAdminNotes] = useState<string>('');
   const [outcome, setOutcome] = useState<string>('BORROWER_FAVOR');
   const [resolving, setResolving] = useState<boolean>(false);
@@ -368,13 +369,15 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
   };
 
   const handleResolveDispute = async (): Promise<void> => {
-    if (!resolution.trim()) { showAlert('error', 'Error', 'Enter a resolution'); return; }
+    setResolutionError('');
+    if (!resolution.trim()) { setResolutionError('Enter a resolution'); return; }
     setResolving(true);
     try {
       await resolveDispute(selectedDispute!.id, { outcome, resolution, adminNotes });
       showAlert('success', 'Resolved', 'Dispute resolved. Both parties have been notified.');
       setShowResolve(false);
       setResolution('');
+      setResolutionError('');
       setAdminNotes('');
       setOutcome('BORROWER_FAVOR');
       loadData();
@@ -410,6 +413,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
     if (!ok) return;
     try {
       await leaveCircle(circleId);
+      showAlert('success', 'Left Circle', 'You have left the circle.');
       navigation.goBack();
     } catch (error) {
       showAlert('error', 'Error', (error as Error).message);
@@ -422,6 +426,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
     try {
       await removeMember(circleId, member.userId);
       setSelectedMember(null);
+      showAlert('success', 'Member Removed', `${member.firstName} ${member.lastName} was removed from this circle.`);
       loadData();
     } catch (error) {
       showAlert('error', 'Error', (error as Error).message);
@@ -438,6 +443,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
     try {
       await transferCircleOwnership(circleId, member.userId);
       setSelectedMember(null);
+      showAlert('success', 'Ownership Transferred', `${member.firstName} ${member.lastName} is now the circle creator.`);
       loadData();
     } catch (error) {
       showAlert('error', 'Error', (error as Error).message);
@@ -453,6 +459,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
     if (!ok) return;
     try {
       await deleteCircle(circleId);
+      showAlert('success', 'Circle Deleted', 'The circle has been permanently deleted.');
       navigation.goBack();
     } catch (error) {
       showAlert('error', 'Error', (error as Error).message);
@@ -887,7 +894,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                   ) : (
                     <TouchableOpacity
                       style={styles.primaryBtn}
-                      onPress={() => { setSelectedDispute(dispute); setShowResolve(true); }}
+                      onPress={() => { setSelectedDispute(dispute); setResolutionError(''); setShowResolve(true); }}
                     >
                       <Text style={styles.primaryBtnText}>Review & Resolve</Text>
                     </TouchableOpacity>
@@ -940,9 +947,10 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                       placeholder="Describe the resolution decision"
                       placeholderTextColor={colors.muted}
                       value={resolution}
-                      onChangeText={setResolution}
+                      onChangeText={(t) => { setResolution(t); setResolutionError(''); }}
                       multiline
                     />
+                    {resolutionError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{resolutionError}</Text>}
                     <Text style={styles.label}>Notes</Text>
                     <TextInput
                       style={[styles.input, { height: 60 }]}
