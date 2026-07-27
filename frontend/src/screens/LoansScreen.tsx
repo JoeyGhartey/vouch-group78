@@ -15,6 +15,7 @@ import { ColorScheme } from '../theme/colors';
 import { formatMoney } from '../utils/formatMoney';
 import { LOAN_REASONS, getCustomLoanReasons, addCustomLoanReason } from '../utils/customLoanReasons';
 import { formatCategoryName } from '../utils/customCategories';
+import { fonts } from '../theme/fonts';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList>;
@@ -48,23 +49,23 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.surface, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
     borderBottomWidth: 1, borderBottomColor: c.border,
   },
-  title: { fontSize: 22, fontWeight: '700', color: c.dark },
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.buttonDark, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  addBtnText: { color: c.buttonDarkText, fontSize: 14, fontWeight: '600' },
+  title: { fontSize: 22, fontWeight: '700', fontFamily: fonts.bold, color: c.dark },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.buttonDark, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
+  addBtnText: { color: c.buttonDarkText, fontSize: 14, fontWeight: '600', fontFamily: fonts.semibold },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modal: { backgroundColor: c.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '90%' as const },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: c.dark, textAlign: 'center', marginBottom: 20 },
-  label: { fontSize: 12, color: c.muted, fontWeight: '600', marginBottom: 6, marginTop: 14 },
-  input: { backgroundColor: c.bg, borderRadius: 10, padding: 14, fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border },
+  modalTitle: { fontSize: 20, fontWeight: '700', fontFamily: fonts.bold, color: c.dark, textAlign: 'center', marginBottom: 20 },
+  label: { fontSize: 12, color: c.muted, fontWeight: '600', fontFamily: fonts.semibold, marginBottom: 6, marginTop: 14 },
+  input: { backgroundColor: c.bg, borderRadius: 10, padding: 14, fontSize: 14, fontFamily: fonts.regular, color: c.dark, borderWidth: 1, borderColor: c.border },
   circleChip: {
     backgroundColor: c.bg, borderRadius: 20, paddingHorizontal: 14,
     paddingVertical: 8, marginRight: 8, borderWidth: 1, borderColor: c.border,
   },
   circleChipSel: { backgroundColor: c.buttonDark, borderColor: c.buttonDark },
-  circleChipText: { color: c.muted, fontSize: 12, fontWeight: '600' },
+  circleChipText: { color: c.muted, fontSize: 12, fontWeight: '600', fontFamily: fonts.semibold },
   circleChipTextSel: { color: c.buttonDarkText },
   noCirclesBox: { alignItems: 'center', padding: 24 },
-  noCirclesText: { fontSize: 13, color: c.muted, textAlign: 'center', marginTop: 10, lineHeight: 20 },
+  noCirclesText: { fontSize: 13, color: c.muted, fontFamily: fonts.regular, textAlign: 'center', marginTop: 10, lineHeight: 20 },
   saveReasonRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     marginTop: 10, padding: 12, borderRadius: 12,
@@ -76,49 +77,63 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   saveReasonCheckboxChecked: { backgroundColor: c.accent, borderColor: c.accent },
-  saveReasonText: { fontSize: 12, color: c.dark, fontWeight: '600', flex: 1 },
+  saveReasonText: { fontSize: 12, color: c.dark, fontWeight: '600', fontFamily: fonts.semibold, flex: 1 },
   submitBtn: { backgroundColor: c.buttonDark, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
-  submitBtnText: { color: c.buttonDarkText, fontSize: 15, fontWeight: '700' },
+  submitBtnText: { color: c.buttonDarkText, fontSize: 15, fontWeight: '700', fontFamily: fonts.bold },
   cancelModalBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
-  cancelModalText: { color: c.muted, fontSize: 14 },
+  cancelModalText: { color: c.muted, fontSize: 14, fontFamily: fonts.medium },
   summaryCard: {
     backgroundColor: c.surface, marginHorizontal: 16, marginTop: 16, marginBottom: 8,
-    borderRadius: 16, padding: 20, alignItems: 'center',
+    borderRadius: 18, padding: 22, alignItems: 'center',
     borderWidth: 1, borderColor: c.border,
   },
-  summaryLabel: { fontSize: 12, color: c.muted, fontWeight: '600', letterSpacing: 0.5 },
-  summaryAmount: { fontSize: 36, fontWeight: '800', marginTop: 6, letterSpacing: -1 },
-  summarySub: { fontSize: 12, color: c.muted, marginTop: 4 },
+  summaryIconBox: {
+    width: 40, height: 40, borderRadius: 20,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 10,
+  },
+  summaryLabel: { fontSize: 12, color: c.muted, fontWeight: '600', fontFamily: fonts.semibold, letterSpacing: 0.6, textTransform: 'uppercase' as const },
+  summaryAmount: { fontSize: 38, fontWeight: '800', fontFamily: fonts.extrabold, marginTop: 8, letterSpacing: -1 },
+  summarySub: { fontSize: 12, color: c.muted, fontFamily: fonts.medium, marginTop: 6 },
   tabRow: {
     flexDirection: 'row', backgroundColor: c.surface,
     borderBottomWidth: 1, borderBottomColor: c.border, marginBottom: 4,
   },
   tab: { flex: 1, paddingVertical: 14, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   activeTab: { borderBottomColor: c.accent },
-  tabText: { fontSize: 13, fontWeight: '600', color: c.muted },
+  tabText: { fontSize: 13, fontWeight: '600', fontFamily: fonts.semibold, color: c.muted },
   activeTabText: { color: c.accent },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: c.dark, marginTop: 12, marginBottom: 6 },
-  emptyText: { fontSize: 13, color: c.muted, textAlign: 'center' },
-  loanCard: {
-    backgroundColor: c.surface, borderRadius: 14, padding: 16,
+  emptyIconBox: {
+    width: 72, height: 72, borderRadius: 36, backgroundColor: c.bg,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 4,
     borderWidth: 1, borderColor: c.border,
   },
-  loanTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  loanAmount: { fontSize: 22, fontWeight: '800', color: c.dark },
-  badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  badgeText: { fontSize: 10, fontWeight: '700' },
-  loanReason: { fontSize: 13, color: c.muted, marginBottom: 2 },
-  loanCircle: { fontSize: 12, color: c.muted, marginBottom: 8 },
-  loanMeta: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  metaText: { fontSize: 12, color: c.muted },
-  interest: { fontSize: 12, color: c.accent, fontWeight: '600' },
-  dueDate: { fontSize: 12, color: c.warning, marginTop: 4 },
-  progressRow: { marginTop: 10 },
-  progressBg: { height: 5, backgroundColor: c.border, borderRadius: 3, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: c.success, borderRadius: 3 },
-  progressText: { fontSize: 11, color: c.muted, marginTop: 4, textAlign: 'right' },
-  chevron: { position: 'absolute', right: 14, top: '50%' },
+  emptyTitle: { fontSize: 17, fontWeight: '700', fontFamily: fonts.bold, color: c.dark, marginTop: 14, marginBottom: 6 },
+  emptyText: { fontSize: 13, color: c.muted, fontFamily: fonts.regular, textAlign: 'center', lineHeight: 19 },
+  loanCard: {
+    backgroundColor: c.surface, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: c.border, flexDirection: 'row', gap: 12,
+  },
+  loanIconBox: {
+    width: 42, height: 42, borderRadius: 12,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  loanCardBody: { flex: 1 },
+  loanTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
+  loanAmount: { fontSize: 21, fontWeight: '800', fontFamily: fonts.extrabold, color: c.dark },
+  badge: { borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
+  badgeText: { fontSize: 10, fontWeight: '700', fontFamily: fonts.bold, letterSpacing: 0.3 },
+  loanReason: { fontSize: 14, fontWeight: '600', fontFamily: fonts.semibold, color: c.dark, marginBottom: 3 },
+  loanCircle: { fontSize: 12, color: c.muted, fontFamily: fonts.medium, marginBottom: 10 },
+  loanMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
+  metaText: { fontSize: 12, color: c.muted, fontFamily: fonts.medium, flexShrink: 1 },
+  interest: { fontSize: 12, color: c.accent, fontWeight: '600', fontFamily: fonts.semibold },
+  dueDateRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  dueDate: { fontSize: 12, color: c.warning, fontFamily: fonts.medium },
+  progressRow: { marginTop: 12 },
+  progressBg: { height: 6, backgroundColor: c.border, borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 3 },
+  progressText: { fontSize: 11, color: c.muted, fontFamily: fonts.medium, marginTop: 5, textAlign: 'right' },
 });
 
 export default function LoansScreen({ navigation }: Props) {
@@ -269,6 +284,13 @@ export default function LoansScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.summaryCard}>
+        <View style={[styles.summaryIconBox, { backgroundColor: activeTab === 'borrowed' ? colors.dangerBgTint : colors.successBgTint }]}>
+          <Ionicons
+            name={activeTab === 'borrowed' ? 'arrow-up-circle-outline' : 'arrow-down-circle-outline'}
+            size={22}
+            color={activeTab === 'borrowed' ? colors.danger : colors.success}
+          />
+        </View>
         <Text style={styles.summaryLabel}>
           {activeTab === 'borrowed' ? 'Total You Owe' : 'Total Owed to You'}
         </Text>
@@ -296,7 +318,9 @@ export default function LoansScreen({ navigation }: Props) {
 
       {loans.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name={activeTab === 'borrowed' ? 'card-outline' : 'cash-outline'} size={48} color={colors.muted} />
+          <View style={styles.emptyIconBox}>
+            <Ionicons name={activeTab === 'borrowed' ? 'card-outline' : 'cash-outline'} size={30} color={colors.muted} />
+          </View>
           <Text style={styles.emptyTitle}>{activeTab === 'borrowed' ? 'No borrowed loans' : 'No lent loans'}</Text>
           <Text style={styles.emptyText}>
             {activeTab === 'borrowed' ? 'Request a loan from your circles' : 'Fund a loan request in your circles'}
@@ -312,43 +336,56 @@ export default function LoansScreen({ navigation }: Props) {
             <TouchableOpacity
               style={styles.loanCard}
               onPress={() => navigation.navigate('LoanDetail', { loanId: item.id })}
+              activeOpacity={0.7}
             >
-              <View style={styles.loanTop}>
-                <Text style={styles.loanAmount}>GHS {formatMoney(item.amount)}</Text>
-                <View style={[styles.badge, { backgroundColor: `${statusColor(item.status)}18` }]}>
-                  <Text style={[styles.badgeText, { color: statusColor(item.status) }]}>
-                    {item.status.replace(/_/g, ' ')}
-                  </Text>
-                </View>
+              <View style={[styles.loanIconBox, { backgroundColor: `${statusColor(item.status)}18` }]}>
+                <Ionicons
+                  name={activeTab === 'borrowed' ? 'arrow-down-outline' : 'arrow-up-outline'}
+                  size={20}
+                  color={statusColor(item.status)}
+                />
               </View>
-              <Text style={styles.loanReason}>{item.reason}</Text>
-              <Text style={styles.loanCircle}>{item.circleName}</Text>
-              <View style={styles.loanMeta}>
-                <Text style={styles.metaText}>
-                  {activeTab === 'borrowed'
-                    ? `Lender: ${item.lenderName || (item.isGroupFunded ? 'Group Funded' : 'Waiting...')}`
-                    : `Borrower: ${item.borrowerName}`}
-                </Text>
-                {item.interestRate > 0 && (
-                  <Text style={styles.interest}>{item.interestRate}% interest</Text>
+              <View style={styles.loanCardBody}>
+                <View style={styles.loanTop}>
+                  <Text style={styles.loanAmount}>GHS {formatMoney(item.amount)}</Text>
+                  <View style={[styles.badge, { backgroundColor: `${statusColor(item.status)}18` }]}>
+                    <Text style={[styles.badgeText, { color: statusColor(item.status) }]}>
+                      {item.status.replace(/_/g, ' ')}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.loanReason} numberOfLines={1}>{item.reason}</Text>
+                <Text style={styles.loanCircle}>{item.circleName}</Text>
+                <View style={styles.loanMeta}>
+                  <Text style={styles.metaText} numberOfLines={1}>
+                    {activeTab === 'borrowed'
+                      ? `Lender: ${item.lenderName || (item.isGroupFunded ? 'Group Funded' : 'Waiting...')}`
+                      : `Borrower: ${item.borrowerName}`}
+                  </Text>
+                  {item.interestRate > 0 && (
+                    <Text style={styles.interest}>{item.interestRate}%</Text>
+                  )}
+                </View>
+                {item.dueDate && (
+                  <View style={styles.dueDateRow}>
+                    <Ionicons name="time-outline" size={13} color={colors.warning} />
+                    <Text style={styles.dueDate}>Due {fmtDate(item.dueDate)}</Text>
+                  </View>
+                )}
+                {item.totalRepaymentAmount > 0 && !['REPAID', 'CANCELLED', 'REQUESTED'].includes(item.status) && (
+                  <View style={styles.progressRow}>
+                    <View style={styles.progressBg}>
+                      <View style={[styles.progressFill, {
+                        backgroundColor: statusColor(item.status),
+                        width: `${Math.min((item.amountRepaid / item.totalRepaymentAmount) * 100, 100)}%` as any
+                      }]} />
+                    </View>
+                    <Text style={styles.progressText}>
+                      GHS {formatMoney(item.amountRepaid)} / {formatMoney(item.totalRepaymentAmount)}
+                    </Text>
+                  </View>
                 )}
               </View>
-              {item.dueDate && (
-                <Text style={styles.dueDate}>Due: {fmtDate(item.dueDate)}</Text>
-              )}
-              {item.totalRepaymentAmount > 0 && !['REPAID', 'CANCELLED', 'REQUESTED'].includes(item.status) && (
-                <View style={styles.progressRow}>
-                  <View style={styles.progressBg}>
-                    <View style={[styles.progressFill, {
-                      width: `${Math.min((item.amountRepaid / item.totalRepaymentAmount) * 100, 100)}%` as any
-                    }]} />
-                  </View>
-                  <Text style={styles.progressText}>
-                    GHS {formatMoney(item.amountRepaid)} / {formatMoney(item.totalRepaymentAmount)}
-                  </Text>
-                </View>
-              )}
-              <Ionicons name="chevron-forward" size={14} color={colors.muted} style={styles.chevron} />
             </TouchableOpacity>
           )}
         />
