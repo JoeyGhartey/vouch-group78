@@ -15,6 +15,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
 import { formatMoney } from '../utils/formatMoney';
 import { getRecentCircleOrder } from '../utils/recentCircles';
+import { fonts } from '../theme/fonts';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList>;
@@ -46,44 +47,52 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.surface, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
     borderBottomWidth: 1, borderBottomColor: c.border,
   },
-  title: { fontSize: 22, fontWeight: '700', color: c.dark },
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.buttonDark, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  addBtnText: { color: c.buttonDarkText, fontSize: 14, fontWeight: '600' },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: c.dark, marginTop: 12, marginBottom: 6 },
-  emptyText: { fontSize: 13, color: c.muted, textAlign: 'center', marginBottom: 20 },
+  title: { fontSize: 22, fontWeight: '700', fontFamily: fonts.bold, color: c.dark },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.buttonDark, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
+  addBtnText: { color: c.buttonDarkText, fontSize: 14, fontWeight: '600', fontFamily: fonts.semibold },
+  emptyIconBox: {
+    width: 76, height: 76, borderRadius: 38, backgroundColor: c.surface,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 4,
+    borderWidth: 1, borderColor: c.border,
+  },
+  emptyTitle: { fontSize: 18, fontWeight: '700', fontFamily: fonts.bold, color: c.dark, marginTop: 14, marginBottom: 6 },
+  emptyText: { fontSize: 13, color: c.muted, fontFamily: fonts.regular, textAlign: 'center', lineHeight: 19, marginBottom: 20 },
   emptyBtn: { backgroundColor: c.buttonDark, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 },
-  emptyBtnText: { color: c.buttonDarkText, fontSize: 14, fontWeight: '700' },
+  emptyBtnText: { color: c.buttonDarkText, fontSize: 14, fontWeight: '700', fontFamily: fonts.bold },
   circleCard: {
-    backgroundColor: c.surface, borderRadius: 16, padding: 16,
+    backgroundColor: c.surface, borderRadius: 18, padding: 16,
     borderWidth: 1, borderColor: c.border,
   },
   circleTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  circleIconBox: { width: 42, height: 42, borderRadius: 12, backgroundColor: c.bg, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: c.border },
+  circleIconBox: { width: 44, height: 44, borderRadius: 13, backgroundColor: c.goldBgTint, justifyContent: 'center', alignItems: 'center' },
   circleInfo: { flex: 1 },
-  circleName: { fontSize: 16, fontWeight: '700', color: c.dark },
-  circleMeta: { fontSize: 12, color: c.muted, marginTop: 2 },
-  circleDesc: { fontSize: 13, color: c.muted, marginBottom: 12 },
+  circleNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  circleName: { fontSize: 16, fontWeight: '700', fontFamily: fonts.bold, color: c.dark },
+  recentBadge: { backgroundColor: c.goldBgTint, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  recentBadgeText: { fontSize: 9, fontWeight: '700', fontFamily: fonts.bold, color: c.accentDark, letterSpacing: 0.3 },
+  circleMeta: { fontSize: 12, color: c.muted, fontFamily: fonts.medium, marginTop: 2 },
+  circleDesc: { fontSize: 13, color: c.muted, fontFamily: fonts.regular, lineHeight: 18, marginBottom: 12 },
   statsRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: c.border, paddingTop: 12 },
   statItem: { flex: 1, alignItems: 'center' },
   statDivider: { width: 1, backgroundColor: c.border },
-  statValue: { fontSize: 13, fontWeight: '700', color: c.dark },
-  statLabel: { fontSize: 10, color: c.muted, marginTop: 3 },
+  statValue: { fontSize: 13, fontWeight: '700', fontFamily: fonts.bold, color: c.dark },
+  statLabel: { fontSize: 10, color: c.muted, fontFamily: fonts.medium, marginTop: 3 },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modal: { backgroundColor: c.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '90%' as const },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: c.dark, textAlign: 'center', marginBottom: 20 },
-  label: { fontSize: 12, color: c.muted, fontWeight: '600', marginBottom: 6, marginTop: 14 },
-  input: { backgroundColor: c.bg, borderRadius: 10, padding: 14, fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border },
+  modalTitle: { fontSize: 20, fontWeight: '700', fontFamily: fonts.bold, color: c.dark, textAlign: 'center', marginBottom: 20 },
+  label: { fontSize: 12, color: c.muted, fontWeight: '600', fontFamily: fonts.semibold, marginBottom: 6, marginTop: 14 },
+  input: { backgroundColor: c.bg, borderRadius: 10, padding: 14, fontSize: 14, fontFamily: fonts.regular, color: c.dark, borderWidth: 1, borderColor: c.border },
   createBtn: { backgroundColor: c.buttonDark, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
-  createBtnText: { color: c.buttonDarkText, fontSize: 15, fontWeight: '700' },
+  createBtnText: { color: c.buttonDarkText, fontSize: 15, fontWeight: '700', fontFamily: fonts.bold },
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
-  cancelBtnText: { color: c.muted, fontSize: 14 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: c.muted, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 4 },
+  cancelBtnText: { color: c.muted, fontSize: 14, fontFamily: fonts.medium },
+  sectionTitle: { fontSize: 13, fontWeight: '700', fontFamily: fonts.bold, color: c.muted, textTransform: 'uppercase' as const, letterSpacing: 0.6, marginBottom: 4 },
   pendingCard: { borderLeftWidth: 3, borderLeftColor: c.accent, backgroundColor: c.goldBgTint },
   inviteActions: { flexDirection: 'row', gap: 8, marginTop: 12 },
   acceptBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.accent, borderRadius: 10, paddingVertical: 10, flex: 1 },
-  acceptBtnText: { color: c.surface, fontSize: 14, fontWeight: '600' },
+  acceptBtnText: { color: c.surface, fontSize: 14, fontWeight: '600', fontFamily: fonts.semibold },
   rejectBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.danger, borderRadius: 10, paddingVertical: 10, flex: 1 },
-  rejectBtnText: { color: c.surface, fontSize: 14, fontWeight: '600' },
+  rejectBtnText: { color: c.surface, fontSize: 14, fontWeight: '600', fontFamily: fonts.semibold },
 });
 
 export default function CirclesScreen({ navigation }: Props) {
@@ -92,6 +101,7 @@ export default function CirclesScreen({ navigation }: Props) {
   const { showAlert } = useAppAlert();
   const { confirm } = useConfirmModal();
   const [circles, setCircles] = useState<Circle[]>([]);
+  const [recentIds, setRecentIds] = useState<number[]>([]);
   const [pending, setPending] = useState<Circle[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -116,12 +126,13 @@ export default function CirclesScreen({ navigation }: Props) {
       // Pin the 3 most-recently-accessed circles to the top, in that order.
       // Everything else keeps its original (backend) order below them --
       // nothing is hidden, just reordered.
-      const recentIds = recentOrder.slice(0, 3);
-      const pinned = recentIds
+      const topRecentIds = recentOrder.slice(0, 3);
+      const pinned = topRecentIds
         .map((id) => active.find((c) => c.id === id))
         .filter((c): c is Circle => c !== undefined);
-      const rest = active.filter((c) => !recentIds.includes(c.id));
+      const rest = active.filter((c) => !topRecentIds.includes(c.id));
       setCircles([...pinned, ...rest]);
+      setRecentIds(topRecentIds);
       setPending(pendingData as Circle[]);
     } catch (error) {
       console.error('Error loading circles:', error);
@@ -214,7 +225,9 @@ export default function CirclesScreen({ navigation }: Props) {
 
       {circles.length === 0 && pending.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="people-outline" size={48} color={colors.muted} />
+          <View style={styles.emptyIconBox}>
+            <Ionicons name="people-outline" size={32} color={colors.muted} />
+          </View>
           <Text style={styles.emptyTitle}>No circles yet</Text>
           <Text style={styles.emptyText}>Create one to start lending with friends</Text>
           <TouchableOpacity style={styles.emptyBtn} onPress={() => { setNameError(''); setShowCreate(true); }}>
@@ -232,8 +245,8 @@ export default function CirclesScreen({ navigation }: Props) {
               {pending.map(item => (
                 <View key={`pending-${item.id}`} style={[styles.circleCard, styles.pendingCard]}>
                   <View style={styles.circleTop}>
-                    <View style={[styles.circleIconBox, { borderColor: colors.accent }]}>
-                      <Ionicons name="mail-outline" size={20} color={colors.accent} />
+                    <View style={styles.circleIconBox}>
+                      <Ionicons name="mail-outline" size={20} color={colors.accentDark} />
                     </View>
                     <View style={styles.circleInfo}>
                       <Text style={styles.circleName}>{item.name}</Text>
@@ -274,10 +287,17 @@ export default function CirclesScreen({ navigation }: Props) {
             >
               <View style={styles.circleTop}>
                 <View style={styles.circleIconBox}>
-                  <Ionicons name="people-outline" size={20} color={colors.accent} />
+                  <Ionicons name="people" size={20} color={colors.accentDark} />
                 </View>
                 <View style={styles.circleInfo}>
-                  <Text style={styles.circleName}>{item.name}</Text>
+                  <View style={styles.circleNameRow}>
+                    <Text style={styles.circleName}>{item.name}</Text>
+                    {recentIds.includes(item.id) && (
+                      <View style={styles.recentBadge}>
+                        <Text style={styles.recentBadgeText}>RECENT</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={styles.circleMeta}>{item.memberCount} members</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.muted} />
