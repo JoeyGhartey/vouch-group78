@@ -92,6 +92,8 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
   );
   const [payerAlreadyPaid, setPayerAlreadyPaid] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(false);
+  const [amountError, setAmountError] = useState<string>('');
+  const [membersError, setMembersError] = useState<string>('');
 
   const toggleMember = (userId: number): void => {
     setSelectedMembers(prev =>
@@ -100,8 +102,10 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
   };
 
   const handleSubmit = async (): Promise<void> => {
-    if (!amount || parseFloat(amount) <= 0) { showAlert('error', 'Error', 'Enter a valid amount'); return; }
-    if (selectedMembers.length < 2) { showAlert('error', 'Error', 'Select at least 2 members'); return; }
+    setAmountError('');
+    setMembersError('');
+    if (!amount || parseFloat(amount) <= 0) { setAmountError('Enter a valid amount'); return; }
+    if (selectedMembers.length < 2) { setMembersError('Select at least 2 members'); return; }
     setLoading(true);
     try {
       await createSharedExpense({
@@ -140,9 +144,10 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
             placeholder="e.g. 120"
             placeholderTextColor={colors.muted}
             value={amount}
-            onChangeText={setAmount}
+            onChangeText={(text) => { setAmount(text); setAmountError(''); }}
             keyboardType="numeric"
           />
+          {amountError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{amountError}</Text>}
 
           <Text style={styles.label}>Category</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 4, marginBottom: 4 }}>
@@ -178,6 +183,7 @@ export default function AddSharedExpenseScreen({ route, navigation }: Props) {
               </TouchableOpacity>
             );
           })}
+          {membersError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{membersError}</Text>}
 
           <View style={styles.paidToggleRow}>
             <Text style={styles.paidToggleText}>I have already paid my share</Text>

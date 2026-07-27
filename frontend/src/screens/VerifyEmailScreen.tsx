@@ -78,6 +78,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
   const { phone, email } = route.params;
 
   const [otp, setOtp] = useState<string>('');
+  const [otpError, setOtpError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [resending, setResending] = useState<boolean>(false);
   const [cooldown, setCooldown] = useState<number>(RESEND_COOLDOWN_SECONDS);
@@ -92,7 +93,7 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
 
   const handleVerify = async (): Promise<void> => {
     if (!otp.trim() || otp.trim().length !== 6) {
-      showAlert('error', 'Error', 'Enter the 6-digit code we emailed you'); return;
+      setOtpError('Enter the 6-digit code we emailed you'); return;
     }
     setLoading(true);
     try {
@@ -149,10 +150,11 @@ export default function VerifyEmailScreen({ navigation, route }: Props) {
             placeholder="000000"
             placeholderTextColor={colors.muted}
             value={otp}
-            onChangeText={(t) => setOtp(t.replace(/[^0-9]/g, '').slice(0, 6))}
+            onChangeText={(t) => { setOtp(t.replace(/[^0-9]/g, '').slice(0, 6)); setOtpError(''); }}
             keyboardType="number-pad"
             maxLength={6}
           />
+          {otpError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{otpError}</Text>}
 
           <TouchableOpacity
             style={[styles.btn, loading && { opacity: 0.6 }]}

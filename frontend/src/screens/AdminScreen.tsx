@@ -88,6 +88,7 @@ export default function AdminScreen({ navigation }: Props) {
   const [adminNotes, setAdminNotes] = useState<string>('');
   const [outcome, setOutcome] = useState<string>('BORROWER_FAVOR');
   const [resolving, setResolving] = useState<boolean>(false);
+  const [resolutionError, setResolutionError] = useState<string>('');
 
   const loadDisputes = async (): Promise<void> => {
     try {
@@ -104,7 +105,8 @@ export default function AdminScreen({ navigation }: Props) {
   useFocusEffect(useCallback(() => { loadDisputes(); }, []));
 
   const handleResolve = async (): Promise<void> => {
-    if (!resolution.trim()) { showAlert('error', 'Error', 'Enter a resolution'); return; }
+    setResolutionError('');
+    if (!resolution.trim()) { setResolutionError('Enter a resolution'); return; }
     setResolving(true);
     try {
       await resolveDispute(selectedDispute!.id, { outcome, resolution, adminNotes });
@@ -236,9 +238,10 @@ export default function AdminScreen({ navigation }: Props) {
                   placeholder="Describe the resolution decision"
                   placeholderTextColor={colors.muted}
                   value={resolution}
-                  onChangeText={setResolution}
+                  onChangeText={(text) => { setResolution(text); setResolutionError(''); }}
                   multiline
                 />
+                {resolutionError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{resolutionError}</Text>}
                 <Text style={styles.label}>Admin Notes</Text>
                 <TextInput
                   style={[styles.input, { height: 60 }]}

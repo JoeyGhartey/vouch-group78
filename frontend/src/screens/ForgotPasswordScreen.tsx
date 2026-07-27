@@ -111,7 +111,9 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
   const [identifier, setIdentifier] = useState<string>('');
   const [identifierError, setIdentifierError] = useState<string>('');
   const [otp, setOtp] = useState<string>('');
+  const [otpError, setOtpError] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
+  const [newPasswordError, setNewPasswordError] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -145,16 +147,16 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 
   const handleReset = async (): Promise<void> => {
     if (!otp.trim()) {
-      showAlert('error', 'Error', 'Enter the 6-digit code we sent you'); return;
+      setOtpError('Enter the 6-digit code we sent you'); return;
     }
     if (!newPassword) {
-      showAlert('error', 'Error', 'Please enter a new password'); return;
+      setNewPasswordError('Please enter a new password'); return;
     }
     if (!rules.every(r => r.met)) {
-      showAlert('error', 'Weak Password', 'Password does not meet the requirements below'); return;
+      return;
     }
     if (newPassword !== confirmPassword) {
-      showAlert('error', 'Error', 'Passwords do not match'); return;
+      return;
     }
     setLoading(true);
     try {
@@ -227,10 +229,11 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
                 placeholder="6-digit code"
                 placeholderTextColor={colors.muted}
                 value={otp}
-                onChangeText={setOtp}
+                onChangeText={(t) => { setOtp(t); setOtpError(''); }}
                 keyboardType="number-pad"
                 maxLength={6}
               />
+              {otpError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{otpError}</Text>}
 
               <Text style={styles.label}>New Password</Text>
               <TextInput
@@ -238,9 +241,10 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
                 placeholder="At least 6 characters"
                 placeholderTextColor={colors.muted}
                 value={newPassword}
-                onChangeText={setNewPassword}
+                onChangeText={(t) => { setNewPassword(t); setNewPasswordError(''); }}
                 secureTextEntry
               />
+              {newPasswordError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{newPasswordError}</Text>}
 
               {newPassword.length > 0 && (
                 <>

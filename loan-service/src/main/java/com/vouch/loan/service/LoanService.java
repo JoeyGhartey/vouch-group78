@@ -643,6 +643,9 @@ public class LoanService {
     public List<LoanResponse> getMyLoansAsBorrower(String phone) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
         List<Loan> loans = loanRepository.findByBorrowerIdOrderByCreatedAtDesc(userId);
+        loans = loans.stream()
+                .filter(l -> !Boolean.TRUE.equals(l.getHiddenByBorrower()))
+                .collect(Collectors.toList());
         Map<Long, Map<String, Object>> users = fetchUsersForLoans(loans);
         return loans.stream()
                 .map(l -> mapToLoanResponse(l, null, users))
@@ -652,10 +655,40 @@ public class LoanService {
     public List<LoanResponse> getMyLoansAsLender(String phone) {
         Long userId = authServiceClient.getUserIdByPhone(phone);
         List<Loan> loans = loanRepository.findByLenderIdOrderByCreatedAtDesc(userId);
+        loans = loans.stream()
+                .filter(l -> !Boolean.TRUE.equals(l.getHiddenByLender()))
+                .collect(Collectors.toList());
         Map<Long, Map<String, Object>> users = fetchUsersForLoans(loans);
         return loans.stream()
                 .map(l -> mapToLoanResponse(l, null, users))
                 .collect(Collectors.toList());
+    }
+
+    private static final java.util.Set<Loan.LoanStatus> HIDEABLE_STATUSES = java.util.Set.of(
+            Loan.LoanStatus.REPAID, Loan.LoanStatus.DEFAULTED, Loan.LoanStatus.CANCELLED);
+
+    public void hideLoan(String phone, Long loanId) {
+        Long userId = authServiceClient.getUserIdByPhone(phone);
+        Loan loan = loanRepository.findById(loanId)
+                .orElseThrow(() -> new RuntimeException("Loan not found"));
+
+        if (!HIDEABLE_STATUSES.contains(loan.getStatus())) {
+            throw new RuntimeException("Only completed, defaulted, or cancelled loans can be removed from history");
+        }
+
+        boolean isBorrower = userId.equals(loan.getBorrowerId());
+        boolean isLender = userId.equals(loan.getLenderId());
+        if (!isBorrower && !isLender) {
+            throw new RuntimeException("You are not a party to this loan");
+        }
+
+        if (isBorrower) {
+            loan.setHiddenByBorrower(true);
+        }
+        if (isLender) {
+            loan.setHiddenByLender(true);
+        }
+        loanRepository.save(loan);
     }
 
     public LoanResponse getLoan(String phone, Long loanId) {

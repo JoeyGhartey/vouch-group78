@@ -254,6 +254,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const [showEdit, setShowEdit] = useState<boolean>(false);
   const [editData, setEditData] = useState<EditData>({ firstName: '', lastName: '', email: '', momoProvider: '', momoNumber: '' });
   const [momoSameAsPhone, setMomoSameAsPhone] = useState<boolean>(false);
+  const [momoNumberError, setMomoNumberError] = useState<string>('');
   const [saving, setSaving] = useState<boolean>(false);
   const { signOut } = useAuth();
 
@@ -280,8 +281,9 @@ export default function ProfileScreen({ navigation }: Props) {
   useFocusEffect(useCallback(() => { loadData(); }, []));
 
   const handleEdit = async (): Promise<void> => {
+    setMomoNumberError('');
     if (!momoSameAsPhone && editData.momoNumber && editData.momoNumber.length !== 10) {
-      showAlert('error', 'Invalid MoMo Number', 'MoMo number must be exactly 10 digits, or left empty'); return;
+      setMomoNumberError('MoMo number must be exactly 10 digits, or left empty'); return;
     }
     setSaving(true);
     try {
@@ -306,6 +308,7 @@ export default function ProfileScreen({ navigation }: Props) {
       momoNumber: profile.momoNumber || '',
     });
     setMomoSameAsPhone(!!profile.momoNumber && profile.momoNumber === profile.phone);
+    setMomoNumberError('');
     setShowEdit(true);
   };
 
@@ -605,11 +608,12 @@ export default function ProfileScreen({ navigation }: Props) {
             <TextInput
               style={[styles.input, momoSameAsPhone && styles.inputDisabled]}
               value={editData.momoNumber}
-              onChangeText={(t) => setEditData({ ...editData, momoNumber: t.replace(/[^0-9]/g, '').slice(0, 10) })}
+              onChangeText={(t) => { setEditData({ ...editData, momoNumber: t.replace(/[^0-9]/g, '').slice(0, 10) }); setMomoNumberError(''); }}
               keyboardType="phone-pad"
               editable={!momoSameAsPhone}
               placeholderTextColor={colors.muted}
             />
+            {momoNumberError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{momoNumberError}</Text>}
 
             <TouchableOpacity style={[styles.primaryBtn, saving && { opacity: 0.6 }]} onPress={handleEdit} disabled={saving}>
               {saving ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Save Changes</Text>}

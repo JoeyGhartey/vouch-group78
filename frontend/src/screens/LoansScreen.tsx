@@ -7,8 +7,9 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { getMyBorrowedLoans, getMyLentLoans, getMyCircles, requestLoan } from '../services/api';
+import { getMyBorrowedLoans, getMyLentLoans, getMyCircles, requestLoan, hideLoan } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
+import { useConfirmModal } from '../components/ConfirmModal';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
@@ -20,6 +21,13 @@ import { fonts } from '../theme/fonts';
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList>;
 };
+
+// Statuses where a loan never got (and now never will get) a lender assigned --
+// showing "Waiting..." here is misleading since nothing is actually pending.
+const TERMINAL_NO_LENDER_STATUSES = ['CANCELLED', 'DEFAULTED'];
+
+// Statuses a loan must be in before it can be cleared from history.
+const HIDEABLE_STATUSES = ['REPAID', 'DEFAULTED', 'CANCELLED'];
 
 interface Loan {
   id: number;
@@ -114,6 +122,8 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.surface, borderRadius: 16, padding: 16,
     borderWidth: 1, borderColor: c.border, flexDirection: 'row', gap: 12,
   },
+  loanTopRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  loanHideBtn: { padding: 2 },
   loanIconBox: {
     width: 42, height: 42, borderRadius: 12,
     justifyContent: 'center', alignItems: 'center',
@@ -140,6 +150,8 @@ export default function LoansScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { showAlert } = useAppAlert();
+  const { confirm } = useConfirmModal();
+  const [hidingLoanId, setHidingLoanId] = useState<number | null>(null);
   const [borrowed, setBorrowed] = useState<Loan[]>([]);
   const [lent, setLent] = useState<Loan[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -191,6 +203,21 @@ export default function LoansScreen({ navigation }: Props) {
   };
 
   useFocusEffect(useCallback(() => { loadLoans(); }, []));
+
+  const handleHideLoan = async (loanId: number): Promise<void> => {
+    if (hidingLoanId !== null) return;
+    const ok = await confirm('Remove from History', 'This only removes it from your own list — it stays visible to the other party. Continue?', 'Remove');
+    if (!ok) return;
+    setHidingLoanId(loanId);
+    try {
+      await hideLoan(loanId);
+      loadLoans();
+    } catch (error) {
+      showAlert('error', 'Error', (error as Error).message);
+    } finally {
+      setHidingLoanId(null);
+    }
+  };
 
   const openRequestModal = async (): Promise<void> => {
     setShowRequestModal(true);
@@ -348,10 +375,22 @@ export default function LoansScreen({ navigation }: Props) {
               <View style={styles.loanCardBody}>
                 <View style={styles.loanTop}>
                   <Text style={styles.loanAmount}>GHS {formatMoney(item.amount)}</Text>
-                  <View style={[styles.badge, { backgroundColor: `${statusColor(item.status)}18` }]}>
-                    <Text style={[styles.badgeText, { color: statusColor(item.status) }]}>
-                      {item.status.replace(/_/g, ' ')}
-                    </Text>
+                  <View style={styles.loanTopRight}>
+                    <View style={[styles.badge, { backgroundColor: `${statusColor(item.status)}18` }]}>
+                      <Text style={[styles.badgeText, { color: statusColor(item.status) }]}>
+                        {item.status.replace(/_/g, ' ')}
+                      </Text>
+                    </View>
+                    {HIDEABLE_STATUSES.includes(item.status) && (
+                      <TouchableOpacity
+                        style={styles.loanHideBtn}
+                        onPress={() => handleHideLoan(item.id)}
+                        disabled={hidingLoanId === item.id}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="close" size={15} color={colors.muted} />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
                 <Text style={styles.loanReason} numberOfLines={1}>{item.reason}</Text>
@@ -359,7 +398,7 @@ export default function LoansScreen({ navigation }: Props) {
                 <View style={styles.loanMeta}>
                   <Text style={styles.metaText} numberOfLines={1}>
                     {activeTab === 'borrowed'
-                      ? `Lender: ${item.lenderName || (item.isGroupFunded ? 'Group Funded' : 'Waiting...')}`
+                      ? `Lender: ${item.lenderName || (item.isGroupFunded ? 'Group Funded' : TERMINAL_NO_LENDER_STATUSES.includes(item.status) ? item.status.replace(/_/g, ' ').toLowerCase() : 'Waiting...')}`
                       : `Borrower: ${item.borrowerName}`}
                   </Text>
                   {item.interestRate > 0 && (

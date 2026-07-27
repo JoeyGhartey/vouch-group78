@@ -167,6 +167,7 @@ export const cancelLoan = (loanId: number) => request(`/loans/${loanId}/cancel`,
 export const rejectAgreement = (loanId: number) => request(`/loans/${loanId}/reject`, 'POST');
 export const proposeCounterOffer = (loanId: number, newRate: number) => request(`/loans/${loanId}/counter-offer`, 'POST', { newRate });
 export const respondToCounterOffer = (loanId: number, accept: boolean) => request(`/loans/${loanId}/counter-offer/respond`, 'POST', { accept });
+export const hideLoan = (loanId: number) => request(`/loans/${loanId}/hide`, 'POST');
 export const getCircleLoans = (circleId: number) => request(`/loans/circle/${circleId}`);
 export const getCircleLoanRequests = (circleId: number) => request(`/loans/circle/${circleId}/requests`);
 export const getMyBorrowedLoans = () => request('/loans/borrowed');

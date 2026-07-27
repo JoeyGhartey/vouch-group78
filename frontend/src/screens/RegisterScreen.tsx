@@ -147,6 +147,14 @@ export default function RegisterScreen({ navigation }: Props) {
   const [loading, setLoading] = useState<boolean>(false);
   const { showAlert } = useAppAlert();
 
+  const [firstNameError, setFirstNameError] = useState<string>('');
+  const [lastNameError, setLastNameError] = useState<string>('');
+  const [phoneError, setPhoneError] = useState<string>('');
+  const [emailError, setEmailError] = useState<string>('');
+  const [momoNumberError, setMomoNumberError] = useState<string>('');
+  const [passwordError, setPasswordError] = useState<string>('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState<string>('');
+
   const strength = getPasswordStrength(password, colors);
 
   const rules = [
@@ -181,32 +189,27 @@ export default function RegisterScreen({ navigation }: Props) {
   };
 
   const handleRegister = async (): Promise<void> => {
-    if (!firstName || !lastName || !phone || !email || !password) {
-      showAlert('error', 'Error', 'Please fill in all required fields'); return;
-    }
+    let hasError = false;
+    if (!firstName) { setFirstNameError('First name is required'); hasError = true; }
+    if (!lastName) { setLastNameError('Last name is required'); hasError = true; }
+    if (!phone) { setPhoneError('Phone number is required'); hasError = true; }
+    if (!email) { setEmailError('Email is required'); hasError = true; }
+    if (!password) { setPasswordError('Password is required'); hasError = true; }
+    if (hasError) return;
     if (phone.length !== 10) {
-      showAlert('error', 'Invalid Phone Number', 'Phone number must be exactly 10 digits'); return;
+      setPhoneError('Phone number must be exactly 10 digits'); return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      showAlert('error', 'Invalid Email', 'Enter a valid email address — we\'ll send a verification code there'); return;
+      setEmailError('Enter a valid email address — we\'ll send a verification code there'); return;
     }
     if (!momoSameAsPhone && momoNumber && momoNumber.length !== 10) {
-      showAlert('error', 'Invalid MoMo Number', 'MoMo number must be exactly 10 digits, or left empty to use your phone number'); return;
+      setMomoNumberError('MoMo number must be exactly 10 digits, or left empty to use your phone number'); return;
     }
-    if (password.length < 6) {
-      showAlert('error', 'Weak Password', 'Password must be at least 6 characters'); return;
-    }
-    if (!/[A-Z]/.test(password)) {
-      showAlert('error', 'Weak Password', 'Password must contain at least one uppercase letter'); return;
-    }
-    if (!/[0-9]/.test(password)) {
-      showAlert('error', 'Weak Password', 'Password must contain at least one number'); return;
-    }
-    if (!/[^A-Za-z0-9]/.test(password)) {
-      showAlert('error', 'Weak Password', 'Password must contain at least one special character e.g. !@#$'); return;
+    if (password.length < 6 || !/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+      return;
     }
     if (password !== confirmPassword) {
-      showAlert('error', 'Error', 'Passwords do not match'); return;
+      setConfirmPasswordError('Passwords do not match'); return;
     }
     setLoading(true);
     try {
@@ -252,11 +255,13 @@ export default function RegisterScreen({ navigation }: Props) {
           <View style={styles.row}>
             <View style={styles.half}>
               <Text style={[styles.label, styles.labelFirst]}>First Name *</Text>
-              <TextInput style={styles.input} placeholder="First name" placeholderTextColor={colors.muted} value={firstName} onChangeText={setFirstName} />
+              <TextInput style={styles.input} placeholder="First name" placeholderTextColor={colors.muted} value={firstName} onChangeText={(t) => { setFirstName(t); setFirstNameError(''); }} />
+              {firstNameError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{firstNameError}</Text>}
             </View>
             <View style={styles.half}>
               <Text style={[styles.label, styles.labelFirst]}>Last Name *</Text>
-              <TextInput style={styles.input} placeholder="Last name" placeholderTextColor={colors.muted} value={lastName} onChangeText={setLastName} />
+              <TextInput style={styles.input} placeholder="Last name" placeholderTextColor={colors.muted} value={lastName} onChangeText={(t) => { setLastName(t); setLastNameError(''); }} />
+              {lastNameError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{lastNameError}</Text>}
             </View>
           </View>
 
@@ -266,13 +271,15 @@ export default function RegisterScreen({ navigation }: Props) {
             placeholder="e.g. 0241234567"
             placeholderTextColor={colors.muted}
             value={phone}
-            onChangeText={handlePhoneChange}
+            onChangeText={(t) => { handlePhoneChange(t); setPhoneError(''); }}
             keyboardType="phone-pad"
             maxLength={10}
           />
+          {phoneError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{phoneError}</Text>}
 
           <Text style={styles.label}>Email *</Text>
-          <TextInput style={styles.input} placeholder="your@email.com" placeholderTextColor={colors.muted} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+          <TextInput style={styles.input} placeholder="your@email.com" placeholderTextColor={colors.muted} value={email} onChangeText={(t) => { setEmail(t); setEmailError(''); }} keyboardType="email-address" autoCapitalize="none" />
+          {emailError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{emailError}</Text>}
           <Text style={{ fontSize: 11, color: colors.muted, marginTop: 4 }}>We'll send a verification code here before your account is created.</Text>
 
           <View style={styles.sectionHeader}>
@@ -317,11 +324,12 @@ export default function RegisterScreen({ navigation }: Props) {
             placeholder="Same as phone if left empty"
             placeholderTextColor={colors.muted}
             value={momoNumber}
-            onChangeText={handleMomoNumberChange}
+            onChangeText={(t) => { handleMomoNumberChange(t); setMomoNumberError(''); }}
             keyboardType="phone-pad"
             editable={!momoSameAsPhone}
             maxLength={10}
           />
+          {momoNumberError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{momoNumberError}</Text>}
 
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIconBox}>
@@ -336,9 +344,10 @@ export default function RegisterScreen({ navigation }: Props) {
             placeholder="At least 6 characters"
             placeholderTextColor={colors.muted}
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(t) => { setPassword(t); setPasswordError(''); }}
             secureTextEntry
           />
+          {passwordError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{passwordError}</Text>}
 
           {/* Strength bars */}
           {password.length > 0 && (
@@ -378,7 +387,7 @@ export default function RegisterScreen({ navigation }: Props) {
             placeholder="Confirm your password"
             placeholderTextColor={colors.muted}
             value={confirmPassword}
-            onChangeText={setConfirmPassword}
+            onChangeText={(t) => { setConfirmPassword(t); setConfirmPasswordError(''); }}
             secureTextEntry
           />
           {confirmPassword.length > 0 && (
@@ -386,6 +395,7 @@ export default function RegisterScreen({ navigation }: Props) {
               {confirmPassword === password ? 'Passwords match' : "Passwords don't match"}
             </Text>
           )}
+          {confirmPasswordError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{confirmPasswordError}</Text>}
 
           <TouchableOpacity style={[styles.btn, loading && { opacity: 0.6 }]} onPress={handleRegister} disabled={loading}>
             {loading ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Create Account</Text>}

@@ -268,6 +268,11 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   const [disputeEvidence, setDisputeEvidence] = useState<string>('');
   const [dispute, setDispute] = useState<Dispute | null>(null);
   const [escalating, setEscalating] = useState<boolean>(false);
+  const [fundRateError, setFundRateError] = useState<string>('');
+  const [contributeAmountError, setContributeAmountError] = useState<string>('');
+  const [contributeRateError, setContributeRateError] = useState<string>('');
+  const [counterRateError, setCounterRateError] = useState<string>('');
+  const [disputeReasonError, setDisputeReasonError] = useState<string>('');
   const confirmingRef = useRef(false);
 
   const loadData = async (): Promise<void> => {
@@ -316,8 +321,9 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   };
 
   const handleFund = (): void => {
+    setFundRateError('');
     if (!interestRate || parseFloat(interestRate) < 0) {
-      showAlert('error', 'Error', 'Enter a valid interest rate');
+      setFundRateError('Enter a valid interest rate');
       return;
     }
     doAction(async () => {
@@ -351,16 +357,18 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   // happens later, once the loan is fully funded and every party (borrower +
   // all lenders) has signed the agreement, via handlePayShare below.
   const handleContribute = (): void => {
+    setContributeAmountError('');
+    setContributeRateError('');
     const amt = parseFloat(contributeAmount);
     const rate = parseFloat(contributeRate);
     if (!amt || amt <= 0) {
-      showAlert('error', 'Error', 'Enter a valid amount'); return;
+      setContributeAmountError('Enter a valid amount'); return;
     }
     if (amt > remainingToFund()) {
-      showAlert('error', 'Error', `Amount exceeds what's still needed (GHS ${formatMoney(remainingToFund())})`); return;
+      setContributeAmountError(`Amount exceeds what's still needed (GHS ${formatMoney(remainingToFund())})`); return;
     }
     if (!contributeRate || rate < 0) {
-      showAlert('error', 'Error', 'Enter a valid interest rate'); return;
+      setContributeRateError('Enter a valid interest rate'); return;
     }
     doAction(async () => {
       await contributeToLoan({ loanId: loan!.id, amount: amt, interestRate: rate });
@@ -439,8 +447,9 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   };
 
   const handleProposeCounterOffer = (): void => {
+    setCounterRateError('');
     if (!counterRate || parseFloat(counterRate) < 0) {
-      showAlert('error', 'Error', 'Enter a valid interest rate');
+      setCounterRateError('Enter a valid interest rate');
       return;
     }
     doAction(async () => {
@@ -560,7 +569,8 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
   };
 
   const handleDispute = (): void => {
-    if (!disputeReason.trim()) { showAlert('error', 'Error', 'Enter a reason'); return; }
+    setDisputeReasonError('');
+    if (!disputeReason.trim()) { setDisputeReasonError('Enter a reason'); return; }
     doAction(async () => {
       await openDispute({ loanId: loan!.id, reason: disputeReason, evidence: disputeEvidence });
       setShowDispute(false);
@@ -687,11 +697,13 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
           </View>
           {/* Group loans never set a single lenderName -- there isn't one --
               so showing "Waiting" here was misleading regardless of how far
-              along the loan actually was. Show contributor count instead. */}
+              along the loan actually was. Show contributor count instead.
+              Cancelled/defaulted loans with no lender will never get one,
+              so "Waiting" is wrong there too -- show the actual status instead. */}
           <Text style={styles.partyName} numberOfLines={1}>
             {loan.isGroupFunded
               ? `${contributions?.contributorCount ?? 0} Lender${contributions?.contributorCount === 1 ? '' : 's'}`
-              : (loan.lenderName || 'Waiting')}
+              : (loan.lenderName || (['CANCELLED', 'DEFAULTED'].includes(loan.status) ? loan.status.replace(/_/g, ' ').toLowerCase() : 'Waiting'))}
           </Text>
           <Text style={styles.partyRole}>Lender</Text>
         </View>
@@ -1015,9 +1027,10 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               placeholder="e.g. 5"
               placeholderTextColor={colors.muted}
               value={interestRate}
-              onChangeText={setInterestRate}
+              onChangeText={(text) => { setInterestRate(text); setFundRateError(''); }}
               keyboardType="numeric"
             />
+            {fundRateError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{fundRateError}</Text>}
             {parseFloat(interestRate) > loan.borrowerMaxInterestRate && (
               <Text style={styles.rateErrorText}>
                 Exceeds the {loan.borrowerMaxInterestRate}% max for this borrower
@@ -1066,18 +1079,20 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               placeholder={`Up to ${remainingToFund().toFixed(2)}`}
               placeholderTextColor={colors.muted}
               value={contributeAmount}
-              onChangeText={setContributeAmount}
+              onChangeText={(text) => { setContributeAmount(text); setContributeAmountError(''); }}
               keyboardType="numeric"
             />
+            {contributeAmountError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{contributeAmountError}</Text>}
             <Text style={styles.label}>Interest Rate (%)</Text>
             <TextInput
               style={styles.input}
               placeholder="e.g. 5"
               placeholderTextColor={colors.muted}
               value={contributeRate}
-              onChangeText={setContributeRate}
+              onChangeText={(text) => { setContributeRate(text); setContributeRateError(''); }}
               keyboardType="numeric"
             />
+            {contributeRateError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{contributeRateError}</Text>}
             {parseFloat(contributeRate) > loan.borrowerMaxInterestRate && (
               <Text style={styles.rateErrorText}>
                 Exceeds the {loan.borrowerMaxInterestRate}% max for this borrower
@@ -1118,9 +1133,10 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               placeholder="e.g. 3"
               placeholderTextColor={colors.muted}
               value={counterRate}
-              onChangeText={setCounterRate}
+              onChangeText={(text) => { setCounterRate(text); setCounterRateError(''); }}
               keyboardType="numeric"
             />
+            {counterRateError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{counterRateError}</Text>}
             <TouchableOpacity style={styles.primaryBtn} onPress={handleProposeCounterOffer} disabled={acting}>
               {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Send Counter-Offer</Text>}
             </TouchableOpacity>
@@ -1175,9 +1191,10 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               placeholder="Why are you disputing?"
               placeholderTextColor={colors.muted}
               value={disputeReason}
-              onChangeText={setDisputeReason}
+              onChangeText={(text) => { setDisputeReason(text); setDisputeReasonError(''); }}
               multiline
             />
+            {disputeReasonError !== '' && <Text style={{ color: colors.errorRed, fontSize: 13, marginTop: 6 }}>{disputeReasonError}</Text>}
             <Text style={styles.label}>Evidence</Text>
             <TextInput
               style={[styles.input, { height: 80 }]}

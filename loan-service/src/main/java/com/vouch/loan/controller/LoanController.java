@@ -109,6 +109,12 @@ public class LoanController {
         return ResponseEntity.ok(loanService.getLoan(auth.getName(), loanId));
     }
 
+    @PostMapping("/{loanId}/hide")
+    public ResponseEntity<Map<String, String>> hideLoan(Authentication auth, @PathVariable Long loanId) {
+        loanService.hideLoan(auth.getName(), loanId);
+        return ResponseEntity.ok(Map.of("message", "Loan removed from your history"));
+    }
+
     // One-time admin fix: backfills totalLoansGiven/totalLoansReceived for every
     // user from their full loan history, since those fields never got written
     // for anything disbursed before syncLoanCountStats existed. Safe to call

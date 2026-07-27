@@ -99,6 +99,15 @@ public class Loan {
     private Double platformFee;
     private Double borrowerReceivedAmount;
 
+    // Per-user "remove from my history" flags -- a loan involves two people,
+    // so it can't be hard-deleted just because one side clears it; each side
+    // hides it independently from their own list. Nullable (not nullable=false)
+    // for the same reason as other Boolean columns added after launch: Postgres
+    // won't add a NOT NULL column with no default to a table that already has
+    // rows. Application code treats null the same as false via Boolean.TRUE.equals(...).
+    private Boolean hiddenByBorrower;
+    private Boolean hiddenByLender;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
