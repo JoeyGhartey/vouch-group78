@@ -39,6 +39,7 @@ interface NewCircleForm {
   minTrustScore: string;
 }
 
+
 const createStyles = (c: ColorScheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.bg, padding: 24 },
@@ -48,6 +49,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: c.border,
   },
   title: { fontSize: 22, fontWeight: '700', fontFamily: fonts.bold, color: c.dark },
+  subtitle: { fontSize: 12.5, color: c.muted, fontFamily: fonts.medium, marginTop: 2 },
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.buttonDark, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
   addBtnText: { color: c.buttonDarkText, fontSize: 14, fontWeight: '600', fontFamily: fonts.semibold },
   emptyIconBox: {
@@ -73,7 +75,10 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   circleMeta: { fontSize: 12, color: c.muted, fontFamily: fonts.medium, marginTop: 2 },
   circleDesc: { fontSize: 13, color: c.muted, fontFamily: fonts.regular, lineHeight: 18, marginBottom: 12 },
   statsRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: c.border, paddingTop: 12 },
-  statItem: { flex: 1, alignItems: 'center' },
+  // flexBasis: 0 (alongside flex: 1) forces the three columns to stay equal
+  // width regardless of content length, and the value text shrinks to fit
+  // instead of overflowing and pushing its neighbors out of alignment.
+  statItem: { flex: 1, flexBasis: 0, alignItems: 'center', paddingHorizontal: 2 },
   statDivider: { width: 1, backgroundColor: c.border },
   statValue: { fontSize: 13, fontWeight: '700', fontFamily: fonts.bold, color: c.dark },
   statLabel: { fontSize: 10, color: c.muted, fontFamily: fonts.medium, marginTop: 3 },
@@ -216,7 +221,13 @@ export default function CirclesScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>My Circles</Text>
+        <View>
+          <Text style={styles.title}>My Circles</Text>
+          <Text style={styles.subtitle}>
+            {circles.length} circle{circles.length === 1 ? '' : 's'}
+            {pending.length > 0 ? ` · ${pending.length} pending invite${pending.length === 1 ? '' : 's'}` : ''}
+          </Text>
+        </View>
         <TouchableOpacity style={styles.addBtn} onPress={() => { setNameError(''); setMaxLoanAmountError(''); setGroupFundingThresholdError(''); setShowCreate(true); }}>
           <Ionicons name="add" size={18} color={colors.buttonDarkText} />
           <Text style={styles.addBtnText}>Create</Text>
@@ -307,17 +318,23 @@ export default function CirclesScreen({ navigation }: Props) {
               ) : null}
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
-                  <Text style={styles.statValue}>GHS {formatMoney(item.maxLoanAmount)}</Text>
+                  <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                    GHS {formatMoney(item.maxLoanAmount)}
+                  </Text>
                   <Text style={styles.statLabel}>Max Loan</Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{item.minTrustScore}</Text>
+                  <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                    {item.minTrustScore}
+                  </Text>
                   <Text style={styles.statLabel}>Min Score</Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
-                  <Text style={styles.statValue}>GHS {formatMoney(item.groupFundingThreshold)}</Text>
+                  <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+                    GHS {formatMoney(item.groupFundingThreshold)}
+                  </Text>
                   <Text style={styles.statLabel}>Group Threshold</Text>
                 </View>
               </View>

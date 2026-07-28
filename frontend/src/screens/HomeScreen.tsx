@@ -91,16 +91,17 @@ type LoanActivityItem = Loan & { kind: 'loan'; role: 'borrower' | 'lender' };
 type ExpenseActivityItem = CircleExpense & { kind: 'expense'; role: 'paid' | 'owed' };
 type ActivityItem = LoanActivityItem | ExpenseActivityItem;
 
-const HERO_BORDER = '#1e293b';
-const HERO_MUTED = '#64748b';
-const HERO_SUBTLE = '#94a3b8';
-const RING_BG = '#394856';
-const GOLD = '#D4A017';
+// The hero card is always rendered dark regardless of light/dark theme (like
+// the amount cards on LoanDetailScreen/ProfileScreen), so its text/border
+// colors are white-on-dark opacities rather than theme-swapped values --
+// except for the green/red/gold accents below, which DO need to track the
+// theme's chartGreen/chartRed/accent so dark mode doesn't show light-mode hues.
+const HERO_BORDER = 'rgba(255,255,255,0.08)';
+const HERO_MUTED = 'rgba(255,255,255,0.45)';
+const HERO_SUBTLE = 'rgba(255,255,255,0.55)';
+const RING_BG = 'rgba(255,255,255,0.15)';
 
 const ACTIVE_STATUSES = ['ACTIVE', 'DUE', 'GRACE_PERIOD'];
-
-const getTrustColor = (s: number) => s >= 75 ? '#16a34a' : s >= 50 ? GOLD : '#dc2626';
-const getTrustLabel = (s: number) => s >= 75 ? 'Excellent' : s >= 50 ? 'Neutral' : 'Low';
 
 const createStyles = (c: ColorScheme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
@@ -216,6 +217,8 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   sectionRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginHorizontal: 16, marginTop: 20, marginBottom: 10,
+    backgroundColor: c.surface, borderRadius: 12, padding: 14,
+    borderWidth: 1, borderColor: c.border,
   },
   sectionLabel: { fontSize: 12, fontWeight: '700', fontFamily: fonts.bold, color: c.muted, letterSpacing: 0.8 }, // was 11
   seeAll: { fontSize: 13, color: c.accent, fontWeight: '700', fontFamily: fonts.bold },         // was 12
@@ -258,7 +261,12 @@ export default function HomeScreen({ navigation }: Props) {
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [amountsVisible, setAmountsVisible] = useState<boolean>(false);
-  const [activityExpanded, setActivityExpanded] = useState<boolean>();
+  // Default open -- this is the most useful section on the screen and
+  // shouldn't be hidden behind a tap every time the app is opened.
+  const [activityExpanded, setActivityExpanded] = useState<boolean>(true);
+
+  const getTrustColor = (s: number): string => s >= 75 ? colors.success : s >= 50 ? colors.accent : colors.danger;
+  const getTrustLabel = (s: number): string => s >= 75 ? 'Excellent' : s >= 50 ? 'Neutral' : 'Low';
 
   const loadData = async (): Promise<void> => {
     try {
@@ -435,14 +443,14 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
 
         <TouchableOpacity style={styles.eyeBtn} onPress={() => setAmountsVisible(v => !v)}>
-          <Ionicons name={amountsVisible ? 'eye-outline' : 'eye-off-outline'} size={20} color="#94a3b8" />
+          <Ionicons name={amountsVisible ? 'eye-outline' : 'eye-off-outline'} size={20} color={HERO_SUBTLE} />
           <Text style={styles.eyeText}>{amountsVisible ? 'Hide balances' : 'Show balances'}</Text>
         </TouchableOpacity>
 
         <View style={styles.amountsRow}>
           <View style={styles.amountItem}>
             <Text style={styles.amountLabel}>You are owed</Text>
-            <Text style={[styles.amountValue, { color: '#4ade80' }]}>
+            <Text style={[styles.amountValue, { color: colors.chartGreen }]}>
               {amountsVisible ? `GHS ${formatMoney(totalOwedToYou)}` : maskAmount}
             </Text>
             <Text style={styles.amountSub}>
@@ -452,7 +460,7 @@ export default function HomeScreen({ navigation }: Props) {
           <View style={styles.amountDivider} />
           <View style={styles.amountItem}>
             <Text style={styles.amountLabel}>You owe</Text>
-            <Text style={[styles.amountValue, { color: totalOwed > 0 ? '#f87171' : '#94a3b8' }]}>
+            <Text style={[styles.amountValue, { color: totalOwed > 0 ? colors.chartRed : HERO_SUBTLE }]}>
               {amountsVisible ? `GHS ${formatMoney(totalOwed)}` : maskAmount}
             </Text>
             <Text style={styles.amountSub}>
@@ -554,85 +562,58 @@ export default function HomeScreen({ navigation }: Props) {
             </View>
           ) : (
             recentActivity.map((item, i) => {
-              if (item.kind === 'loan') {
-                return (
-                  <TouchableOpacity
-                    key={`loan-${item.role}-${item.id}-${i}`}
-                    style={styles.activityCard}
-                    onPress={() => navigation.navigate('LoanDetail', { loanId: item.id })}
-                  >
-                    <View style={[styles.activityIconBox, {
-                      backgroundColor: item.role === 'lender' ? colors.successBgTint : colors.dangerBgTint
-                    }]}>
-                      <Ionicons
-                        name={item.role === 'lender' ? 'arrow-up-outline' : 'arrow-down-outline'}
-                        size={18}
-                        color={item.role === 'lender' ? colors.success : colors.danger}
-                      />
-                    </View>
-                    <View style={styles.activityInfo}>
-                      <Text style={styles.activityTitle} numberOfLines={1}>
-                        {item.role === 'lender'
-                          ? `Lent to ${item.borrowerName}`
-                          : `Borrowed from ${item.lenderName || 'Pending'}`}
-                      </Text>
-                      <Text style={styles.activitySub}>
-                        {item.circleName} · {formatDate(item.createdAt)}
-                      </Text>
-                    </View>
-                    <View style={styles.activityRight}>
-                      <Text style={[styles.activityAmount, {
-                        color: item.role === 'lender' ? colors.success : colors.danger
-                      }]}>
-                        {item.role === 'lender' ? '+' : '-'}GHS {formatMoney(item.amount)}
-                      </Text>
-                      <View style={[styles.statusPill, { backgroundColor: `${getStatusColor(item.status)}18` }]}>
-                        <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-                          {item.status.replace(/_/g, ' ')}
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
+              // Loan and expense activity rows render identically (icon box +
+              // title/sub + amount/status pill) -- only the values differ, so
+              // both kinds get normalized into the same shape here instead of
+              // duplicating the whole card JSX twice.
+              const isLoan = item.kind === 'loan';
+              const key = isLoan ? `loan-${item.role}-${item.id}-${i}` : `expense-${item.expenseId}-${i}`;
+              const onPress = isLoan
+                ? () => navigation.navigate('LoanDetail', { loanId: item.id })
+                : () => navigation.navigate('CircleDetail', { circleId: item.circleId });
+
+              let isPositive: boolean;
+              let iconName: keyof typeof Ionicons.glyphMap;
+              let title: string;
+              let amount: number;
+              let statusLabel: string;
+              let statusColor: string;
+
+              if (isLoan) {
+                isPositive = item.role === 'lender';
+                iconName = isPositive ? 'arrow-up-outline' : 'arrow-down-outline';
+                title = isPositive ? `Lent to ${item.borrowerName}` : `Borrowed from ${item.lenderName || 'Pending'}`;
+                amount = item.amount;
+                statusLabel = item.status.replace(/_/g, ' ');
+                statusColor = getStatusColor(item.status);
+              } else {
+                isPositive = item.role === 'paid';
+                iconName = isPositive ? 'cash-outline' : 'receipt-outline';
+                title = isPositive ? `Paid for ${item.description}` : `You owe for ${item.description}`;
+                const mySplit = item.splits.find(s => s.userId === myId);
+                amount = isPositive ? item.totalAmount : (mySplit?.amountOwed ?? 0);
+                const status = getExpenseStatus(item);
+                statusLabel = status.label;
+                statusColor = status.color;
               }
 
-              const mySplit = item.splits.find(s => s.userId === myId);
-              const amount = item.role === 'paid' ? item.totalAmount : (mySplit?.amountOwed ?? 0);
-              const status = getExpenseStatus(item);
+              const amountColor = isPositive ? colors.success : colors.danger;
 
               return (
-                <TouchableOpacity
-                  key={`expense-${item.expenseId}-${i}`}
-                  style={styles.activityCard}
-                  onPress={() => navigation.navigate('CircleDetail', { circleId: item.circleId })}
-                >
-                  <View style={[styles.activityIconBox, {
-                    backgroundColor: item.role === 'paid' ? colors.successBgTint : colors.dangerBgTint
-                  }]}>
-                    <Ionicons
-                      name={item.role === 'paid' ? 'cash-outline' : 'receipt-outline'}
-                      size={18}
-                      color={item.role === 'paid' ? colors.success : colors.danger}
-                    />
+                <TouchableOpacity key={key} style={styles.activityCard} onPress={onPress}>
+                  <View style={[styles.activityIconBox, { backgroundColor: isPositive ? colors.successBgTint : colors.dangerBgTint }]}>
+                    <Ionicons name={iconName} size={18} color={amountColor} />
                   </View>
                   <View style={styles.activityInfo}>
-                    <Text style={styles.activityTitle} numberOfLines={1}>
-                      {item.role === 'paid' ? `Paid for ${item.description}` : `You owe for ${item.description}`}
-                    </Text>
-                    <Text style={styles.activitySub}>
-                      {item.circleName} · {formatDate(item.createdAt)}
-                    </Text>
+                    <Text style={styles.activityTitle} numberOfLines={1}>{title}</Text>
+                    <Text style={styles.activitySub}>{item.circleName} · {formatDate(item.createdAt)}</Text>
                   </View>
                   <View style={styles.activityRight}>
-                    <Text style={[styles.activityAmount, {
-                      color: item.role === 'paid' ? colors.success : colors.danger
-                    }]}>
-                      {item.role === 'paid' ? '+' : '-'}GHS {formatMoney(amount)}
+                    <Text style={[styles.activityAmount, { color: amountColor }]}>
+                      {isPositive ? '+' : '-'}GHS {formatMoney(amount)}
                     </Text>
-                    <View style={[styles.statusPill, { backgroundColor: `${status.color}18` }]}>
-                      <Text style={[styles.statusText, { color: status.color }]}>
-                        {status.label}
-                      </Text>
+                    <View style={[styles.statusPill, { backgroundColor: `${statusColor}18` }]}>
+                      <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
                     </View>
                   </View>
                 </TouchableOpacity>
