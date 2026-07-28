@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, ActivityIndicator, RefreshControl, LayoutAnimation,
@@ -264,25 +264,51 @@ export default function HomeScreen({ navigation }: Props) {
   // Default open -- this is the most useful section on the screen and
   // shouldn't be hidden behind a tap every time the app is opened.
   const [activityExpanded, setActivityExpanded] = useState<boolean>(true);
+  const [expensesLoading, setExpensesLoading] = useState<boolean>(false);
+  // Identifies each loadData() call so a slower, older call (e.g. a
+  // background expense fetch from a previous focus) can't clobber a newer
+  // one's results if they happen to overlap -- see loadCircleExpenses below.
+  const loadIdRef = useRef(0);
 
   const getTrustColor = (s: number): string => s >= 75 ? colors.success : s >= 50 ? colors.accent : colors.danger;
   const getTrustLabel = (s: number): string => s >= 75 ? 'Excellent' : s >= 50 ? 'Neutral' : 'Low';
 
-  const loadData = async (): Promise<void> => {
+  // Shared-expense activity is fetched per-circle (one request per circle)
+  // and used only to fill in the expense side of "Recent Activity" -- it's
+  // not needed for anything else on the screen, so it runs in the background
+  // after the core dashboard has already painted instead of blocking it.
+  const loadCircleExpenses = async (circlesList: Circle[], loadId: number): Promise<void> => {
+    setExpensesLoading(true);
     try {
-      const circlesPromise = getMyCircles();
-      const expensesPromise = circlesPromise.then((circlesData) =>
-        Promise.all((circlesData as Circle[]).map((c) => getCircleExpenses(c.id).catch(() => [])))
+      const expenseLists = await Promise.all(
+        circlesList.map((c) => getCircleExpenses(c.id).catch(() => []))
       );
-      const [profileData, circlesData, notifData, borrowed, lent, personalTxs, expenseLists] = await Promise.all([
+      if (loadIdRef.current !== loadId) return;
+      const mergedExpenses: CircleExpense[] = expenseLists.flatMap((list, i) =>
+        (list as SharedExpense[]).map((e) => ({
+          ...e, circleId: circlesList[i].id, circleName: circlesList[i].name,
+        }))
+      );
+      setExpenses(mergedExpenses);
+    } catch (error) {
+      console.error('Error loading circle expenses:', error);
+    } finally {
+      if (loadIdRef.current === loadId) setExpensesLoading(false);
+    }
+  };
+
+  const loadData = async (): Promise<void> => {
+    const loadId = ++loadIdRef.current;
+    try {
+      const [profileData, circlesData, notifData, borrowed, lent, personalTxs] = await Promise.all([
         getProfile(),
-        circlesPromise,
+        getMyCircles(),
         getUnreadCount(),
         getMyBorrowedLoans(),
         getMyLentLoans(),
         getPersonalTransactions().catch(() => []),
-        expensesPromise,
       ]);
+      if (loadIdRef.current !== loadId) return;
       setProfile(profileData as Profile);
       const circlesList = circlesData as Circle[];
       setCircles(circlesList);
@@ -291,17 +317,19 @@ export default function HomeScreen({ navigation }: Props) {
       setLentLoans(lent as Loan[]);
       setPersonalTransactions(personalTxs as PersonalTransaction[]);
 
-      const mergedExpenses: CircleExpense[] = expenseLists.flatMap((list, i) =>
-        (list as SharedExpense[]).map((e) => ({
-          ...e, circleId: circlesList[i].id, circleName: circlesList[i].name,
-        }))
-      );
-      setExpenses(mergedExpenses);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
+      // Core numbers are ready -- paint the screen now rather than waiting
+      // on the per-circle expense fetches below (previously a blocking
+      // extra round trip chained after this whole batch).
       setLoading(false);
       setRefreshing(false);
+
+      loadCircleExpenses(circlesList, loadId);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      if (loadIdRef.current === loadId) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
@@ -544,6 +572,10 @@ export default function HomeScreen({ navigation }: Props) {
       <TouchableOpacity style={styles.activityHeader} onPress={toggleActivity} activeOpacity={0.7}>
         <Text style={styles.sectionLabel}>RECENT ACTIVITY</Text>
         <View style={styles.activityToggle}>
+          {/* Shared-expense activity loads in the background after the rest
+              of the screen -- this spinner signals the list is still filling
+              in rather than letting it silently reshuffle a moment later. */}
+          {expensesLoading && <ActivityIndicator size="small" color={colors.muted} />}
           {recentActivity.length > 0 && (
             <View style={styles.activityBadge}>
               <Text style={styles.activityBadgeText}>{recentActivity.length}</Text>
