@@ -6,6 +6,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle } from 'react-native-svg';
 import { getProfile, updateProfile, getBorrowerInsights, getLenderInsights, getBadges } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +14,7 @@ import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
 import { formatMoney } from '../utils/formatMoney';
+import { fonts } from '../theme/fonts';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList>;
@@ -101,23 +103,44 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.bg, borderWidth: 1, borderColor: c.border,
     justifyContent: 'center', alignItems: 'center',
   },
-  title: { color: c.dark, fontSize: 22, fontWeight: '700' },
-  editBtn: { color: c.accent, fontSize: 15, fontWeight: '600' },
+  title: { color: c.dark, fontSize: 22, fontWeight: '700', fontFamily: fonts.bold },
+  editBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 14, height: 34, borderRadius: 10,
+    backgroundColor: c.goldBgTint, borderWidth: 1, borderColor: c.border,
+  },
+  editBtnText: { color: c.accent, fontSize: 13, fontWeight: '700', fontFamily: fonts.bold },
   profileCard: {
     backgroundColor: c.heroCardBg, marginHorizontal: 16, borderRadius: 20,
-    padding: 28, alignItems: 'center', marginTop: 16, marginBottom: 12,
+    paddingHorizontal: 22, paddingVertical: 24, marginTop: 16, marginBottom: 12,
   },
+  heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  heroIdentity: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1, paddingRight: 10 },
   avatar: {
-    width: 76, height: 76, borderRadius: 38,
-    backgroundColor: c.accent, justifyContent: 'center', alignItems: 'center', marginBottom: 14,
-    borderWidth: 3, borderColor: 'rgba(255,255,255,0.15)',
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: c.accent, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)',
   },
-  avatarText: { color: c.surface, fontSize: 27, fontWeight: '800' },
-  name: { color: '#fff', fontSize: 20, fontWeight: '700' },
-  phone: { color: 'rgba(255,255,255,0.55)', fontSize: 13, marginTop: 4 },
-  scoreContainer: { alignItems: 'center', marginTop: 18 },
-  score: { fontSize: 36, fontWeight: '800' },
-  scoreLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 2, letterSpacing: 0.5 },
+  avatarText: { color: c.surface, fontSize: 20, fontWeight: '800', fontFamily: fonts.extrabold },
+  identityCol: { flexShrink: 1 },
+  name: { color: '#fff', fontSize: 18, fontWeight: '700', fontFamily: fonts.bold },
+  phone: { color: 'rgba(255,255,255,0.55)', fontSize: 13, marginTop: 2, fontFamily: fonts.medium },
+  ringWrap: { width: 72, height: 72, justifyContent: 'center', alignItems: 'center' },
+  ringCenter: { position: 'absolute', alignItems: 'center' },
+  ringScore: { fontSize: 19, fontWeight: '800', fontFamily: fonts.extrabold, color: '#fff' },
+  ringScoreSub: { fontSize: 8, color: 'rgba(255,255,255,0.45)', fontFamily: fonts.semibold, letterSpacing: 0.6, marginTop: 1 },
+  heroFooterRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  trustPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6,
+  },
+  trustPillDot: { width: 6, height: 6, borderRadius: 3 },
+  trustPillText: { fontSize: 12, fontWeight: '700', fontFamily: fonts.bold },
+  memberSinceText: { color: 'rgba(255,255,255,0.4)', fontSize: 11, fontFamily: fonts.medium },
   statsCard: {
     flexDirection: 'row', justifyContent: 'space-between',
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
@@ -129,14 +152,15 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', marginBottom: 6,
   },
   statDivider: { width: 1, backgroundColor: c.border, marginVertical: 4 },
-  statValue: { color: c.dark, fontSize: 18, fontWeight: '800' },
-  statLabel: { color: c.muted, fontSize: 10.5, marginTop: 2, textAlign: 'center' },
+  statValue: { color: c.dark, fontSize: 18, fontWeight: '800', fontFamily: fonts.extrabold },
+  statLabel: { color: c.muted, fontSize: 10.5, marginTop: 2, textAlign: 'center', fontFamily: fonts.medium },
   badgesCard: {
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
   },
-  badgesTitle: { color: c.dark, fontSize: 15, fontWeight: '700' },
+  badgesTitle: { color: c.dark, fontSize: 15, fontWeight: '700', fontFamily: fonts.bold },
   badgesHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  badgesTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   badgesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
   badgeItem: {
     width: '30%', alignItems: 'center', padding: 12,
@@ -144,7 +168,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.bg,
   },
   badgeItemEarned: { borderColor: c.accent, backgroundColor: c.goldBgTint },
-  badgeName: { fontSize: 10, fontWeight: '700', color: c.muted, textAlign: 'center' },
+  badgeName: { fontSize: 10, fontWeight: '700', fontFamily: fonts.bold, color: c.muted, textAlign: 'center' },
   badgeNameEarned: { color: c.accent },
   badgeIconWrap: { marginBottom: 6 },
   card: {
@@ -152,7 +176,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
   },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  cardTitle: { color: c.dark, fontSize: 15, fontWeight: '700', marginBottom: 12 },
+  cardTitle: { color: c.dark, fontSize: 15, fontWeight: '700', fontFamily: fonts.bold, marginBottom: 12 },
   detailRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border,
@@ -162,8 +186,8 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', marginRight: 10,
   },
   detailLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
-  detailLabel: { color: c.muted, fontSize: 13 },
-  detailValue: { color: c.dark, fontSize: 13, fontWeight: '600' },
+  detailLabel: { color: c.muted, fontSize: 13, fontFamily: fonts.medium },
+  detailValue: { color: c.dark, fontSize: 13, fontWeight: '600', fontFamily: fonts.semibold },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statCard: {
     width: '47%', backgroundColor: c.bg, borderRadius: 12,
@@ -173,8 +197,8 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     width: 34, height: 34, borderRadius: 10,
     justifyContent: 'center', alignItems: 'center', marginBottom: 8,
   },
-  statCardValue: { fontSize: 17, fontWeight: '800', color: c.dark },
-  statCardLabel: { fontSize: 11, color: c.muted, marginTop: 2 },
+  statCardValue: { fontSize: 17, fontWeight: '800', fontFamily: fonts.extrabold, color: c.dark },
+  statCardLabel: { fontSize: 11, color: c.muted, marginTop: 2, fontFamily: fonts.medium },
   insightsHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginHorizontal: 16, marginBottom: 12,
@@ -182,41 +206,41 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   tabRow: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 12 },
   tab: { flex: 1, padding: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   activeTab: { borderBottomColor: c.accent },
-  tabText: { color: c.muted, fontSize: 13, fontWeight: '600' },
+  tabText: { color: c.muted, fontSize: 13, fontWeight: '600', fontFamily: fonts.semibold },
   activeTabText: { color: c.accent },
-  recTitle: { color: c.accent, fontSize: 13, fontWeight: '700', marginBottom: 8 },
-  recText: { color: c.muted, fontSize: 13, marginBottom: 4 },
+  recTitle: { color: c.accent, fontSize: 13, fontWeight: '700', fontFamily: fonts.bold, marginBottom: 8 },
+  recText: { color: c.muted, fontSize: 13, marginBottom: 4, fontFamily: fonts.regular },
   adminBtn: {
     marginHorizontal: 16, marginTop: 8, padding: 16, borderRadius: 12,
     backgroundColor: c.buttonDark, alignItems: 'center', flexDirection: 'row', justifyContent: 'center',
   },
-  adminBtnText: { color: c.buttonDarkText, fontSize: 14, fontWeight: '700' },
+  adminBtnText: { color: c.buttonDarkText, fontSize: 14, fontWeight: '700', fontFamily: fonts.bold },
   appearanceSection: {
     marginHorizontal: 16, marginTop: 16, backgroundColor: c.surface,
     borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border,
   },
-  appearanceTitle: { fontSize: 14, fontWeight: '700', color: c.dark, marginBottom: 12 },
+  appearanceTitle: { fontSize: 14, fontWeight: '700', fontFamily: fonts.bold, color: c.dark, marginBottom: 12 },
   themeRow: { flexDirection: 'row', gap: 10 },
   themeBtn: {
     flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
     borderWidth: 1.5, borderColor: c.border, backgroundColor: c.bg,
   },
   themeBtnActive: { backgroundColor: c.buttonDark, borderColor: c.buttonDark },
-  themeBtnText: { fontSize: 12, fontWeight: '600', color: c.muted },
+  themeBtnText: { fontSize: 12, fontWeight: '600', fontFamily: fonts.semibold, color: c.muted },
   themeBtnTextActive: { color: c.buttonDarkText },
   logoutBtn: {
     marginHorizontal: 16, marginTop: 10, padding: 14, borderRadius: 12,
     borderWidth: 1, borderColor: c.border, alignItems: 'center',
     backgroundColor: c.surface, flexDirection: 'row', justifyContent: 'center',
   },
-  logoutText: { color: c.danger, fontSize: 14, fontWeight: '700' },
+  logoutText: { color: c.danger, fontSize: 14, fontWeight: '700', fontFamily: fonts.bold },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
   modal: { backgroundColor: c.surface, borderRadius: 16, padding: 24, maxHeight: '80%' as const },
-  modalTitle: { color: c.dark, fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 16 },
-  label: { color: c.muted, fontSize: 13, marginBottom: 6, marginTop: 12 },
+  modalTitle: { color: c.dark, fontSize: 20, fontWeight: '700', fontFamily: fonts.bold, textAlign: 'center', marginBottom: 16 },
+  label: { color: c.muted, fontSize: 13, marginBottom: 6, marginTop: 12, fontFamily: fonts.medium },
   input: {
     backgroundColor: c.bg, borderRadius: 10, padding: 12,
-    fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border,
+    fontSize: 14, color: c.dark, borderWidth: 1, borderColor: c.border, fontFamily: fonts.regular,
   },
   inputDisabled: { color: c.muted, opacity: 0.6 },
   checkboxRow: {
@@ -230,12 +254,12 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   checkboxChecked: { backgroundColor: c.accent, borderColor: c.accent },
-  checkboxLabel: { fontSize: 13, color: c.muted, flex: 1 },
-  checkboxLabelChecked: { color: c.dark, fontWeight: '600' },
+  checkboxLabel: { fontSize: 13, color: c.muted, flex: 1, fontFamily: fonts.regular },
+  checkboxLabelChecked: { color: c.dark, fontWeight: '600', fontFamily: fonts.semibold },
   primaryBtn: { backgroundColor: c.buttonDark, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 20 },
-  btnText: { color: c.buttonDarkText, fontSize: 15, fontWeight: '700' },
+  btnText: { color: c.buttonDarkText, fontSize: 15, fontWeight: '700', fontFamily: fonts.bold },
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
-  cancelText: { color: c.muted, fontSize: 14 },
+  cancelText: { color: c.muted, fontSize: 14, fontFamily: fonts.medium },
 });
 
 export default function ProfileScreen({ navigation }: Props) {
@@ -321,6 +345,9 @@ export default function ProfileScreen({ navigation }: Props) {
   };
 
   const getTrustColor = (s: number): string => s >= 70 ? colors.success : s >= 40 ? colors.accent : colors.danger;
+  // Same thresholds/labels as the trust pill on HomeScreen, kept in sync so the
+  // "standing" language reads the same wherever a user sees their trust score.
+  const getTrustLabel = (s: number): string => s >= 75 ? 'Excellent' : s >= 50 ? 'Neutral' : 'Low';
   const earnedCount = badges.filter(b => b.earned).length;
 
   const handleBorrowingStatusInfo = (): void => {
@@ -361,22 +388,61 @@ export default function ProfileScreen({ navigation }: Props) {
             </TouchableOpacity>
             <Text style={styles.title}>Profile</Text>
           </View>
-          <TouchableOpacity onPress={openEdit}>
-            <Text style={styles.editBtn}>Edit</Text>
+          <TouchableOpacity style={styles.editBtn} onPress={openEdit}>
+            <Ionicons name="create-outline" size={15} color={colors.accent} />
+            <Text style={styles.editBtnText}>Edit</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.profileCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{profile?.firstName?.[0]}{profile?.lastName?.[0]}</Text>
+          <View style={styles.heroTopRow}>
+            <View style={styles.heroIdentity}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{profile?.firstName?.[0]}{profile?.lastName?.[0]}</Text>
+              </View>
+              <View style={styles.identityCol}>
+                <Text style={styles.name} numberOfLines={1}>{profile?.firstName} {profile?.lastName}</Text>
+                <Text style={styles.phone}>{profile?.phone}</Text>
+              </View>
+            </View>
+
+            {/* Trust score as a ring gauge rather than a plain number, so the
+                hero card reads as a purpose-built dashboard widget instead of
+                a generic centered profile-card template. */}
+            <View style={styles.ringWrap}>
+              <Svg width={72} height={72} viewBox="0 0 72 72">
+                <Circle cx={36} cy={36} r={30} stroke="rgba(255,255,255,0.15)" strokeWidth={6} fill="none" />
+                <Circle
+                  cx={36} cy={36} r={30}
+                  stroke={getTrustColor(profile?.trustScore ?? 0)}
+                  strokeWidth={6}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 30}`}
+                  strokeDashoffset={`${2 * Math.PI * 30 * (1 - Math.min(Math.max(profile?.trustScore ?? 0, 0), 100) / 100)}`}
+                  rotation={-90}
+                  origin="36, 36"
+                />
+              </Svg>
+              <View style={styles.ringCenter}>
+                <Text style={styles.ringScore}>{profile?.trustScore?.toFixed(0)}</Text>
+                <Text style={styles.ringScoreSub}>SCORE</Text>
+              </View>
+            </View>
           </View>
-          <Text style={styles.name}>{profile?.firstName} {profile?.lastName}</Text>
-          <Text style={styles.phone}>{profile?.phone}</Text>
-          <View style={styles.scoreContainer}>
-            <Text style={[styles.score, { color: getTrustColor(profile?.trustScore ?? 0) }]}>
-              {profile?.trustScore?.toFixed(1)}
-            </Text>
-            <Text style={styles.scoreLabel}>Trust Score</Text>
+
+          <View style={styles.heroFooterRow}>
+            <View style={styles.trustPill}>
+              <View style={[styles.trustPillDot, { backgroundColor: getTrustColor(profile?.trustScore ?? 0) }]} />
+              <Text style={[styles.trustPillText, { color: getTrustColor(profile?.trustScore ?? 0) }]}>
+                {getTrustLabel(profile?.trustScore ?? 0)} standing
+              </Text>
+            </View>
+            {profile?.createdAt && (
+              <Text style={styles.memberSinceText}>
+                Since {new Date(profile.createdAt).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
+              </Text>
+            )}
           </View>
         </View>
 
@@ -403,9 +469,12 @@ export default function ProfileScreen({ navigation }: Props) {
         {badges.length > 0 && (
           <View style={styles.badgesCard}>
             <TouchableOpacity style={styles.badgesHeaderRow} onPress={() => setShowBadges(!showBadges)} activeOpacity={0.7}>
-              <Text style={styles.badgesTitle}>
-                🏅 Reputation Badges — {earnedCount}/{badges.length} earned
-              </Text>
+              <View style={styles.badgesTitleRow}>
+                <Ionicons name="ribbon-outline" size={17} color={colors.accent} />
+                <Text style={styles.badgesTitle}>
+                  Reputation Badges — {earnedCount}/{badges.length} earned
+                </Text>
+              </View>
               <Ionicons name={showBadges ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
             </TouchableOpacity>
             {showBadges && (

@@ -14,6 +14,7 @@ import { ColorScheme } from '../theme/colors';
 import { formatMoney } from '../utils/formatMoney';
 import { LOAN_REASONS, getCustomLoanReasons, addCustomLoanReason } from '../utils/customLoanReasons';
 import { formatCategoryName } from '../utils/customCategories';
+import { fonts } from '../theme/fonts';
 
 // Mirrors LoanService.effectiveGroupFundingThreshold on the backend -- a
 // higher-trust borrower can go further above the circle's base threshold
@@ -37,10 +38,10 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.surface, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
     borderBottomWidth: 1, borderBottomColor: c.border,
   },
-  back: { color: c.accent, fontSize: 16, fontWeight: '600' },
-  title: { fontSize: 18, fontWeight: '700', color: c.dark },
+  back: { color: c.accent, fontSize: 16, fontWeight: '600', fontFamily: fonts.semibold },
+  title: { fontSize: 18, fontWeight: '700', fontFamily: fonts.bold, color: c.dark },
   form: { padding: 16 },
-  label: { fontSize: 12, color: c.muted, fontWeight: '600', marginBottom: 6, marginTop: 16 },
+  label: { fontSize: 12, color: c.muted, fontWeight: '600', fontFamily: fonts.semibold, marginBottom: 6, marginTop: 16 },
   input: {
     backgroundColor: c.surface, borderRadius: 12, padding: 14,
     fontSize: 15, color: c.dark, borderWidth: 1, borderColor: c.border,
@@ -51,7 +52,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     alignItems: 'center', borderWidth: 1.5, borderColor: c.border,
   },
   typeSel: { backgroundColor: c.buttonDark, borderColor: c.buttonDark },
-  typeText: { fontSize: 14, fontWeight: '700', color: c.muted },
+  typeText: { fontSize: 14, fontWeight: '700', fontFamily: fonts.bold, color: c.muted },
   typeTextSel: { color: c.buttonDarkText },
   typeDesc: { fontSize: 11, color: c.muted, marginTop: 4, textAlign: 'center' },
   preview: {
@@ -59,16 +60,16 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     marginTop: 20, borderWidth: 1, borderColor: c.border,
   },
   previewHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
-  previewTitle: { fontSize: 14, fontWeight: '700', color: c.dark },
+  previewTitle: { fontSize: 14, fontWeight: '700', fontFamily: fonts.bold, color: c.dark },
   previewRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.border },
   previewLabel: { fontSize: 13, color: c.muted },
-  previewValue: { fontSize: 13, fontWeight: '600', color: c.dark },
+  previewValue: { fontSize: 13, fontWeight: '600', fontFamily: fonts.semibold, color: c.dark },
   previewNote: { fontSize: 12, color: c.accent, marginTop: 10, fontStyle: 'italic' as const },
   submitBtn: { backgroundColor: c.buttonDark, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 24 },
-  submitText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700' },
+  submitText: { color: c.buttonDarkText, fontSize: 16, fontWeight: '700', fontFamily: fonts.bold },
   catChip: { backgroundColor: c.surface, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8, borderWidth: 1, borderColor: c.border },
   catChipSel: { backgroundColor: c.buttonDark, borderColor: c.buttonDark },
-  catChipText: { color: c.muted, fontSize: 12, fontWeight: '600' },
+  catChipText: { color: c.muted, fontSize: 12, fontWeight: '600', fontFamily: fonts.semibold },
   catChipTextSel: { color: c.buttonDarkText },
   saveReasonRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -81,7 +82,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   saveReasonCheckboxChecked: { backgroundColor: c.accent, borderColor: c.accent },
-  saveReasonText: { fontSize: 12, color: c.dark, fontWeight: '600', flex: 1 },
+  saveReasonText: { fontSize: 12, color: c.dark, fontWeight: '600', fontFamily: fonts.semibold, flex: 1 },
 });
 
 export default function RequestLoanScreen({ route, navigation }: Props) {

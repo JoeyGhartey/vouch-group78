@@ -15,6 +15,7 @@ import { useConfirmModal } from '../components/ConfirmModal';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { fonts } from '../theme/fonts';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList>;
@@ -38,13 +39,13 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.surface, paddingHorizontal: 20, paddingTop: 56, paddingBottom: 16,
     borderBottomWidth: 1, borderBottomColor: c.border,
   },
-  title: { fontSize: 22, fontWeight: '700', color: c.dark },
+  title: { fontSize: 22, fontWeight: '700', fontFamily: fonts.bold, color: c.dark },
   markAllBtn: { backgroundColor: c.bg, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: c.border },
-  markAllText: { color: c.accent, fontSize: 12, fontWeight: '600' },
+  markAllText: { color: c.accent, fontSize: 12, fontWeight: '600', fontFamily: fonts.semibold },
   unreadBanner: { backgroundColor: c.warningBgTint, paddingHorizontal: 20, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.warningBorderTint },
-  unreadBannerText: { fontSize: 12, color: c.accent, fontWeight: '600' },
+  unreadBannerText: { fontSize: 12, color: c.accent, fontWeight: '600', fontFamily: fonts.semibold },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyTitle: { fontSize: 17, fontWeight: '700', color: c.dark, marginTop: 12, marginBottom: 6 },
+  emptyTitle: { fontSize: 17, fontWeight: '700', fontFamily: fonts.bold, color: c.dark, marginTop: 12, marginBottom: 6 },
   emptyText: { fontSize: 13, color: c.muted, textAlign: 'center' },
   notifCard: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,
@@ -54,15 +55,15 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   unread: { borderLeftWidth: 3, borderLeftColor: c.accent, backgroundColor: c.goldBgTint },
   iconBox: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   notifContent: { flex: 1 },
-  notifTitle: { fontSize: 14, fontWeight: '700', color: c.dark },
+  notifTitle: { fontSize: 14, fontWeight: '700', fontFamily: fonts.bold, color: c.dark },
   notifMessage: { fontSize: 13, color: c.muted, marginTop: 3, lineHeight: 18 },
   notifTime: { fontSize: 11, color: c.muted, marginTop: 6 },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.accent, marginTop: 4 },
   notifDeleteBtn: { padding: 4, marginTop: 2 },
   acceptBtn: { backgroundColor: c.accent, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, alignSelf: 'flex-start' },
-  acceptBtnText: { color: c.surface, fontSize: 13, fontWeight: '600' },
+  acceptBtnText: { color: c.surface, fontSize: 13, fontWeight: '600', fontFamily: fonts.semibold },
   rejectBtn: { backgroundColor: c.danger, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7, alignSelf: 'flex-start' },
-  rejectBtnText: { color: c.surface, fontSize: 13, fontWeight: '600' },
+  rejectBtnText: { color: c.surface, fontSize: 13, fontWeight: '600', fontFamily: fonts.semibold },
 });
 
 

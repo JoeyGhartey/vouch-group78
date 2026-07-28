@@ -4,6 +4,7 @@ import {
   Animated, Dimensions, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { fonts } from '../theme/fonts';
 
 const DARK = '#0f172a';
 const SUCCESS_GREEN = '#22c55e';
@@ -128,6 +129,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: DARK,
   },
   message: {
@@ -147,5 +149,6 @@ const styles = StyleSheet.create({
     color: WHITE,
     fontSize: 13,
     fontWeight: '600',
+    fontFamily: fonts.semibold,
   },
 });

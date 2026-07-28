@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback,
   Animated, Dimensions, Modal,
 } from 'react-native';
+import { fonts } from '../theme/fonts';
 
 const DARK = '#0f172a';
 const ACCENT = '#C9A84C';
@@ -112,6 +113,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: DARK,
     textAlign: 'center',
     marginBottom: 10,
@@ -138,6 +140,7 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: fonts.semibold,
     color: MUTED,
   },
   confirmBtn: {
@@ -150,6 +153,7 @@ const styles = StyleSheet.create({
   confirmText: {
     fontSize: 14,
     fontWeight: '700',
+    fontFamily: fonts.bold,
     color: WHITE,
   },
 });

@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
+import { fonts } from '../theme/fonts';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList>;
@@ -121,34 +122,34 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: c.border, gap: 12,
   },
   backBtn: { padding: 4 },
-  headerTitle: { flex: 1, fontSize: 20, fontWeight: '700', color: c.dark },
+  headerTitle: { flex: 1, fontSize: 20, fontWeight: '700', fontFamily: fonts.bold, color: c.dark },
   heroCard: {
     backgroundColor: c.surface, marginHorizontal: 16, marginTop: 16,
     borderRadius: 16, padding: 20, marginBottom: 12,
     borderWidth: 1, borderColor: c.border, alignItems: 'center',
   },
   heroIconWrap: { marginBottom: 8 },
-  heroTitle: { fontSize: 18, fontWeight: '700', color: c.dark, marginBottom: 4 },
+  heroTitle: { fontSize: 18, fontWeight: '700', fontFamily: fonts.bold, color: c.dark, marginBottom: 4 },
   heroSub: { fontSize: 13, color: c.muted, textAlign: 'center' },
   categoryCard: {
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     marginBottom: 12, borderWidth: 1, borderColor: c.border, overflow: 'hidden',
   },
   categoryHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderBottomWidth: 1, borderBottomColor: c.border },
-  categoryTitle: { fontSize: 14, fontWeight: '700', color: c.dark },
+  categoryTitle: { fontSize: 14, fontWeight: '700', fontFamily: fonts.bold, color: c.dark },
   faqItem: { borderBottomWidth: 1, borderBottomColor: c.border },
   faqQuestion: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', padding: 14,
   },
-  faqQ: { fontSize: 13, fontWeight: '600', color: c.dark, flex: 1, paddingRight: 8 },
+  faqQ: { fontSize: 13, fontWeight: '600', fontFamily: fonts.semibold, color: c.dark, flex: 1, paddingRight: 8 },
   faqAnswer: { paddingHorizontal: 14, paddingBottom: 14 },
   faqA: { fontSize: 13, color: c.muted, lineHeight: 20 },
   contactCard: {
     backgroundColor: c.surface, marginHorizontal: 16, borderRadius: 14,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
   },
-  contactTitle: { fontSize: 15, fontWeight: '700', color: c.dark, marginBottom: 14 },
+  contactTitle: { fontSize: 15, fontWeight: '700', fontFamily: fonts.bold, color: c.dark, marginBottom: 14 },
   contactTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   contactBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -159,8 +160,8 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     width: 40, height: 40, borderRadius: 10,
     backgroundColor: c.buttonDark, justifyContent: 'center', alignItems: 'center',
   },
-  contactLabel: { fontSize: 11, color: c.muted, fontWeight: '600' },
-  contactValue: { fontSize: 13, color: c.dark, fontWeight: '600', marginTop: 1 },
+  contactLabel: { fontSize: 11, color: c.muted, fontWeight: '600', fontFamily: fonts.semibold },
+  contactValue: { fontSize: 13, color: c.dark, fontWeight: '600', fontFamily: fonts.semibold, marginTop: 1 },
   responseNote: {
     fontSize: 11, color: c.muted, textAlign: 'center',
     marginTop: 4, fontStyle: 'italic' as const,

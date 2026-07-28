@@ -23,6 +23,7 @@ import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
 import { formatMoney } from '../utils/formatMoney';
+import { fonts } from '../theme/fonts';
 
 type Props = {
   route: RouteProp<RootStackParamList, 'LoanDetail'>;
@@ -107,21 +108,21 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     padding: 20, paddingTop: 56, backgroundColor: c.surface,
     borderBottomWidth: 1, borderBottomColor: c.border,
   },
-  back: { color: c.accent, fontSize: 16, fontWeight: '600' },
-  title: { color: c.dark, fontSize: 18, fontWeight: '700' },
+  back: { color: c.accent, fontSize: 16, fontWeight: '600', fontFamily: fonts.semibold },
+  title: { color: c.dark, fontSize: 18, fontWeight: '700', fontFamily: fonts.bold },
   amountCard: {
     backgroundColor: c.heroCardBg, marginHorizontal: 16, borderRadius: 20,
     padding: 28, alignItems: 'center', marginTop: 16, marginBottom: 16,
     overflow: 'hidden',
   },
-  loanIdTag: { color: c.accent, fontSize: 11, fontWeight: '700', letterSpacing: 1.2, marginBottom: 10 },
-  amountLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 13 },
-  amount: { color: '#fff', fontSize: 42, fontWeight: '800', marginTop: 4, letterSpacing: -1 },
+  loanIdTag: { color: c.accent, fontSize: 11, fontWeight: '700', fontFamily: fonts.bold, letterSpacing: 1.2, marginBottom: 10 },
+  amountLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: fonts.regular },
+  amount: { color: '#fff', fontSize: 42, fontWeight: '800', fontFamily: fonts.extrabold, marginTop: 4, letterSpacing: -1 },
   badge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8, marginTop: 16,
   },
-  badgeText: { color: c.surface, fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },
+  badgeText: { color: c.surface, fontSize: 12, fontWeight: '700', fontFamily: fonts.bold, letterSpacing: 0.4 },
 
   // Parties card — borrower/lender shown as avatars either side of an arrow
   partiesCard: {
@@ -134,9 +135,9 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     width: 48, height: 48, borderRadius: 24,
     justifyContent: 'center', alignItems: 'center', marginBottom: 8,
   },
-  avatarText: { color: c.surface, fontSize: 18, fontWeight: '700' },
-  partyName: { color: c.dark, fontSize: 13, fontWeight: '700', textAlign: 'center' },
-  partyRole: { color: c.muted, fontSize: 11, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  avatarText: { color: c.surface, fontSize: 18, fontWeight: '700', fontFamily: fonts.bold },
+  partyName: { color: c.dark, fontSize: 13, fontWeight: '700', fontFamily: fonts.bold, textAlign: 'center' },
+  partyRole: { color: c.muted, fontSize: 11, fontFamily: fonts.regular, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
   partyArrowBox: { width: 36, alignItems: 'center', justifyContent: 'center' },
 
   card: {
@@ -144,13 +145,13 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.border,
   },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-  cardTitle: { color: c.dark, fontSize: 15, fontWeight: '700' },
+  cardTitle: { color: c.dark, fontSize: 15, fontWeight: '700', fontFamily: fonts.bold },
   row: {
     flexDirection: 'row', justifyContent: 'space-between',
     paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border,
   },
-  rowLabel: { color: c.muted, fontSize: 13 },
-  rowValue: { color: c.dark, fontSize: 13, fontWeight: '600', textAlign: 'right', flex: 1, marginLeft: 16 },
+  rowLabel: { color: c.muted, fontSize: 13, fontFamily: fonts.regular },
+  rowValue: { color: c.dark, fontSize: 13, fontWeight: '600', fontFamily: fonts.semibold, textAlign: 'right', flex: 1, marginLeft: 16 },
 
   // Icon-led detail rows
   detailRow: {
@@ -161,12 +162,12 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     width: 30, height: 30, borderRadius: 9,
     justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
-  detailLabel: { color: c.muted, fontSize: 12.5, flex: 1 },
-  detailValue: { color: c.dark, fontSize: 13, fontWeight: '700', textAlign: 'right', maxWidth: '48%' },
+  detailLabel: { color: c.muted, fontSize: 12.5, fontFamily: fonts.regular, flex: 1 },
+  detailValue: { color: c.dark, fontSize: 13, fontWeight: '700', fontFamily: fonts.bold, textAlign: 'right', maxWidth: '48%' },
   progressBar: { height: 6, backgroundColor: c.border, borderRadius: 4, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: c.success, borderRadius: 4 },
-  progressText: { color: c.muted, fontSize: 12, marginTop: 8, textAlign: 'center' },
-  remaining: { color: c.warning, fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 4 },
+  progressText: { color: c.muted, fontSize: 12, fontFamily: fonts.regular, marginTop: 8, textAlign: 'center' },
+  remaining: { color: c.warning, fontSize: 13, fontWeight: '600', fontFamily: fonts.semibold, textAlign: 'center', marginTop: 4 },
   actions: { paddingHorizontal: 16, marginTop: 8 },
   primaryBtn: {
     backgroundColor: c.buttonDark, borderRadius: 12, padding: 16,
@@ -181,44 +182,44 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     borderWidth: 1.5, borderColor: c.accent, borderRadius: 12,
     padding: 16, alignItems: 'center', marginBottom: 10,
   },
-  btnText: { color: c.buttonDarkText, fontSize: 15, fontWeight: '700' },
-  dangerBtnText: { color: c.surface, fontSize: 15, fontWeight: '700', textAlign: 'center' },
-  outlineText: { color: c.accent, fontSize: 15, fontWeight: '600' },
+  btnText: { color: c.buttonDarkText, fontSize: 15, fontWeight: '700', fontFamily: fonts.bold },
+  dangerBtnText: { color: c.surface, fontSize: 15, fontWeight: '700', fontFamily: fonts.bold, textAlign: 'center' },
+  outlineText: { color: c.accent, fontSize: 15, fontWeight: '600', fontFamily: fonts.semibold },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
   modal: { backgroundColor: c.surface, borderRadius: 16, padding: 24 },
-  modalTitle: { color: c.dark, fontSize: 20, fontWeight: '700', textAlign: 'center' },
-  modalSub: { color: c.muted, fontSize: 13, textAlign: 'center', marginTop: 4, marginBottom: 16 },
+  modalTitle: { color: c.dark, fontSize: 20, fontWeight: '700', fontFamily: fonts.bold, textAlign: 'center' },
+  modalSub: { color: c.muted, fontSize: 13, fontFamily: fonts.regular, textAlign: 'center', marginTop: 4, marginBottom: 16 },
   trustTierBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: c.bg, borderRadius: 8, padding: 10, marginBottom: 8,
     borderWidth: 1, borderColor: c.border,
   },
-  trustTierBannerText: { color: c.muted, fontSize: 12, flex: 1 },
-  label: { color: c.muted, fontSize: 13, marginBottom: 6, marginTop: 12 },
+  trustTierBannerText: { color: c.muted, fontSize: 12, fontFamily: fonts.regular, flex: 1 },
+  label: { color: c.muted, fontSize: 13, fontFamily: fonts.regular, marginBottom: 6, marginTop: 12 },
   input: {
     backgroundColor: c.bg, borderRadius: 12, padding: 14,
-    fontSize: 15, color: c.dark, borderWidth: 1, borderColor: c.border,
+    fontSize: 15, fontFamily: fonts.regular, color: c.dark, borderWidth: 1, borderColor: c.border,
   },
-  calcText: { color: c.success, fontSize: 13, marginTop: 8, textAlign: 'center' },
-  rateErrorText: { color: c.danger, fontSize: 12, marginTop: 6 },
+  calcText: { color: c.success, fontSize: 13, fontFamily: fonts.regular, marginTop: 8, textAlign: 'center' },
+  rateErrorText: { color: c.danger, fontSize: 12, fontFamily: fonts.regular, marginTop: 6 },
   cancelBtn: { padding: 14, alignItems: 'center', marginTop: 4 },
-  cancelText: { color: c.muted, fontSize: 15 },
+  cancelText: { color: c.muted, fontSize: 15, fontFamily: fonts.regular },
   actionRow: { flexDirection: 'row', gap: 10 },
   counterCard: {
     backgroundColor: c.warningBgTint, marginHorizontal: 16, borderRadius: 14,
     padding: 16, marginBottom: 12, borderWidth: 1, borderColor: c.warningBorderTint,
   },
-  counterTitle: { color: c.dark, fontSize: 14, fontWeight: '700', marginBottom: 4 },
-  counterText: { color: c.muted, fontSize: 13, marginBottom: 12 },
+  counterTitle: { color: c.dark, fontSize: 14, fontWeight: '700', fontFamily: fonts.bold, marginBottom: 4 },
+  counterText: { color: c.muted, fontSize: 13, fontFamily: fonts.regular, marginBottom: 12 },
   counterRow: { flexDirection: 'row', gap: 10 },
   counterAcceptBtn: { flex: 1, backgroundColor: c.success, borderRadius: 10, padding: 12, alignItems: 'center' },
   counterDeclineBtn: { flex: 1, backgroundColor: c.danger, borderRadius: 10, padding: 12, alignItems: 'center' },
-  counterBtnText: { color: c.surface, fontSize: 14, fontWeight: '700' },
+  counterBtnText: { color: c.surface, fontSize: 14, fontWeight: '700', fontFamily: fonts.bold },
 
   // Terms & Conditions modal
   termsScroll: { maxHeight: 340, marginBottom: 16 },
-  termsText: { fontSize: 13, color: c.muted, lineHeight: 20 },
-  termsSectionTitle: { fontSize: 13, fontWeight: '700', color: c.dark, marginTop: 12, marginBottom: 4 },
+  termsText: { fontSize: 13, color: c.muted, fontFamily: fonts.regular, lineHeight: 20 },
+  termsSectionTitle: { fontSize: 13, fontWeight: '700', fontFamily: fonts.bold, color: c.dark, marginTop: 12, marginBottom: 4 },
   checkboxRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     padding: 12, borderRadius: 10, backgroundColor: c.bg,
@@ -230,14 +231,14 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   checkboxChecked: { backgroundColor: c.accent, borderColor: c.accent },
-  checkboxLabel: { fontSize: 13, color: c.muted, flex: 1 },
-  checkboxLabelChecked: { color: c.dark, fontWeight: '600' },
+  checkboxLabel: { fontSize: 13, color: c.muted, fontFamily: fonts.regular, flex: 1 },
+  checkboxLabelChecked: { color: c.dark, fontWeight: '600', fontFamily: fonts.semibold },
   alreadySignedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12,
     borderWidth: 1, borderColor: '#bbf7d0', marginBottom: 10,
   },
-  alreadySignedText: { color: '#16a34a', fontSize: 13, fontWeight: '600' },
+  alreadySignedText: { color: '#16a34a', fontSize: 13, fontWeight: '600', fontFamily: fonts.semibold },
 });
 
 export default function LoanDetailScreen({ route, navigation }: Props) {
