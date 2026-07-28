@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getMyBorrowedLoans, getMyLentLoans, getMyCircles, requestLoan, hideLoan } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
+import { useFreshFocus } from '../utils/useFreshFocus';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
@@ -202,7 +203,7 @@ export default function LoansScreen({ navigation }: Props) {
     }
   };
 
-  useFocusEffect(useCallback(() => { loadLoans(); }, []));
+  const { markFresh } = useFreshFocus(loadLoans);
 
   const handleHideLoan = async (loanId: number): Promise<void> => {
     if (hidingLoanId !== null) return;
@@ -358,7 +359,7 @@ export default function LoansScreen({ navigation }: Props) {
           data={loans}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={{ padding: 16, gap: 10 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadLoans(); }} tintColor={colors.accent} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); markFresh(); loadLoans(); }} tintColor={colors.accent} />}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.loanCard}

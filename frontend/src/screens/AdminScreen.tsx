@@ -1,14 +1,14 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput, Modal,
   KeyboardAvoidingView, Platform, TouchableWithoutFeedback,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { getAdminOpenDisputes, resolveDispute } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
+import { useFreshFocus } from '../utils/useFreshFocus';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
@@ -103,7 +103,7 @@ export default function AdminScreen({ navigation }: Props) {
     }
   };
 
-  useFocusEffect(useCallback(() => { loadDisputes(); }, []));
+  const { markFresh } = useFreshFocus(loadDisputes);
 
   const handleResolve = async (): Promise<void> => {
     setResolutionError('');
@@ -115,6 +115,7 @@ export default function AdminScreen({ navigation }: Props) {
       setShowResolve(false);
       setResolution('');
       setAdminNotes('');
+      markFresh();
       loadDisputes();
     } catch (e) {
       showAlert('error', 'Error', (e as Error).message);
@@ -145,7 +146,7 @@ export default function AdminScreen({ navigation }: Props) {
       </View>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDisputes(); }} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); markFresh(); loadDisputes(); }} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
         {disputes.length === 0 ? (

@@ -13,6 +13,7 @@ import { aggregateTransactions, ChartPeriod } from '../utils/chartData';
 import { getCustomCategories, addCustomCategory, formatCategoryName } from '../utils/customCategories';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
+import { useFreshFocus } from '../utils/useFreshFocus';
 import { useTheme } from '../context/ThemeContext';
 import { ColorScheme } from '../theme/colors';
 import { formatMoney } from '../utils/formatMoney';
@@ -299,7 +300,7 @@ export default function ExpensesScreen() {
     }
   };
 
-  useFocusEffect(useCallback(() => { loadData(); }, []));
+  const { markFresh } = useFreshFocus(loadData);
 
   const chartData = useMemo(() => aggregateTransactions(transactions, chartPeriod, customFrom || undefined, customTo || undefined), [transactions, chartPeriod, customFrom, customTo]);
   const periodTotal = chartData.datasets[1].data.reduce((sum, v) => sum + v, 0);
@@ -542,7 +543,7 @@ export default function ExpensesScreen() {
       </View>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); markFresh(); loadData(); }} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
         {/* Overview Tab — view-only: summary cards, recap, charts */}

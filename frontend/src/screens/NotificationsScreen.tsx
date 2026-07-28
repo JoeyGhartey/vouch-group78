@@ -1,9 +1,8 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -12,6 +11,7 @@ import {
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
+import { useFreshFocus } from '../utils/useFreshFocus';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
@@ -91,7 +91,7 @@ export default function NotificationsScreen({ navigation }: Props) {
     }
   };
 
-  useFocusEffect(useCallback(() => { loadNotifications(); }, []));
+  const { markFresh } = useFreshFocus(loadNotifications);
 
   const handleMarkRead = async (id: number): Promise<void> => {
     try {
@@ -106,6 +106,7 @@ export default function NotificationsScreen({ navigation }: Props) {
     try {
       await markAllNotificationsRead();
       setNotifications(notifications.map((n) => ({ ...n, read: true })));
+      markFresh();
     } catch (error) {
       console.error('Error marking all:', error);
     }
@@ -115,6 +116,7 @@ export default function NotificationsScreen({ navigation }: Props) {
     try {
       await deleteNotification(id);
       setNotifications(prev => prev.filter(n => n.id !== id));
+      markFresh();
     } catch (error) {
       showAlert('error', 'Error', (error as Error).message);
     }
@@ -124,6 +126,7 @@ export default function NotificationsScreen({ navigation }: Props) {
     try {
       await clearReadNotifications();
       setNotifications(prev => prev.filter(n => !n.read));
+      markFresh();
     } catch (error) {
       showAlert('error', 'Error', (error as Error).message);
     }
@@ -235,7 +238,7 @@ export default function NotificationsScreen({ navigation }: Props) {
           data={notifications}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={{ padding: 16, gap: 8 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadNotifications(); }} tintColor={colors.accent} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); markFresh(); loadNotifications(); }} tintColor={colors.accent} />}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[styles.notifCard, !item.read && styles.unread]}

@@ -4,7 +4,6 @@ import {
   ActivityIndicator, RefreshControl, TextInput, Modal,
   ScrollView, KeyboardAvoidingView, Platform, TouchableWithoutFeedback,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { getMyCircles, getPendingInvites, acceptInvite, rejectInvite, createCircle } from '../services/api';
@@ -15,6 +14,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
 import { formatMoney } from '../utils/formatMoney';
 import { getRecentCircleOrder } from '../utils/recentCircles';
+import { useFreshFocus } from '../utils/useFreshFocus';
 import { fonts } from '../theme/fonts';
 
 type Props = {
@@ -147,7 +147,7 @@ export default function CirclesScreen({ navigation }: Props) {
     }
   };
 
-  useFocusEffect(useCallback(() => { loadCircles(); }, []));
+  const { markFresh } = useFreshFocus(loadCircles);
 
   const handleAcceptInvite = async (circleId: number): Promise<void> => {
     setAcceptingId(circleId);
@@ -248,7 +248,7 @@ export default function CirclesScreen({ navigation }: Props) {
       ) : (
         <ScrollView
           contentContainerStyle={{ padding: 16, gap: 12 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadCircles(); }} tintColor={colors.accent} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); markFresh(); loadCircles(); }} tintColor={colors.accent} />}
         >
           {pending.length > 0 && (
             <>

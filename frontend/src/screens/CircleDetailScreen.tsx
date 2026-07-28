@@ -22,6 +22,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
 import { formatMoney } from '../utils/formatMoney';
 import { recordCircleAccess } from '../utils/recentCircles';
+import { useFreshFocus } from '../utils/useFreshFocus';
 import { fonts } from '../theme/fonts';
 
 type Props = {
@@ -328,7 +329,11 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  useFocusEffect(useCallback(() => { loadData(); recordCircleAccess(circleId); }, [circleId]));
+  const { markFresh } = useFreshFocus(loadData);
+
+  // Cheap local-storage write (not a network call), so it stays outside the
+  // staleness check and always records the access on every focus.
+  useFocusEffect(useCallback(() => { recordCircleAccess(circleId); }, [circleId]));
 
   const handleRequestPayment = async (splitId: number): Promise<void> => {
     setRequestingId(splitId);
@@ -558,7 +563,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
 
       <ScrollView
         style={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); markFresh(); loadData(); }} tintColor={colors.accent} />}
         showsVerticalScrollIndicator={false}
       >
         {/* Members Tab */}

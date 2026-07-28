@@ -3,7 +3,6 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput, Modal, TouchableWithoutFeedback,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
@@ -14,6 +13,7 @@ import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
 import { formatMoney } from '../utils/formatMoney';
+import { useFreshFocus } from '../utils/useFreshFocus';
 import { fonts } from '../theme/fonts';
 
 type Props = {
@@ -302,7 +302,7 @@ export default function ProfileScreen({ navigation }: Props) {
     }
   };
 
-  useFocusEffect(useCallback(() => { loadData(); }, []));
+  const { markFresh } = useFreshFocus(loadData);
 
   const handleEdit = async (): Promise<void> => {
     setMomoNumberError('');
@@ -378,7 +378,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={colors.accent} />}>
+      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); markFresh(); loadData(); }} tintColor={colors.accent} />}>
 
         {/* Header with Help button on the left */}
         <View style={styles.header}>

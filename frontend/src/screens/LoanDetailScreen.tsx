@@ -19,6 +19,7 @@ import {
 } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
 import { useConfirmModal } from '../components/ConfirmModal';
+import { useFreshFocus } from '../utils/useFreshFocus';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
@@ -306,7 +307,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  useFocusEffect(useCallback(() => { loadData(); }, []));
+  const { markFresh } = useFreshFocus(loadData);
 
   const doAction = async (action: () => Promise<void>, successMsg?: string): Promise<void> => {
     setActing(true);

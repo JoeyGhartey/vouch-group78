@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg from 'react-native-svg';
 const { Circle } = require('react-native-svg');
 import { getLastAccessedCircleId } from '../utils/recentCircles';
+import { useFreshFocus } from '../utils/useFreshFocus';
 import {
   getProfile, getMyCircles, getUnreadCount,
   getMyBorrowedLoans, getMyLentLoans, getCircleExpenses, getPersonalTransactions,
@@ -333,8 +334,12 @@ export default function HomeScreen({ navigation }: Props) {
     }
   };
 
+  const { markFresh } = useFreshFocus(loadData);
+
+  // Cheap local-storage read (not a network call), so it stays outside the
+  // staleness check -- always reflects whatever circle was most recently
+  // opened, even if the dashboard data itself is still considered fresh.
   useFocusEffect(useCallback(() => {
-    loadData();
     getLastAccessedCircleId().then(setLastAccessedCircleId);
   }, []));
 
@@ -440,7 +445,7 @@ export default function HomeScreen({ navigation }: Props) {
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={colors.accent} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); markFresh(); loadData(); }} tintColor={colors.accent} />}
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
