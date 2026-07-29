@@ -3,13 +3,13 @@ import * as SecureStore from 'expo-secure-store';
 // No api-gateway deployed — each service is called directly on its own host.
 // This mirrors the routing rules that would otherwise live in api-gateway/application.yml.
 const SERVICE_URLS: Record<string, string> = {
-  auth: 'https://auth-service-production-a5aa.up.railway.app/api',
-  profile: 'https://auth-service-production-a5aa.up.railway.app/api',
-  notifications: 'https://notification-service-production-17f2.up.railway.app/api',
-  circles: 'https://loan-service-production-fc1e.up.railway.app/api',
-  loans: 'https://loan-service-production-fc1e.up.railway.app/api',
-  payments: 'https://payment-service-production-3e1d.up.railway.app/api',
-  disputes: 'https://dispute-service-production.up.railway.app/api',
+  auth: 'https://auth-service-production-5e70.up.railway.app/api',
+  profile: 'https://auth-service-production-5e70.up.railway.app/api',
+  notifications: 'https://notification-service-production-a457.up.railway.app/api',
+  circles: 'https://loan-service-production-1765.up.railway.app/api',
+  loans: 'https://loan-service-production-1765.up.railway.app/api',
+  payments: 'https://payment-service-production-ac0d.up.railway.app/api',
+  disputes: 'https://dispute-service-production-0116.up.railway.app/api',
   expenses: 'https://expense-service-u749.onrender.com/api',
 };
 

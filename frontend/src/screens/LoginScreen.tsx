@@ -11,7 +11,6 @@ import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ColorScheme } from '../theme/colors';
 import { fonts } from '../theme/fonts';
-import { resetOnboarding } from '../utils/onboardingStorage';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -257,22 +256,6 @@ export default function LoginScreen({ navigation }: Props) {
               Don't have an account? <Text style={styles.linkBold}>Sign Up</Text>
             </Text>
           </TouchableOpacity>
-
-          {/* Dev/QA only -- never shows in a production build. Lets you
-              re-trigger onboarding for testing without a full uninstall,
-              which is unreliable on iOS since Keychain-backed SecureStore
-              can survive app deletion. Remove before the final APK build. */}
-          {__DEV__ && (
-            <TouchableOpacity
-              style={{ alignItems: 'center', marginTop: 24 }}
-              onPress={async () => {
-                await resetOnboarding();
-                showAlert('success', 'Onboarding reset', 'Close and reopen the app to see it again.');
-              }}
-            >
-              <Text style={{ fontSize: 11, color: colors.muted }}>[DEV] Reset onboarding</Text>
-            </TouchableOpacity>
-          )}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
