@@ -257,6 +257,13 @@ public class LoanService {
         if (loan.getStatus() != Loan.LoanStatus.AGREEMENT_PENDING) {
             throw new RuntimeException("This loan is not in agreement signing stage");
         }
+        // Terms have to be settled before either signature counts -- a
+        // signature made while a counter-offer is still awaiting a response
+        // could lock in stale terms (see proposeCounterOffer for the other
+        // half of this rule).
+        if (loan.getCounterOfferRate() != null) {
+            throw new RuntimeException("There's a pending counter-offer on this loan. Accept or decline it before signing.");
+        }
 
         LoanAgreement agreement = loanAgreementRepository.findByLoan(loan)
                 .orElseThrow(() -> new RuntimeException("Agreement not found"));
@@ -550,8 +557,17 @@ public class LoanService {
 
         LoanAgreement agreement = loanAgreementRepository.findByLoan(loan)
                 .orElseThrow(() -> new RuntimeException("Agreement not found"));
-        if (agreement.getBorrowerSigned() || agreement.getLenderSigned()) {
-            throw new RuntimeException("Cannot counter-offer after either party has signed the agreement");
+        // Only ONE outstanding counter-offer at a time -- the lender's
+        // earlier signature (if any) is not a blocker here on purpose: it
+        // just means their signature is waiting on the outcome of this
+        // negotiation, not that negotiation is closed. respondToCounterOffer
+        // already resets both signatures to false when a counter is
+        // accepted, so a stale early signature can never carry over onto
+        // changed terms -- and signAgreement now refuses to let anyone sign
+        // while a counter-offer is pending (see above), so a signature can
+        // never race ahead of an unresolved negotiation either.
+        if (loan.getCounterOfferRate() != null) {
+            throw new RuntimeException("There's already a counter-offer awaiting a response. Wait for it to be accepted or declined first.");
         }
 
         loan.setCounterOfferRate(newRate);
