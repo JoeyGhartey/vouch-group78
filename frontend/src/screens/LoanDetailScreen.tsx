@@ -925,14 +925,25 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
 
       {/* Terms & Conditions Modal */}
       <Modal visible={showTerms} animationType="slide" transparent onRequestClose={() => setShowTerms(false)}>
-        {/* Pressable all the way down, not TouchableWithoutFeedback -- that
-            family competes with the ScrollView below for the touch responder
-            on Android and can block scrolling even when it's an ancestor
-            rather than the ScrollView's direct parent. This is the only
-            modal in this file with an actual ScrollView inside it, which is
-            why it's the only one that hit this. */}
-        <Pressable style={styles.modalBg} onPress={() => setShowTerms(false)}>
-          <Pressable onPress={() => {}}>
+        {/* No Touchable/Pressable wraps the ScrollView below, at any ancestor
+            depth -- that whole component family competes with a ScrollView
+            for the touch responder on Android and can swallow the drag
+            gesture before it ever reaches the ScrollView, even from several
+            levels up. (A previous attempt "fixed" this by renaming
+            TouchableWithoutFeedback to Pressable, which doesn't actually
+            change the responder-capture behavior causing the bug -- both
+            are built on the same underlying Pressability system.) Instead:
+            an absolutely-positioned invisible backdrop handles the
+            tap-outside-to-close behavior, and the modal card is a plain View
+            rendered on top of it as a sibling, not a wrapper -- a plain View
+            blocks touches from reaching whatever's behind it via normal
+            z-order hit-testing, no responder negotiation involved, so
+            nothing sits between the card and the ScrollView to intercept
+            the scroll. This is the only modal in this file with an actual
+            ScrollView inside it, which is why it's the only one that hit
+            this. */}
+        <View style={styles.modalBg}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowTerms(false)} />
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Loan Agreement</Text>
             <Text style={styles.modalSub}>Please read and accept before signing</Text>
@@ -997,8 +1008,7 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
-          </Pressable>
-        </Pressable>
+        </View>
       </Modal>
 
       {/* Fund Modal */}
