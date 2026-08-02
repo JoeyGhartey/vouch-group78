@@ -95,8 +95,13 @@ public class User {
     // records. Instead this flag blocks login and the profile/PII fields get
     // anonymized in place, while id/trustScore/loan counters stay intact so
     // other users' history keeps resolving correctly. See AuthService.deleteAccount().
+    // Not nullable=false on purpose: Hibernate's schema auto-update can't add
+    // a NOT NULL column to a table that already has rows without a DB-level
+    // default, and adding one fails/skips silently on Postgres instead of
+    // erroring loudly. Nullable is safe here since every check in the code
+    // uses Boolean.TRUE.equals(...), which treats a null column the same as
+    // false for any row that predates this field.
     @Builder.Default
-    @Column(nullable = false)
     private Boolean deleted = false;
 
     private LocalDateTime deletedAt;
