@@ -80,6 +80,12 @@ public class User {
     @Builder.Default
     private Integer resetOtpAttempts = 0;
 
+    // Throttles forgotPassword() the same way registration OTPs are already
+    // throttled -- without this, forgotPassword had no rate limit at all,
+    // so anyone could script repeated calls against a victim's phone/email
+    // to spam their inbox/device indefinitely.
+    private LocalDateTime resetOtpLastSentAt;
+
     // ✅ Security: track failed login attempts and lockout
     @Builder.Default
     private Integer failedLoginAttempts = 0;

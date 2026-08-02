@@ -77,6 +77,19 @@ public class AuthService {
                 .orElseGet(() -> pendingRegistrationRepository.findByEmail(request.getEmail())
                         .orElseGet(PendingRegistration::new));
 
+        // Same cooldown resendRegistrationOtp already enforces -- without it,
+        // this endpoint (unlike resend) had no throttle at all, so anyone
+        // could script repeated calls against a phone/email to email-bomb
+        // that inbox indefinitely, since every call unconditionally sends a
+        // fresh OTP email. Only applies once a pending row already exists
+        // (i.e. this isn't someone's very first attempt).
+        if (pending.getLastOtpSentAt() != null
+                && pending.getLastOtpSentAt().plusSeconds(RESEND_COOLDOWN_SECONDS).isAfter(LocalDateTime.now())) {
+            long secondsLeft = java.time.Duration.between(LocalDateTime.now(),
+                    pending.getLastOtpSentAt().plusSeconds(RESEND_COOLDOWN_SECONDS)).toSeconds() + 1;
+            throw new RuntimeException("Please wait " + secondsLeft + " seconds before requesting another code.");
+        }
+
         pending.setPhone(request.getPhone());
         pending.setEmail(request.getEmail());
         pending.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -354,10 +367,18 @@ public class AuthService {
     }
 
     private String generateAndStoreOtp(User user) {
+        if (user.getResetOtpLastSentAt() != null
+                && user.getResetOtpLastSentAt().plusSeconds(RESEND_COOLDOWN_SECONDS).isAfter(LocalDateTime.now())) {
+            long secondsLeft = java.time.Duration.between(LocalDateTime.now(),
+                    user.getResetOtpLastSentAt().plusSeconds(RESEND_COOLDOWN_SECONDS)).toSeconds() + 1;
+            throw new RuntimeException("Please wait " + secondsLeft + " seconds before requesting another code.");
+        }
+
         String otp = String.format("%06d", OTP_RANDOM.nextInt(1_000_000));
         user.setResetOtpHash(passwordEncoder.encode(otp));
         user.setResetOtpExpiry(LocalDateTime.now().plusMinutes(OTP_VALID_MINUTES));
         user.setResetOtpAttempts(0);
+        user.setResetOtpLastSentAt(LocalDateTime.now());
         userRepository.save(user);
         return otp;
     }
