@@ -77,7 +77,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   label: { fontSize: 11, color: c.muted, fontWeight: '700', fontFamily: fonts.bold, marginBottom: 6, marginTop: 18, letterSpacing: 0.6, textTransform: 'uppercase' },
   input: {
     backgroundColor: 'transparent', borderRadius: 0, paddingVertical: 10, paddingHorizontal: 2,
-    fontSize: 16, color: c.dark, borderBottomWidth: 1.5, borderColor: c.border,
+    fontSize: 16, color: c.dark, borderBottomWidth: 1.5, borderColor: c.border, fontFamily: fonts.regular,
   },
   inputError: {
     borderColor: c.danger,

@@ -62,7 +62,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   labelFirst: { marginTop: 4 },
   input: {
     backgroundColor: 'transparent', borderRadius: 0, paddingVertical: 10, paddingHorizontal: 2,
-    fontSize: 16, color: c.dark, borderBottomWidth: 1.5, borderColor: c.border,
+    fontSize: 16, color: c.dark, borderBottomWidth: 1.5, borderColor: c.border, fontFamily: fonts.regular,
   },
   inputError: { borderColor: c.danger },
   errorText: { fontSize: 11, color: c.danger, marginTop: 6, fontWeight: '500', fontFamily: fonts.medium },

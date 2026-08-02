@@ -448,17 +448,31 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
     doAction(async () => { await rejectAgreement(loan!.id); }, 'Agreement rejected.');
   };
 
-  const handleProposeCounterOffer = (): void => {
+  const handleProposeCounterOffer = async (): Promise<void> => {
     setCounterRateError('');
     if (!counterRate || parseFloat(counterRate) < 0) {
       setCounterRateError('Enter a valid interest rate');
       return;
     }
-    doAction(async () => {
+    // Deliberately NOT using the shared doAction() here -- this runs while
+    // the counter-offer popup is still open, and doAction's error path shows
+    // the global AppAlert, which is ALSO a Modal. Two RN Modals stacked at
+    // once can mean the second one (the alert) never actually renders --
+    // the popup just sits there looking stuck with no visible error. Showing
+    // the error inline in the still-open popup avoids that entirely, same
+    // as the validation error two lines above.
+    setActing(true);
+    try {
       await proposeCounterOffer(loan!.id, parseFloat(counterRate));
       setShowCounterOffer(false);
       setCounterRate('');
-    }, 'Counter-offer sent to lender.');
+      await loadData();
+      showAlert('success', 'Success', 'Counter-offer sent to lender.');
+    } catch (e) {
+      setCounterRateError((e as Error).message);
+    } finally {
+      setActing(false);
+    }
   };
 
   const handleRespondToCounterOffer = async (accept: boolean): Promise<void> => {

@@ -75,7 +75,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
   labelFirst: { marginTop: 0 },
   input: {
     backgroundColor: 'transparent', borderRadius: 0, paddingVertical: 10, paddingHorizontal: 2,
-    fontSize: 16, color: c.dark, borderBottomWidth: 1.5, borderColor: c.border,
+    fontSize: 16, color: c.dark, borderBottomWidth: 1.5, borderColor: c.border, fontFamily: fonts.regular,
   },
   inputDisabled: { color: c.muted, opacity: 0.6 },
 
