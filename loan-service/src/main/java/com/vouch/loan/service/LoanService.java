@@ -31,7 +31,12 @@ public class LoanService {
     private final NotificationServiceClient notificationServiceClient;
     private final ExpenseServiceClient expenseServiceClient;
     private final GroupFundingService groupFundingService;
+    private final LoanContributionRepository loanContributionRepository;
     private static final double PLATFORM_FEE_PERCENT = 2.0;
+    // Same "money still in motion" definition CircleService uses for the
+    // leave-circle check -- anything not in this list blocks account deletion.
+    private static final EnumSet<Loan.LoanStatus> CLOSED_LOAN_STATUSES = EnumSet.of(
+            Loan.LoanStatus.REPAID, Loan.LoanStatus.DEFAULTED, Loan.LoanStatus.CANCELLED);
     private static final EnumSet<Loan.LoanStatus> FUNDED_STATUSES = EnumSet.of(
             Loan.LoanStatus.DISBURSED, Loan.LoanStatus.ACTIVE, Loan.LoanStatus.DUE,
             Loan.LoanStatus.GRACE_PERIOD, Loan.LoanStatus.REPAID, Loan.LoanStatus.DEFAULTED,
@@ -1034,5 +1039,22 @@ public class LoanService {
         result.put("returnRate", returnRate);
         result.put("totalAmountAtRisk", totalAmountAtRisk);
         return result;
+    }
+
+    // Used by auth-service's self-service account deletion flow to block
+    // deleting an account that still has money genuinely in motion --
+    // whether as a borrower, a solo lender, or a group-funding contributor,
+    // across ALL circles (not scoped to one, unlike the leave-circle check).
+    public boolean hasActiveLoanAnywhere(Long userId) {
+        boolean asBorrower = loanRepository.findByBorrowerIdOrderByCreatedAtDesc(userId).stream()
+                .anyMatch(l -> !CLOSED_LOAN_STATUSES.contains(l.getStatus()));
+        if (asBorrower) return true;
+
+        boolean asLender = loanRepository.findByLenderIdOrderByCreatedAtDesc(userId).stream()
+                .anyMatch(l -> !CLOSED_LOAN_STATUSES.contains(l.getStatus()));
+        if (asLender) return true;
+
+        return loanContributionRepository.findByLenderId(userId).stream()
+                .anyMatch(c -> !CLOSED_LOAN_STATUSES.contains(c.getLoan().getStatus()));
     }
 }

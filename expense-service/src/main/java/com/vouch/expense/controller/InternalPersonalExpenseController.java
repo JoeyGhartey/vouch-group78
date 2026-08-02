@@ -43,4 +43,15 @@ public class InternalPersonalExpenseController {
         boolean hasAny = !sharedExpenseRepository.findByCircleId(circleId).isEmpty();
         return ResponseEntity.ok(Map.of("hasAny", hasAny));
     }
+
+    // Used by auth-service's self-service account deletion flow -- blocks
+    // deleting an account that still owes, or is still owed, money on a
+    // shared expense in ANY circle (not scoped to one, unlike the
+    // leave-circle check above).
+    @GetMapping("/user/{userId}/has-unsettled")
+    public ResponseEntity<Map<String, Object>> hasUnsettledAnywhere(@PathVariable Long userId) {
+        boolean hasUnsettled = !expenseSplitRepository.findByUserIdAndSettledFalse(userId).isEmpty()
+                || !expenseSplitRepository.findUnsettledOwedToUserAnywhere(userId).isEmpty();
+        return ResponseEntity.ok(Map.of("hasUnsettled", hasUnsettled));
+    }
 }

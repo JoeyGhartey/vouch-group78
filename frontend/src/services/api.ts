@@ -10,7 +10,7 @@ const SERVICE_URLS: Record<string, string> = {
   loans: 'https://loan-service-production-1765.up.railway.app/api',
   payments: 'https://payment-service-production-ac0d.up.railway.app/api',
   disputes: 'https://dispute-service-production-0116.up.railway.app/api',
-  expenses: 'https://expense-service-u749.onrender.com/api',
+  expenses: 'https://expense-service-production-1558.up.railway.app/api',
 };
 
 const resolveBaseUrl = (endpoint: string): string => {
@@ -130,6 +130,7 @@ export const login = (data: unknown) => request('/auth/login', 'POST', data);
 export const forgotPassword = (identifier: string) => request('/auth/forgot-password', 'POST', { identifier });
 export const resetPassword = (identifier: string, otp: string, newPassword: string) => request('/auth/reset-password', 'POST', { identifier, otp, newPassword });
 export const registerPushToken = (token: string) => request('/auth/push-token', 'POST', { token });
+export const deleteAccount = () => request('/auth/account', 'DELETE');
 
 // Profile
 export const getProfile = () => request('/profile');

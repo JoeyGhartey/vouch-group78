@@ -49,4 +49,11 @@ public class InternalLoanController {
     public ResponseEntity<Map<String, Object>> resolveDispute(@PathVariable Long loanId) {
         return ResponseEntity.ok(loanService.resolveLoanDispute(loanId));
     }
+
+    // Used by auth-service's account-deletion flow to block deleting an
+    // account with money still in motion, across every circle the user is in.
+    @GetMapping("/user/{userId}/has-active")
+    public ResponseEntity<Map<String, Object>> hasActiveLoan(@PathVariable Long userId) {
+        return ResponseEntity.ok(Map.of("hasActive", loanService.hasActiveLoanAnywhere(userId)));
+    }
 }

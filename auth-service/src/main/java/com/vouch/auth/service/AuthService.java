@@ -44,6 +44,8 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final LoginAttemptService loginAttemptService;
     private final RestTemplate restTemplate;
+    private final LoanServiceClient loanServiceClient;
+    private final ExpenseServiceClient expenseServiceClient;
 
     @Value("${brevo.api-key}")
     private String brevoApiKey;
@@ -216,6 +218,10 @@ public class AuthService {
                 user = userRepository.findByEmail(request.getIdentifier())
                         .orElseThrow(() -> new RuntimeException("No account found with this email address"));
 
+                if (Boolean.TRUE.equals(user.getDeleted())) {
+                    throw new RuntimeException("This account has been deleted.");
+                }
+
                 if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
                     handleFailedAttempt(user, ipAddress);
                     throw new RuntimeException("Invalid password");
@@ -223,6 +229,10 @@ public class AuthService {
             } else {
                 user = userRepository.findByPhone(request.getIdentifier())
                         .orElseThrow(() -> new RuntimeException("No account found with this phone number"));
+
+                if (Boolean.TRUE.equals(user.getDeleted())) {
+                    throw new RuntimeException("This account has been deleted.");
+                }
 
                 if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
                     handleFailedAttempt(user, ipAddress);
@@ -391,6 +401,70 @@ public class AuthService {
         userRepository.save(user);
 
         return Map.of("message", "Password reset successful. You can now log in with your new password.");
+    }
+
+    // Self-service "delete my account" — soft delete only. The row and its
+    // id, trustScore, and loan/default counters are kept in place, since
+    // loan-service/expense-service/dispute-service/notification-service each
+    // have their own database and reference this user only by id/phone
+    // copied via internal API calls, not a real foreign key. A hard delete
+    // here would orphan every loan, circle membership, and shared-expense
+    // record other users still hold that reference this person. Instead:
+    // login is blocked (deleted flag + unusable password), and PII (name,
+    // email, momo details, push token) is wiped -- but phone stays as-is
+    // since it's the unique lookup key other services already have on file.
+    //
+    // Blocked while the user has money genuinely in motion, mirroring the
+    // leave-circle rule but checked across every circle at once: an active
+    // loan (as borrower, solo lender, or group-funding contributor) or an
+    // unsettled shared expense anywhere. Both checks fail CLOSED (block
+    // deletion) if the other service can't be reached, since this action
+    // can't be undone from the login side once it succeeds.
+    //
+    // Known limitation (accepted deliberately, not an oversight): JWTs are
+    // stateless and last 30 days, and none of the other five services
+    // re-validate user status per request -- only auth-service enforces the
+    // deleted flag. A still-valid token from before deletion could keep
+    // working against loan-service/expense-service/etc. until it naturally
+    // expires. Fixing this fully would mean every service calling back to
+    // auth-service on every authenticated request, which wasn't worth the
+    // added latency/complexity for this app's timeline and threat model.
+    public Map<String, Object> deleteAccount(String phone) {
+        User user = userRepository.findByPhone(phone)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+
+        if (Boolean.TRUE.equals(user.getDeleted())) {
+            throw new RuntimeException("This account has already been deleted.");
+        }
+
+        if (loanServiceClient.hasActiveLoan(user.getId())) {
+            throw new RuntimeException(
+                "You have an active loan (as a borrower, lender, or contributor). " +
+                "Resolve it before deleting your account."
+            );
+        }
+
+        if (expenseServiceClient.hasUnsettledExpenses(user.getId())) {
+            throw new RuntimeException(
+                "You have an unsettled shared expense. Settle up before deleting your account."
+            );
+        }
+
+        user.setDeleted(true);
+        user.setDeletedAt(LocalDateTime.now());
+        user.setFirstName("Deleted");
+        user.setLastName("User");
+        user.setEmail(null);
+        user.setMomoProvider(null);
+        user.setMomoNumber(null);
+        user.setPushToken(null);
+        // Unusable password (defense in depth, on top of the deleted-flag
+        // check in login()) — a random string run through the same encoder,
+        // so even a bug that skipped the deleted check couldn't authenticate.
+        user.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+        userRepository.save(user);
+
+        return Map.of("message", "Your account has been deleted.");
     }
 
     // Generic email sender via Brevo's HTTP API (not SMTP) — Railway blocks

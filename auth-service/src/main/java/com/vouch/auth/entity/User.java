@@ -89,6 +89,18 @@ public class User {
     @Builder.Default
     private Boolean accountLocked = false;
 
+    // Soft delete: the row is never physically removed, since loans, circle
+    // memberships, and trust-score history in OTHER services still reference
+    // this user's id. Deleting it for real would orphan every one of those
+    // records. Instead this flag blocks login and the profile/PII fields get
+    // anonymized in place, while id/trustScore/loan counters stay intact so
+    // other users' history keeps resolving correctly. See AuthService.deleteAccount().
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean deleted = false;
+
+    private LocalDateTime deletedAt;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

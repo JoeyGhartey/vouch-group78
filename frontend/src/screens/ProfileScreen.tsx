@@ -6,8 +6,9 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
-import { getProfile, updateProfile, getBorrowerInsights, getLenderInsights, getBadges } from '../services/api';
+import { getProfile, updateProfile, getBorrowerInsights, getLenderInsights, getBadges, deleteAccount } from '../services/api';
 import { useAppAlert } from '../components/AppAlert';
+import { useConfirmModal } from '../components/ConfirmModal';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -234,6 +235,11 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     backgroundColor: c.surface, flexDirection: 'row', justifyContent: 'center',
   },
   logoutText: { color: c.danger, fontSize: 14, fontWeight: '700', fontFamily: fonts.bold },
+  deleteAccountBtn: {
+    marginHorizontal: 16, marginTop: 10, padding: 10, borderRadius: 12,
+    alignItems: 'center', flexDirection: 'row', justifyContent: 'center',
+  },
+  deleteAccountText: { color: c.danger, fontSize: 12, fontWeight: '600', fontFamily: fonts.semibold, opacity: 0.75 },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 },
   modal: { backgroundColor: c.surface, borderRadius: 16, padding: 24, maxHeight: '80%' as const },
   modalTitle: { color: c.dark, fontSize: 20, fontWeight: '700', fontFamily: fonts.bold, textAlign: 'center', marginBottom: 16 },
@@ -266,6 +272,8 @@ export default function ProfileScreen({ navigation }: Props) {
   const { colors, preference, setThemeOverride, resetToSystem } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { showAlert } = useAppAlert();
+  const { confirm } = useConfirmModal();
+  const [deleting, setDeleting] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [borrowerInsights, setBorrowerInsights] = useState<BorrowerInsights | null>(null);
@@ -349,6 +357,25 @@ export default function ProfileScreen({ navigation }: Props) {
   // "standing" language reads the same wherever a user sees their trust score.
   const getTrustLabel = (s: number): string => s >= 75 ? 'Excellent' : s >= 50 ? 'Neutral' : 'Low';
   const earnedCount = badges.filter(b => b.earned).length;
+
+  const handleDeleteAccount = async (): Promise<void> => {
+    const ok = await confirm(
+      'Delete Account',
+      'This permanently signs you out and removes your name, email, and MoMo details from Vouch. Your trust score and loan history stay so other members\' records stay accurate, but you will never be able to log back in. This cannot be undone.\n\nIf you have any active loan or unsettled shared expense, this will be blocked until it\'s resolved.',
+      'Delete My Account'
+    );
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      showAlert('success', 'Account Deleted', 'Your account has been deleted.');
+      await signOut();
+    } catch (e) {
+      showAlert('error', 'Could Not Delete Account', (e as Error).message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleBorrowingStatusInfo = (): void => {
     showAlert(
@@ -641,6 +668,21 @@ export default function ProfileScreen({ navigation }: Props) {
         <TouchableOpacity style={styles.logoutBtn} onPress={signOut}>
           <Ionicons name="log-out-outline" size={16} color={colors.danger} style={{ marginRight: 6 }} />
           <Text style={styles.logoutText}>Log Out</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.deleteAccountBtn, deleting && { opacity: 0.6 }]}
+          onPress={handleDeleteAccount}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator size="small" color={colors.danger} />
+          ) : (
+            <>
+              <Ionicons name="trash-outline" size={14} color={colors.danger} style={{ marginRight: 6 }} />
+              <Text style={styles.deleteAccountText}>Delete Account</Text>
+            </>
+          )}
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />

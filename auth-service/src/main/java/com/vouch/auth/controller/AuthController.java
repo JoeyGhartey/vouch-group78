@@ -85,6 +85,16 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "Push token saved"));
     }
 
+    // Self-service account deletion (soft delete -- see AuthService.deleteAccount
+    // for the full reasoning). Requires a valid JWT; deletes whoever the token
+    // belongs to, no separate confirmation param since the frontend gates this
+    // behind its own confirmation dialog.
+    @DeleteMapping("/account")
+    public ResponseEntity<Map<String, Object>> deleteAccount(Authentication auth) {
+        if (auth == null) return ResponseEntity.status(401).body(Map.of("message", "Unauthorized"));
+        return ResponseEntity.ok(authService.deleteAccount(auth.getName()));
+    }
+
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
         return ResponseEntity.ok(Map.of(

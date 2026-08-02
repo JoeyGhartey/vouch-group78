@@ -23,4 +23,11 @@ public interface ExpenseSplitRepository extends JpaRepository<ExpenseSplit, Long
     @Query("select s from ExpenseSplit s where s.sharedExpense.paidById = :userId and s.settled = false " +
             "and s.sharedExpense.circleId = :circleId and s.userId <> :userId")
     List<ExpenseSplit> findUnsettledOwedToUserInCircle(@Param("userId") Long userId, @Param("circleId") Long circleId);
+
+    // Splits still owed TO this user, across EVERY circle -- used by
+    // auth-service's account-deletion flow (unlike the circle-scoped version
+    // above, which is only for the leave-circle check).
+    @Query("select s from ExpenseSplit s where s.sharedExpense.paidById = :userId and s.settled = false " +
+            "and s.userId <> :userId")
+    List<ExpenseSplit> findUnsettledOwedToUserAnywhere(@Param("userId") Long userId);
 }
