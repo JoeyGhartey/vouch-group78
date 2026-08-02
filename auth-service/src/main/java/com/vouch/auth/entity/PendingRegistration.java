@@ -48,7 +48,7 @@ public class PendingRegistration {
     @Builder.Default
     private Integer otpAttempts = 0;
 
-    // Gates /register/resend so it can't be hammered to spam SendGrid sends.
+    // Gates /register/resend so it can't be hammered to spam email sends.
     private LocalDateTime lastOtpSentAt;
 
     @Column(nullable = false, updatable = false)

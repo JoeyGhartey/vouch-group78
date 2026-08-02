@@ -45,11 +45,11 @@ public class AuthService {
     private final LoginAttemptService loginAttemptService;
     private final RestTemplate restTemplate;
 
-    @Value("${sendgrid.api-key}")
-    private String sendGridApiKey;
+    @Value("${brevo.api-key}")
+    private String brevoApiKey;
 
-    @Value("${sendgrid.from-email}")
-    private String sendGridFromEmail;
+    @Value("${brevo.from-email}")
+    private String brevoFromEmail;
 
     private static final int MAX_ACCOUNT_ATTEMPTS = 5;
     private static final int LOCKOUT_MINUTES = 30;
@@ -393,45 +393,47 @@ public class AuthService {
         return Map.of("message", "Password reset successful. You can now log in with your new password.");
     }
 
-    // Generic email sender via SendGrid's HTTP API (not SMTP) — Railway blocks
+    // Generic email sender via Brevo's HTTP API (not SMTP) — Railway blocks
     // outbound SMTP ports on non-Pro plans, but a normal HTTPS POST goes
-    // through unaffected. Shared by password-reset OTPs, registration OTPs,
-    // and the post-verification welcome email. Sends BOTH a plain-text and an
-    // HTML part (multipart) -- besides looking like a real product email
-    // instead of a bare string, sending both formats is itself a
-    // deliverability signal spam filters weigh; plain-text-only bulk mail is
-    // penalized more heavily than a proper multipart message.
+    // through unaffected. (Previously used SendGrid; that account was
+    // permanently banned by SendGrid's fraud/onboarding review, unrelated to
+    // this app's code, so this was swapped to Brevo.) Shared by
+    // password-reset OTPs, registration OTPs, and the post-verification
+    // welcome email. Sends BOTH a plain-text and an HTML part -- besides
+    // looking like a real product email instead of a bare string, sending
+    // both formats is itself a deliverability signal spam filters weigh;
+    // plain-text-only bulk mail is penalized more heavily than a proper
+    // multipart message.
     //
-    // Note on deliverability: sendGridFromEmail is a Gmail address, not a
-    // domain Vouch controls, so SendGrid can't set up SPF/DKIM authentication
-    // for it (that requires DNS records on an owned domain). Until this sends
-    // from an authenticated custom domain, some inbox providers will still be
-    // suspicious of it regardless of how the email itself looks -- branding
-    // it properly narrows the gap but doesn't fully close it.
+    // Note on deliverability: brevoFromEmail is currently a Gmail address,
+    // not a domain Vouch controls, so Brevo can't set up SPF/DKIM
+    // authentication for it (that requires DNS records on an owned domain).
+    // Until this sends from an authenticated custom domain, some inbox
+    // providers will still be suspicious of it regardless of how the email
+    // itself looks -- branding it properly narrows the gap but doesn't fully
+    // close it.
     private void sendEmail(String email, String subject, String heading, String message, String otpCode) {
-        if (sendGridApiKey == null || sendGridApiKey.isBlank()) {
-            log.warn("SENDGRID_API_KEY is not configured — cannot send email to {}", email);
+        if (brevoApiKey == null || brevoApiKey.isBlank()) {
+            log.warn("BREVO_API_KEY is not configured — cannot send email to {}", email);
             throw new RuntimeException("Email delivery isn't configured yet. Please try again shortly.");
         }
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(sendGridApiKey);
+            headers.set("api-key", brevoApiKey);
 
             String plainTextBody = message + (otpCode != null ? "\n\nYour code: " + otpCode : "");
             String htmlBody = buildBrandedEmailHtml(heading, message, otpCode);
 
             Map<String, Object> payload = Map.of(
-                    "personalizations", List.of(Map.of("to", List.of(Map.of("email", email)))),
-                    "from", Map.of("email", sendGridFromEmail, "name", "Vouch"),
+                    "sender", Map.of("email", brevoFromEmail, "name", "Vouch"),
+                    "to", List.of(Map.of("email", email)),
                     "subject", subject,
-                    "content", List.of(
-                            Map.of("type", "text/plain", "value", plainTextBody),
-                            Map.of("type", "text/html", "value", htmlBody)
-                    )
+                    "textContent", plainTextBody,
+                    "htmlContent", htmlBody
             );
 
-            restTemplate.postForEntity("https://api.sendgrid.com/v3/mail/send",
+            restTemplate.postForEntity("https://api.brevo.com/v3/smtp/email",
                     new HttpEntity<>(payload, headers), String.class);
         } catch (Exception e) {
             log.warn("Failed to email {} ({}): {}", subject, email, e.getMessage());
