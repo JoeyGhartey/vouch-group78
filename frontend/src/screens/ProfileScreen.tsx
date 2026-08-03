@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, TextInput, Modal, TouchableWithoutFeedback,
+  ActivityIndicator, RefreshControl, TextInput, Modal, Pressable,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -688,10 +688,11 @@ export default function ProfileScreen({ navigation }: Props) {
         <View style={{ height: 40 }} />
       </ScrollView>
 
+      {/* No wrapping Touchable around the card -- see LoanDetailScreen.tsx's
+          Terms modal comment for why. Absolutely-positioned backdrop instead. */}
       <Modal visible={showEdit} animationType="slide" transparent onRequestClose={() => setShowEdit(false)}>
-        <TouchableWithoutFeedback onPress={() => setShowEdit(false)}>
         <View style={styles.modalBg}>
-          <TouchableWithoutFeedback onPress={() => {}}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowEdit(false)} />
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Edit Profile</Text>
             {editFields.map(([label, key]) => (
@@ -733,9 +734,7 @@ export default function ProfileScreen({ navigation }: Props) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
-          </TouchableWithoutFeedback>
         </View>
-        </TouchableWithoutFeedback>
       </Modal>
     </View>
   );

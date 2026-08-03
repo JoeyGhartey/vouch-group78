@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TouchableWithoutFeedback,
+  View, Text, StyleSheet, TouchableOpacity, Pressable,
   Animated, Dimensions, Modal,
 } from 'react-native';
 import { fonts } from '../theme/fonts';
@@ -64,25 +64,31 @@ export const ConfirmModalHost: React.FC<{ children: React.ReactNode }> = ({ chil
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
+      {/* No Touchable/Pressable wraps the card below -- a wrapping
+          Touchable/Pressable ancestor competes with descendant touches for
+          the responder and can silently swallow taps meant for the Confirm/
+          Cancel buttons (found and fixed across every modal in
+          LoanDetailScreen.tsx; this shared component had the same bug).
+          Fix: an absolutely-positioned invisible backdrop handles
+          tap-outside-to-dismiss, and the card is a plain sibling on top of
+          it, not a wrapper -- nothing sits between the card and its buttons
+          to intercept anything. */}
       <Modal visible={state.visible} transparent animationType="none">
-        <TouchableWithoutFeedback onPress={() => animateOut(false)}>
-          <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }] }]}>
-                <Text style={styles.title}>{state.title}</Text>
-                <Text style={styles.message}>{state.message}</Text>
-                <View style={styles.buttons}>
-                  <TouchableOpacity style={styles.cancelBtn} onPress={() => animateOut(false)}>
-                    <Text style={styles.cancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.confirmBtn} onPress={() => animateOut(true)}>
-                    <Text style={styles.confirmText}>{state.confirmLabel}</Text>
-                  </TouchableOpacity>
-                </View>
-              </Animated.View>
-            </TouchableWithoutFeedback>
+        <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => animateOut(false)} />
+          <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }] }]}>
+            <Text style={styles.title}>{state.title}</Text>
+            <Text style={styles.message}>{state.message}</Text>
+            <View style={styles.buttons}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => animateOut(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmBtn} onPress={() => animateOut(true)}>
+                <Text style={styles.confirmText}>{state.confirmLabel}</Text>
+              </TouchableOpacity>
+            </View>
           </Animated.View>
-        </TouchableWithoutFeedback>
+        </Animated.View>
       </Modal>
     </ConfirmContext.Provider>
   );
