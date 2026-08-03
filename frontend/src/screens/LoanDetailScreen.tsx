@@ -916,7 +916,25 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
           </View>
         )}
         {['ACTIVE', 'DUE', 'GRACE_PERIOD'].includes(loan.status) && isBorrower && (
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => { setActing(false); setRepayAmount(totalOwed.toFixed(2)); setShowRepay(true); }}>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={() => {
+              setActing(false);
+              // confirmingRef is a submission-lock guard against double-tapping
+              // Confirm Repayment while a request is already in flight. It's
+              // meant to clear itself once the Paystack browser session
+              // resolves -- but on Android, backing out via the hardware
+              // back button (instead of the browser's own close control) is
+              // a known expo-web-browser quirk where that promise never
+              // resolves, leaving the guard stuck true forever with no
+              // visible sign anything's wrong. Reopening this modal is a
+              // clear enough signal the user wants to try again, so reset
+              // it here too, the same way `acting` already gets force-reset.
+              confirmingRef.current = false;
+              setRepayAmount(totalOwed.toFixed(2));
+              setShowRepay(true);
+            }}
+          >
             <Text style={styles.btnText}>Repay via Paystack</Text>
           </TouchableOpacity>
         )}
