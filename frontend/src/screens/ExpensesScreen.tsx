@@ -207,7 +207,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
 });
 
 export default function ExpensesScreen() {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { showAlert } = useAppAlert();
   const { confirm } = useConfirmModal();
@@ -737,6 +737,8 @@ export default function ExpensesScreen() {
                         mode="date"
                         display="default"
                         onChange={handleDateChange}
+                        themeVariant={theme}
+                        accentColor={colors.accent}
                       />
                     )}
 
@@ -747,6 +749,8 @@ export default function ExpensesScreen() {
                           mode="date"
                           display="inline"
                           onChange={handleDateChange}
+                          themeVariant={theme}
+                          accentColor={colors.accent}
                         />
                         <TouchableOpacity style={styles.iosPickerDoneBtn} onPress={() => setPickerField(null)}>
                           <Text style={styles.iosPickerDoneText}>Done</Text>
