@@ -548,11 +548,30 @@ public class LoanService {
 
         loanAgreementRepository.findByLoan(loan).ifPresent(loanAgreementRepository::delete);
 
+        // Same stale-pledge issue rejectAgreement had: a group-funded loan
+        // cancelled at AGREEMENT_PENDING can have LoanContribution rows, and
+        // the old code here never touched them (nor notified contributors --
+        // only the single-lender branch below ever fired, which is always
+        // null for a group-funded loan). Unlike reject, cancel is terminal,
+        // so there's no "reopened loan" for stale rows to corrupt -- but the
+        // rows would still dangle referencing a dead loan, and contributors
+        // deserve to know their pledge is void the same way a solo lender does.
+        List<LoanContribution> staleContributions = loanContributionRepository.findByLoan(loan);
+        String borrowerName = authServiceClient.getUserName(userId);
+        if (!staleContributions.isEmpty()) {
+            for (LoanContribution c : staleContributions) {
+                notificationServiceClient.send(c.getLenderId(), "Loan Cancelled",
+                        borrowerName + " cancelled the GHS " + loan.getAmount() +
+                        " loan request. Your GHS " + c.getAmount() + " contribution is no longer needed.",
+                        "LOAN_CANCELLED", loan.getId());
+            }
+            loanContributionRepository.deleteAll(staleContributions);
+        }
+
         loan.setStatus(Loan.LoanStatus.CANCELLED);
         loan = loanRepository.save(loan);
 
         if (loan.getLenderId() != null) {
-            String borrowerName = authServiceClient.getUserName(userId);
             notificationServiceClient.send(loan.getLenderId(), "Loan Cancelled",
                     borrowerName + " cancelled a GHS " + loan.getAmount() + " loan you were funding.",
                     "LOAN_CANCELLED", loan.getId());
