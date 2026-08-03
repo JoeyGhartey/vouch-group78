@@ -257,6 +257,12 @@ public class LoanService {
 
         generateAgreement(loan);
 
+        String lenderName = authServiceClient.getUserFirstName(lenderId);
+        notificationServiceClient.send(loan.getBorrowerId(), "Loan Funded",
+                lenderName + " agreed to fund your GHS " + loan.getAmount() + " loan at " + request.getInterestRate() +
+                "% interest. Review and sign the agreement.",
+                "LOAN_AGREEMENT_READY", loan.getId());
+
         return mapToLoanResponse(loan, "Loan funded. Agreement pending signatures.");
     }
 
@@ -298,10 +304,34 @@ public class LoanService {
 
         loanAgreementRepository.save(agreement);
 
+        String signerName = authServiceClient.getUserName(signerId);
+
         if (agreement.getBorrowerSigned() && agreement.getLenderSigned()) {
             loan.setStatus(Loan.LoanStatus.AGREEMENT_SIGNED);
             loan = loanRepository.save(loan);
+
+            // Both parties get a distinct "fully signed" notification rather
+            // than just the generic "X signed" one below -- this is the more
+            // actionable moment, especially for the lender who now needs to
+            // actually trigger disbursement.
+            notificationServiceClient.send(loan.getBorrowerId(), "Agreement Fully Signed",
+                    "Both parties have signed. Your lender can now disburse the GHS " + loan.getAmount() + " loan.",
+                    "LOAN_AGREEMENT_READY", loan.getId());
+            notificationServiceClient.send(loan.getLenderId(), "Agreement Fully Signed",
+                    "Both parties have signed the GHS " + loan.getAmount() + " loan agreement. You can now disburse the funds.",
+                    "LOAN_AGREEMENT_READY", loan.getId());
+
             return mapToLoanResponse(loan, "Both parties signed. Ready for disbursement.");
+        }
+
+        // Only one side has signed so far -- let the OTHER party know it's
+        // their turn, instead of leaving them to find out only by checking
+        // the loan manually.
+        Long otherPartyId = signerId.equals(loan.getBorrowerId()) ? loan.getLenderId() : loan.getBorrowerId();
+        if (otherPartyId != null) {
+            notificationServiceClient.send(otherPartyId, "Agreement Signed",
+                    signerName + " signed the agreement for a GHS " + loan.getAmount() + " loan. Your signature is needed to proceed.",
+                    "LOAN_AGREEMENT_READY", loan.getId());
         }
 
         return mapToLoanResponse(loan, "Agreement signed. Waiting for other party.");
@@ -362,6 +392,15 @@ public class LoanService {
                 "INCOME"
         );
 
+        // The Paystack-driven disbursement path (payment-service webhook)
+        // already notifies on success -- this manual/direct path skipped
+        // notifying entirely, so the borrower had no signal their loan had
+        // actually landed.
+        notificationServiceClient.send(loan.getBorrowerId(), "Loan Disbursed",
+                "GHS " + String.format("%.2f", amountAfterFee) + " has been disbursed to you (after GHS " +
+                String.format("%.2f", platformFee) + " platform fee). Your loan is now active.",
+                "LOAN_FUNDED", loan.getId());
+
         return mapToLoanResponse(loan, "Loan disbursed and active. Platform fee: GHS " + String.format("%.2f", platformFee) + ". Borrower receives: GHS " + String.format("%.2f", amountAfterFee));
     }
 
@@ -408,6 +447,14 @@ public class LoanService {
                     "Loan",
                     "INCOME"
             );
+            // Manual repayment path had no notification at all for a solo
+            // lender, unlike the group-funded path (distributeGroupRepayment
+            // already notifies each contributor) and the Paystack-driven
+            // repayment flow.
+            String borrowerFirstName = authServiceClient.getUserFirstName(loan.getBorrowerId());
+            notificationServiceClient.send(loan.getLenderId(), "Repayment Received",
+                    "You received GHS " + String.format("%.2f", repayAmount) + " from " + borrowerFirstName + "'s loan repayment.",
+                    "LOAN_REPAID", loan.getId());
         } else if (loan.getIsGroupFunded()) {
             // No single lenderId for a group-funded loan -- split the repayment
             // across each contributing lender proportionally to what they put in.
@@ -428,6 +475,9 @@ public class LoanService {
             }
 
             loan = loanRepository.save(loan);
+            notificationServiceClient.send(loan.getBorrowerId(), "Loan Fully Repaid",
+                    "You've fully repaid your GHS " + loan.getAmount() + " loan. Nice work.",
+                    "LOAN_REPAID", loan.getId());
             return mapToLoanResponse(loan, "Loan fully repaid.");
         }
 
@@ -528,6 +578,26 @@ public class LoanService {
         String borrowerName = authServiceClient.getUserName(borrowerId);
 
         loanAgreementRepository.findByLoan(loan).ifPresent(loanAgreementRepository::delete);
+
+        // A loan that was group-funded before this rejection can have
+        // LoanContribution rows pledging it fully or partially. Those rows
+        // are never money-in-motion (contribution just records a pledge --
+        // actual funds move only after signing, at disbursement), so it's
+        // safe to wipe them here. Without this, a rejected loan reopened as
+        // solo-eligible would still carry stale pledges that block former
+        // contributors from re-contributing ("You have already contributed
+        // to this loan") and would corrupt the funded/remaining math for a
+        // fresh group-funding round.
+        List<LoanContribution> staleContributions = loanContributionRepository.findByLoan(loan);
+        if (!staleContributions.isEmpty()) {
+            for (LoanContribution c : staleContributions) {
+                notificationServiceClient.send(c.getLenderId(), "Contribution Cancelled",
+                        borrowerName + " rejected the loan agreement, so your GHS " + c.getAmount() +
+                        " contribution has been cancelled. The loan request is open again.",
+                        "LOAN_AGREEMENT_READY", loan.getId());
+            }
+            loanContributionRepository.deleteAll(staleContributions);
+        }
 
         loan.setLenderId(null);
         loan.setInterestRate(0.0);
