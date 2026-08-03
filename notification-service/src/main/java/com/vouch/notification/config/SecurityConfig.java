@@ -1,5 +1,6 @@
 package com.vouch.notification.config;
 
+import com.vouch.notification.security.InternalApiKeyFilter;
 import com.vouch.notification.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -21,6 +22,7 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final InternalApiKeyFilter internalApiKeyFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -33,6 +35,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/notifications/health").permitAll()
                 .anyRequest().authenticated()
             )
+            // Internal-key check runs first -- it only acts on /api/internal/**
+            // (see InternalApiKeyFilter) and passes everything else straight
+            // through to the normal JWT filter, unchanged.
+            .addFilterBefore(internalApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
