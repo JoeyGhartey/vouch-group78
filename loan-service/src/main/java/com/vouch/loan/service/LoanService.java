@@ -534,6 +534,16 @@ public class LoanService {
         loan.setTotalRepaymentAmount(0.0);
         loan.setCounterOfferRate(null);
         loan.setStatus(Loan.LoanStatus.REQUESTED);
+        // Recompute isGroupFunded from scratch, the same way loan creation
+        // does -- otherwise a loan that was previously solo-funded (whether
+        // normally or via group-funding override, which now clears this flag
+        // to false) would stay permanently locked out of the group-funding
+        // recommendation even after the borrower explicitly rejects and asks
+        // for a fresh start. A rejected loan should look exactly like a
+        // freshly-requested one of the same amount.
+        Double borrowerTrustScoreForReset = authServiceClient.getUserTrustScore(loan.getBorrowerId());
+        loan.setIsGroupFunded(loan.getAmount() >= effectiveGroupFundingThreshold(
+                loan.getCircle().getGroupFundingThreshold(), borrowerTrustScoreForReset));
         loan = loanRepository.save(loan);
 
         if (rejectedLenderId != null) {
