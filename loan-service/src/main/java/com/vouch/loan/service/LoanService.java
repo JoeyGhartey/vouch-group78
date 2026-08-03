@@ -240,6 +240,18 @@ public class LoanService {
         double totalRepayment = loan.getAmount() * (1 + request.getInterestRate() / 100);
         loan.setTotalRepaymentAmount(Math.round(totalRepayment * 100.0) / 100.0);
 
+        // This path (solo fund, whether normal or an explicit override of the
+        // group-funding recommendation) always produces a genuine single-lender
+        // loan -- so isGroupFunded must be cleared here, not just left at
+        // whatever it was set to at loan-request time. Without this, a loan
+        // overridden into solo funding kept isGroupFunded=true forever, which
+        // made the frontend keep routing signing/repayment/etc. through the
+        // group-contribution code path (which requires a LoanContribution row
+        // that a solo fundLoan() call never creates) instead of the plain
+        // solo path -- surfacing as "You are not a party to this loan" when
+        // the actual, sole lender tried to sign.
+        loan.setIsGroupFunded(false);
+
         loan.setStatus(Loan.LoanStatus.AGREEMENT_PENDING);
         loan = loanRepository.save(loan);
 
