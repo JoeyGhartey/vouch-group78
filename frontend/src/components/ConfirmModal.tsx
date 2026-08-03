@@ -43,13 +43,23 @@ export const ConfirmModalHost: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [fadeAnim, scaleAnim]);
 
   const animateOut = useCallback((result: boolean) => {
-    resolveRef.current?.(result);
-    resolveRef.current = null;
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
       Animated.timing(scaleAnim, { toValue: 0.9, duration: 200, useNativeDriver: true }),
     ]).start(() => {
       setState(prev => ({ ...prev, visible: false }));
+      // Resolving here, only after this Modal's `visible` prop has actually
+      // flipped to false, is deliberate -- not just cleanup ordering. Callers
+      // routinely do `if (await confirm(...)) setShowSomeOtherModal(true)`
+      // right after this promise resolves. If we resolved BEFORE this modal
+      // is hidden (as this used to), that immediately-following modal could
+      // end up open at the same time as this one is still fading out --
+      // two native Modal windows visible at once, which on Android can mean
+      // the second one never actually renders/responds to touch. Resolving
+      // after `visible: false` guarantees this modal is fully gone before
+      // any modal a caller opens in response ever gets a chance to appear.
+      resolveRef.current?.(result);
+      resolveRef.current = null;
     });
   }, [fadeAnim, scaleAnim]);
 
