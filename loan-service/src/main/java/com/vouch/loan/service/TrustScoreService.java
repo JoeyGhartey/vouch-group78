@@ -14,6 +14,7 @@ public class TrustScoreService {
     private final CircleMemberRepository circleMemberRepository;
     private final LoanRepository loanRepository;
     private final AuthServiceClient authServiceClient;
+    private final NotificationServiceClient notificationServiceClient;
 
     public void updateScoreOnRepayment(Long borrowerId, Loan loan, boolean onTime) {
         double sizeWeight = Math.min(loan.getAmount() / 500.0, 2.0);
@@ -54,12 +55,25 @@ public class TrustScoreService {
                 - 10.0 * sizeWeight);
         authServiceClient.updateUserStats(borrowerId, newGlobalScore, repaidCount, defaultCount);
 
+        // None of this ever reached the borrower before -- a default, a
+        // suspension, or a permanent ban all happened silently server-side
+        // with zero visible signal in the app.
+        notificationServiceClient.send(borrowerId, "Loan Defaulted",
+                "Your GHS " + loan.getAmount() + " loan was marked as defaulted. This affects your trust score.",
+                "LOAN_DEFAULTED", loan.getId());
+
         // Enforce the consequences every loan agreement's terms actually promise:
         // 2nd default -> 30-day borrowing suspension, 3rd (or later) -> permanent ban.
         if (defaultCount == 2) {
             authServiceClient.applyDefaultConsequences(borrowerId, java.time.LocalDateTime.now().plusDays(30), false);
+            notificationServiceClient.send(borrowerId, "Account Suspended",
+                    "Following a second loan default, your borrowing privileges are suspended for 30 days.",
+                    "LOAN_DEFAULTED", loan.getId());
         } else if (defaultCount >= 3) {
             authServiceClient.applyDefaultConsequences(borrowerId, null, true);
+            notificationServiceClient.send(borrowerId, "Account Banned",
+                    "Following repeated loan defaults, your account has been permanently banned from borrowing.",
+                    "LOAN_DEFAULTED", loan.getId());
         }
     }
 

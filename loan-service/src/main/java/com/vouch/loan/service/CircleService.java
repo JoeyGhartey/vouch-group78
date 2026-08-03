@@ -263,6 +263,12 @@ public class CircleService {
         }
         member.setStatus(CircleMember.MemberStatus.REMOVED);
         circleMemberRepository.save(member);
+
+        String leaverName = authServiceClient.getUserName(userId);
+        notificationServiceClient.send(circle.getCreatorId(), "Member Left",
+                leaverName + " left \"" + circle.getName() + "\".",
+                "CIRCLE_MEMBER_REMOVED", circle.getId());
+
         return "You have left the circle";
     }
 

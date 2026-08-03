@@ -84,6 +84,22 @@ public class GroupFundingService {
                 String.format("%.0f%%", (newTotal / loan.getAmount()) * 100) + " funded.",
                 "LOAN_FUNDED", loan.getId());
 
+        // Existing contributors only ever heard about the borrower's loan
+        // getting funded, never that a new co-lender had joined -- fixed
+        // here, but skipped when this contribution itself fully funds the
+        // loan, since finalizeGroupFunding below already notifies every
+        // contributor (including these same people) about that.
+        if (newTotal < loan.getAmount()) {
+            for (LoanContribution existing : loanContributionRepository.findByLoan(loan)) {
+                if (!existing.getLenderId().equals(lenderId)) {
+                    notificationServiceClient.send(existing.getLenderId(), "New Co-Lender Joined",
+                            lenderName + " also contributed GHS " + amount + " to the loan you're funding. " +
+                            String.format("%.0f%%", (newTotal / loan.getAmount()) * 100) + " funded.",
+                            "LOAN_FUNDED", loan.getId());
+                }
+            }
+        }
+
         if (newTotal >= loan.getAmount()) {
             finalizeGroupFunding(loan);
             response.put("message", "Loan fully funded! Agreement pending signatures from all parties.");

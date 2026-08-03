@@ -223,6 +223,14 @@ public class SharedExpenseService {
             log.warn("Failed to log personal transactions for split {}: {}", splitId, e.getMessage());
         }
 
+        // settleExpenseSplit (the payer unilaterally marking a split settled)
+        // already notifies the participant -- this sibling flow (participant
+        // requests confirmation, payer confirms) skipped the same courtesy
+        // notification entirely.
+        notificationServiceClient.send(split.getUserId(), "Payment Confirmed",
+                "Your payment of GHS " + split.getAmountOwed() + " for \"" + expense.getDescription() + "\" was confirmed.",
+                "SHARED_EXPENSE_SETTLED", expense.getId());
+
         return "Payment confirmed. Split settled.";
     }
 
@@ -231,7 +239,22 @@ public class SharedExpenseService {
         Long userId = authServiceClient.getUserIdByPhone(phone);
         SharedExpense expense = sharedExpenseRepository.findById(expenseId).orElseThrow(() -> new RuntimeException("Expense not found"));
         if (!userId.equals(expense.getPaidById())) throw new RuntimeException("Only the person who created this expense can delete it");
+
+        // Participants previously had no idea a shared expense they owed
+        // money on (or had a split against) just vanished -- fetch splits
+        // before the cascade delete removes them.
+        List<ExpenseSplit> splits = expenseSplitRepository.findBySharedExpense(expense);
+        String payerName = authServiceClient.getUserName(userId);
+
         sharedExpenseRepository.delete(expense);
+
+        for (ExpenseSplit split : splits) {
+            notificationServiceClient.send(split.getUserId(), "Shared Expense Deleted",
+                    payerName + " deleted the shared expense \"" + expense.getDescription() + "\". Your GHS " +
+                    split.getAmountOwed() + " split no longer applies.",
+                    "SHARED_EXPENSE_SETTLED", expense.getId());
+        }
+
         return "Shared expense deleted";
     }
 }
