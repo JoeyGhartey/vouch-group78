@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput, Modal,
-  KeyboardAvoidingView, Platform, Dimensions, TouchableWithoutFeedback,
+  KeyboardAvoidingView, Platform, Dimensions, Pressable,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -918,12 +918,11 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
       {/* Resolve Dispute Modal */}
       <Modal visible={showResolve} animationType="slide" transparent onRequestClose={() => setShowResolve(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <TouchableWithoutFeedback onPress={() => setShowResolve(false)}>
-            <View style={styles.modalBg}>
-              <ScrollView style={{ width: '100%' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }} keyboardShouldPersistTaps="handled">
-                <TouchableWithoutFeedback onPress={() => {}}>
-                  <View style={styles.modal}>
-                    <Text style={styles.modalTitle}>Resolve Dispute</Text>
+          <View style={styles.modalBg}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowResolve(false)} />
+            <ScrollView style={{ width: '100%' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }} keyboardShouldPersistTaps="handled">
+              <View style={styles.modal}>
+                <Text style={styles.modalTitle}>Resolve Dispute</Text>
                     {selectedDispute && (
                       <Text style={styles.modalSub}>
                         GHS {formatMoney(selectedDispute.loanAmount)} · {selectedDispute.borrowerName} vs {selectedDispute.lenderName}
@@ -978,20 +977,17 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                       <Text style={styles.cancelBtnText}>Cancel</Text>
                     </TouchableOpacity>
                   </View>
-                </TouchableWithoutFeedback>
               </ScrollView>
-            </View>
-          </TouchableWithoutFeedback>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 
       {/* Invite Modal */}
       <Modal visible={showInvite} animationType="slide" transparent onRequestClose={() => setShowInvite(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <TouchableWithoutFeedback onPress={() => setShowInvite(false)}>
-            <View style={styles.modalBg}>
-              <TouchableWithoutFeedback onPress={() => {}}>
-                <View style={styles.modal}>
+          <View style={styles.modalBg}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowInvite(false)} />
+            <View style={styles.modal}>
                   <Text style={styles.modalTitle}>Invite to {circle.name}</Text>
                   <Text style={styles.label}>Phone Number or Email</Text>
                   <TextInput
@@ -1011,18 +1007,15 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                     <Text style={styles.cancelBtnText}>Cancel</Text>
                   </TouchableOpacity>
                 </View>
-              </TouchableWithoutFeedback>
-            </View>
-          </TouchableWithoutFeedback>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 
       {/* Member Detail Modal */}
       <Modal visible={selectedMember !== null} animationType="slide" transparent onRequestClose={() => setSelectedMember(null)}>
-        <TouchableWithoutFeedback onPress={() => setSelectedMember(null)}>
-          <View style={styles.modalBg}>
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={styles.memberModal}>
+        <View style={styles.modalBg}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelectedMember(null)} />
+          <View style={styles.memberModal}>
                 <View style={styles.memberModalHandle} />
                 {selectedMember && (
                   <>
@@ -1091,9 +1084,7 @@ export default function CircleDetailScreen({ route, navigation }: Props) {
                   </>
                 )}
               </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
     </View>
   );

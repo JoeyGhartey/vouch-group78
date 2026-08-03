@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl, TextInput, Modal,
-  KeyboardAvoidingView, Platform, TouchableWithoutFeedback,
+  KeyboardAvoidingView, Platform, Pressable,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -199,15 +199,17 @@ export default function AdminScreen({ navigation }: Props) {
         <View style={{ height: 40 }} />
       </ScrollView>
 
+      {/* No wrapping Touchable around the ScrollView/card below -- see
+          LoanDetailScreen.tsx's Terms modal comment for why. Absolutely-
+          positioned backdrop instead, as a sibling rather than an ancestor. */}
       <Modal visible={showResolve} animationType="slide" transparent onRequestClose={() => setShowResolve(false)}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <TouchableWithoutFeedback onPress={() => setShowResolve(false)}>
           <View style={styles.modalBg}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowResolve(false)} />
             <ScrollView style={{ width: '100%' }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }} keyboardShouldPersistTaps="handled">
-              <TouchableWithoutFeedback onPress={() => {}}>
               <View style={styles.modal}>
                 <Text style={styles.modalTitle}>Resolve Dispute</Text>
                 {selectedDispute && (
@@ -264,10 +266,8 @@ export default function AdminScreen({ navigation }: Props) {
                   <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
               </View>
-              </TouchableWithoutFeedback>
             </ScrollView>
           </View>
-          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
     </View>

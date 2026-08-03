@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl, Modal, TextInput,
-  KeyboardAvoidingView, Platform, ScrollView, TouchableWithoutFeedback,
+  KeyboardAvoidingView, Platform, ScrollView, Pressable,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -237,6 +237,12 @@ export default function LoansScreen({ navigation }: Props) {
       setCircles(data as Circle[]);
     } catch (error) {
       setCircles([]);
+      // Inline, not showAlert -- the Request modal is already open, and a
+      // global alert Modal stacked on top of an open Modal doesn't reliably
+      // render/respond on Android (the same stacked-modal bug fixed elsewhere
+      // this session). Surfacing it in the circle-selection error slot the
+      // modal already has keeps the failure visible without that risk.
+      setCircleError((error as Error).message || 'Could not load your circles. Pull to retry or reopen this form.');
     } finally {
       setCirclesLoading(false);
     }
@@ -431,11 +437,12 @@ export default function LoansScreen({ navigation }: Props) {
         />
       )}
 
+      {/* No wrapping Touchable around the card -- see LoanDetailScreen.tsx's
+          Terms modal comment for why. Absolutely-positioned backdrop instead. */}
       <Modal visible={showRequestModal} animationType="slide" transparent onRequestClose={() => setShowRequestModal(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <TouchableWithoutFeedback onPress={() => setShowRequestModal(false)}>
           <View style={styles.modalBg}>
-            <TouchableWithoutFeedback onPress={() => {}}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowRequestModal(false)} />
             <View style={styles.modal}>
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 <Text style={styles.modalTitle}>Request a Loan</Text>
@@ -543,9 +550,7 @@ export default function LoansScreen({ navigation }: Props) {
                 </TouchableOpacity>
               </ScrollView>
             </View>
-            </TouchableWithoutFeedback>
           </View>
-          </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
     </View>
