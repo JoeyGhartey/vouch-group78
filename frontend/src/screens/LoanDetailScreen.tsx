@@ -1188,9 +1188,14 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
       </Modal>
 
       {/* Repay Modal -- same fix as Fund/Terms/Contribute/Counter-Offer modals */}
-      <Modal visible={showRepay} animationType="slide" transparent onRequestClose={() => setShowRepay(false)}>
+      <Modal
+        visible={showRepay}
+        animationType="slide"
+        transparent
+        onRequestClose={() => { confirmingRef.current = false; setShowRepay(false); }}
+      >
         <View style={styles.modalBg}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowRepay(false)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => { confirmingRef.current = false; setShowRepay(false); }} />
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Repay Loan</Text>
             <Text style={styles.modalSub}>Outstanding: GHS {formatMoney(totalOwed)}</Text>
@@ -1200,13 +1205,23 @@ export default function LoanDetailScreen({ route, navigation }: Props) {
               placeholder={totalOwed.toFixed(2)}
               placeholderTextColor={colors.muted}
               value={repayAmount}
-              onChangeText={setRepayAmount}
+              onChangeText={(t) => {
+                // This modal stays open across the whole Paystack browser
+                // flow (it's never closed/reopened when the user cancels a
+                // payment) -- so the reset on the outer "Repay via Paystack"
+                // button alone never fires for the "cancel Paystack, edit
+                // the amount, try again without leaving this popup" path.
+                // Typing a new amount is the clearest signal the user wants
+                // a fresh attempt, so unlock the submission guard right here.
+                confirmingRef.current = false;
+                setRepayAmount(t);
+              }}
               keyboardType="numeric"
             />
             <TouchableOpacity style={styles.primaryBtn} onPress={handleRepay} disabled={acting}>
               {acting ? <ActivityIndicator color={colors.buttonDarkText} /> : <Text style={styles.btnText}>Confirm Repayment</Text>}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowRepay(false)}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => { confirmingRef.current = false; setShowRepay(false); }}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
