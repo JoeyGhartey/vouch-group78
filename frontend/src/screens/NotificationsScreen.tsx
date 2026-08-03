@@ -98,7 +98,7 @@ export default function NotificationsScreen({ navigation }: Props) {
       await markNotificationRead(id);
       setNotifications(notifications.map((n) => n.id === id ? { ...n, read: true } : n));
     } catch (error) {
-      console.error('Error marking notification:', error);
+      showAlert('error', 'Error', (error as Error).message);
     }
   };
 
@@ -108,7 +108,7 @@ export default function NotificationsScreen({ navigation }: Props) {
       setNotifications(notifications.map((n) => ({ ...n, read: true })));
       markFresh();
     } catch (error) {
-      console.error('Error marking all:', error);
+      showAlert('error', 'Error', (error as Error).message);
     }
   };
 
