@@ -3,6 +3,7 @@ package com.vouch.payment.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -18,6 +19,11 @@ public class NotificationServiceClient {
     @Value("${services.notification-service.url}")
     private String notificationServiceUrl;
 
+    // @Async -- same fix as loan-service's copy of this class: don't block the
+    // caller's HTTP response (here, the Paystack webhook handler) on this
+    // 3-hop chain finishing. Failure is already caught and logged below, not
+    // thrown, so this only changes timing.
+    @Async
     public void send(Long userId, String title, String message, String type, Long referenceId) {
         try {
             Map<String, Object> request = Map.of(

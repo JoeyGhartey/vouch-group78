@@ -170,14 +170,29 @@ public class AuthService {
 
         // Best-effort only -- the account already exists at this point, so a
         // welcome-email hiccup must never fail the registration itself.
-        try {
-            sendEmail(user.getEmail(), "Welcome to Vouch", "You're all set, " + user.getFirstName() + "!",
-                    "Your Vouch account has been created successfully. You can now lend, borrow, and split expenses with the people you trust. " +
-                    "If you didn't create this account, please contact support immediately.",
-                    null);
-        } catch (Exception e) {
-            log.warn("Welcome email failed for {}, account was still created: {}", user.getEmail(), e.getMessage());
-        }
+        //
+        // Dispatched via CompletableFuture.runAsync instead of the @Async
+        // pattern used elsewhere: sendEmail() is a private method called from
+        // within this same class, so Spring's @Async proxy wouldn't intercept
+        // it (self-invocation isn't proxied), and sendEmail() is also used by
+        // three OTP-carrying flows (initiateRegistration, resendRegistrationOtp,
+        // forgotPassword) that deliberately re-throw on failure since the
+        // email IS the delivery mechanism for the code -- those must stay
+        // synchronous. This wraps only this one best-effort call site, so
+        // verifyRegistration's response no longer waits on Brevo before
+        // returning the new user their token.
+        String welcomeEmail = user.getEmail();
+        String welcomeFirstName = user.getFirstName();
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                sendEmail(welcomeEmail, "Welcome to Vouch", "You're all set, " + welcomeFirstName + "!",
+                        "Your Vouch account has been created successfully. You can now lend, borrow, and split expenses with the people you trust. " +
+                        "If you didn't create this account, please contact support immediately.",
+                        null);
+            } catch (Exception e) {
+                log.warn("Welcome email failed for {}, account was still created: {}", welcomeEmail, e.getMessage());
+            }
+        });
 
         String token = jwtUtil.generateToken(user.getPhone());
 
