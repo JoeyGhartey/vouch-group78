@@ -3,6 +3,7 @@ package com.vouch.loan.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -18,6 +19,16 @@ public class NotificationServiceClient {
     @Value("${services.notification-service.url}")
     private String notificationServiceUrl;
 
+    // @Async so the caller (signAgreement, fundLoan, rejectAgreement, etc.)
+    // doesn't block its own HTTP response on this call finishing. This chains
+    // three network hops -- loan-service to notification-service, which then
+    // calls auth-service for the push token, then calls out to Expo's push
+    // API -- so waiting on it synchronously was adding multiple seconds to
+    // every action that notifies someone. Errors are already caught and
+    // logged below rather than thrown, so running this off-thread doesn't
+    // change failure behavior, only timing: the notification now lands a
+    // moment after the action's own response, instead of before it.
+    @Async
     public void send(Long userId, String title, String message, String type, Long referenceId) {
         try {
             Map<String, Object> request = Map.of(
@@ -40,6 +51,7 @@ public class NotificationServiceClient {
     // it stays in the user's history but reads as "You accepted/declined..."
     // and no longer shows Accept/Reject buttons. Best-effort: a failure here
     // shouldn't block the actual accept/reject/approve action.
+    @Async
     public void updateCircleInviteNotification(Long userId, Long circleId, String title, String message, String type) {
         try {
             Map<String, Object> request = Map.of(
